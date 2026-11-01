@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://mantravoicetotext.pages.dev/sitemap.xml
