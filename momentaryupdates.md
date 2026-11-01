@@ -74,3 +74,9 @@ Marko chose **both** apps (Transcribe Voice to Text RT and Voice to Text (Mantra
 (dictated twice; "B and T" and "plays ... great" are the dictation of "V and T" and "pastes ... gray")
 
 - "VT" in the menu bar: grey at rest, red while a take records, yellow while it is written down / corrected, grey again when it is pasted. **Status:** done 1.11.2026, v5 installed (mac/Sources/MenuBar.swift; all four states seen in screenshots of the menu bar); a click gives Show the blob, Settings, History, Quit; not published
+
+## 1.11.2026: a red stopwatch while recording
+
+> Please update voice to text. While I am recording my voice for transcription, this VT icon on the bar should become a stopwatch, red stopwatch, which is counting minutes of my talking.
+
+- While a take records, VT in the menu bar becomes a red stopwatch with the time (m:ss) of the take; paused: the same in grey, standing still; after: VT again. **Status:** in progress
