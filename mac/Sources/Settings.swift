@@ -70,7 +70,7 @@ final class SettingsWindow: NSObject, NSTextViewDelegate {
         modelBar.isIndeterminate = false; modelBar.minValue = 0; modelBar.maxValue = 1; modelBar.style = .bar
         modelBar.widthAnchor.constraint(equalToConstant: 220).isActive = true
         modelLabel.textColor = .secondaryLabelColor
-        showModel()
+        showModel(); followModel()
         importResult.textColor = .secondaryLabelColor
         importResult.maximumNumberOfLines = 4
         importResult.lineBreakMode = .byWordWrapping
@@ -384,24 +384,39 @@ final class SettingsWindow: NSObject, NSTextViewDelegate {
     }
 
     func showModel() {
-        if Model.downloading { modelButton.title = "Cancel"; modelBar.isHidden = false; return }
-        modelBar.isHidden = true
-        modelButton.title = Model.ready ? "Downloaded" : "Download the model"
+        let mb = Model.partSize / 1_000_000
+        if Model.downloading {
+            modelButton.title = "Pause"; modelButton.isEnabled = true; modelBar.isHidden = false
+            modelBar.doubleValue = Double(Model.partSize) / Double(Model.bytes)
+            return
+        }
+        modelBar.isHidden = !Model.started || Model.ready
+        modelBar.doubleValue = Double(Model.partSize) / Double(Model.bytes)
+        modelButton.title = Model.ready ? "Downloaded" : Model.started ? "Continue the download" : "Download the model"
         modelButton.isEnabled = !Model.ready
-        modelLabel.stringValue = Model.ready ? "ready, works offline" : "needed before the first take"
+        modelLabel.stringValue = Model.ready ? "ready, works offline" : Model.started ? "\(mb) of 574 MB, goes on from there" : "needed before the first take"
+    }
+
+    /// the download's news reaches ⚙ whoever started it (the button, or the app itself at launch)
+    func followModel() {
+        Model.onProgress = { [weak self] f in
+            guard let self else { return }
+            self.modelBar.isHidden = false; self.modelBar.doubleValue = f
+            self.modelButton.title = "Pause"
+            self.modelLabel.stringValue = String(format: "%.0f %% of 574 MB", f * 100)
+        }
+        Model.onWait = { [weak self] w in self?.modelLabel.stringValue = w }
+        Model.onDone = { [weak self] problem in
+            self?.showModel()
+            if let problem { self?.modelLabel.stringValue = problem } else { Whisper.warm() }
+            self?.onChange()
+        }
     }
 
     @objc func modelPressed() {
-        if Model.downloading { Model.cancel(); return }
-        modelBar.doubleValue = 0
-        Model.download(progress: { [weak self] f in
-            self?.modelBar.doubleValue = f
-            self?.modelLabel.stringValue = String(format: "%.0f %% of 547 MB", f * 100)
-        }, done: { [weak self] problem in
-            self?.showModel()
-            if let problem { self?.modelLabel.stringValue = "not downloaded: " + problem } else { Whisper.warm() }
-            self?.onChange()
-        })
+        if Model.downloading { Model.cancel(); showModel(); return }
+        followModel()
+        Model.download()
         showModel()
     }
 

@@ -17,33 +17,98 @@ enum Model {
         return size >= bytes
     }
 
-    // the download in ⚙: progress 0…1, then the result (nil = done)
-    private static var task: URLSessionDownloadTask?
-    private static var watch: NSKeyValueObservation?
-    static var downloading: Bool { task != nil }
+    // THE DOWNLOAD ALWAYS RESUMES (Marko, 1.11.2026: "always resume downloads. Even if the user closes the application
+    // and you open, it will continue where it left off"). The bytes go into <name>.part; every start asks only for what
+    // is missing (HTTP Range), a dropped connection retries by itself from the bytes already there, and the app continues
+    // a .part on its own at the next launch. A server answering 200 instead of 206 starts the file over.
+    static var part: URL { folder.appendingPathComponent(name + ".part") }
+    static var partSize: Int64 { (try? FileManager.default.attributesOfItem(atPath: part.path)[.size] as? Int64) ?? 0 }
+    static var started: Bool { FileManager.default.fileExists(atPath: part.path) }
+    private static var loader: Loader?
+    static var downloading: Bool { loader != nil }
+    static var onProgress: ((Double) -> Void)?
+    static var onDone: ((String?) -> Void)?
+    static var onWait: ((String) -> Void)?
 
-    static func download(progress: @escaping (Double) -> Void, done: @escaping (String?) -> Void) {
-        guard task == nil else { return }
-        let t = URLSession.shared.downloadTask(with: url) { tmp, resp, err in
-            var problem: String?
-            if let err { problem = err.localizedDescription }
-            else if let tmp {
-                let size = (try? FileManager.default.attributesOfItem(atPath: tmp.path)[.size] as? Int64) ?? 0
-                if size < bytes { problem = "the download was cut short (\(size / 1_000_000) MB)" }
-                else {
-                    try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-                    try? FileManager.default.removeItem(at: file)
-                    do { try FileManager.default.moveItem(at: tmp, to: file) } catch { problem = error.localizedDescription }
-                }
-            }
-            DispatchQueue.main.async { task = nil; watch = nil; done(problem) }
-        }
-        watch = t.progress.observe(\.fractionCompleted) { p, _ in DispatchQueue.main.async { progress(p.fractionCompleted) } }
-        task = t
-        t.resume()
+    static func download(progress: ((Double) -> Void)? = nil, done: ((String?) -> Void)? = nil) {
+        if let progress { onProgress = progress }
+        if let done { onDone = done }
+        guard loader == nil, !ready else { return }
+        try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        if !started { FileManager.default.createFile(atPath: part.path, contents: nil) }
+        let l = Loader()
+        loader = l
+        l.start()
     }
 
-    static func cancel() { task?.cancel() }
+    /// pressed Cancel: stops now, keeps the .part (the next press or start goes on from it)
+    static func cancel() { loader?.stop(); loader = nil; onDone?("paused: press Download to go on") }
+
+    fileprivate static func finished(_ problem: String?) {
+        loader = nil
+        if problem == nil {
+            try? FileManager.default.removeItem(at: file)
+            do { try FileManager.default.moveItem(at: part, to: file) } catch { onDone?(error.localizedDescription); return }
+            appendLog("model: downloaded")
+        }
+        onDone?(problem)
+    }
+
+    final class Loader: NSObject, URLSessionDataDelegate {
+        private var session: URLSession?
+        private var out: FileHandle?
+        private var have: Int64 = 0
+        private var tries = 0
+        private var stopped = false
+
+        func start() {
+            guard !stopped else { return }
+            have = Model.partSize
+            appendLog("model: download from byte \(have) of \(Model.bytes)")
+            var req = URLRequest(url: Model.url)
+            if have > 0 { req.setValue("bytes=\(have)-", forHTTPHeaderField: "Range") }
+            req.timeoutInterval = 60
+            session = URLSession(configuration: .default, delegate: self, delegateQueue: nil)
+            session?.dataTask(with: req).resume()
+        }
+
+        func stop() { stopped = true; session?.invalidateAndCancel(); try? out?.close(); out = nil }
+
+        func urlSession(_ s: URLSession, dataTask: URLSessionDataTask, didReceive resp: URLResponse,
+                        completionHandler: @escaping (URLSession.ResponseDisposition) -> Void) {
+            let code = (resp as? HTTPURLResponse)?.statusCode ?? 0
+            guard code == 200 || code == 206 else { completionHandler(.cancel); return }
+            if code == 200 && have > 0 {                       // the server ignored the range: from the start
+                try? FileManager.default.removeItem(at: Model.part)
+                FileManager.default.createFile(atPath: Model.part.path, contents: nil)
+                have = 0
+            }
+            out = try? FileHandle(forWritingTo: Model.part)
+            _ = try? out?.seekToEnd()
+            completionHandler(out == nil ? .cancel : .allow)
+        }
+
+        func urlSession(_ s: URLSession, dataTask: URLSessionDataTask, didReceive data: Data) {
+            out?.write(data)
+            have += Int64(data.count)
+            tries = 0                                           // bytes arrived: the next drop starts a fresh count
+            let f = Double(have) / Double(Model.bytes)
+            DispatchQueue.main.async { Model.onProgress?(f) }
+        }
+
+        func urlSession(_ s: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
+            try? out?.close(); out = nil
+            s.finishTasksAndInvalidate()
+            if stopped { return }
+            if Model.partSize >= Model.bytes { DispatchQueue.main.async { Model.finished(nil) }; return }
+            // cut short or an error: wait a little and go on from the bytes already there, as long as it takes
+            tries += 1
+            let wait = min(60.0, pow(2.0, Double(min(tries, 6))))
+            appendLog("model: stopped at \(Model.partSize) (\(error?.localizedDescription ?? "cut short")), again in \(Int(wait)) s")
+            DispatchQueue.main.async { Model.onWait?("connection lost, going on in \(Int(wait)) s…") }
+            DispatchQueue.global().asyncAfter(deadline: .now() + wait) { [weak self] in self?.start() }
+        }
+    }
 }
 
 /// One Whisper, loaded once and kept (the load is seconds, a take is under one). Takes run one at a time.

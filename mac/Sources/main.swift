@@ -189,6 +189,8 @@ final class Stripe: NSObject {
         refresh()
         ready()
         Whisper.warm()                                      // the model loaded once, before the first take
+        // a download left half done (the app was quit, the Mac slept) goes on by itself (Marko, 1.11.2026)
+        if !Model.ready && Model.started && !CommandLine.arguments.contains("--take") { Model.download() }
         if !Model.ready && !CommandLine.arguments.contains("--take") {   // the first start: ⚙ with the download button
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in self?.openSettingsTab() }
         }
@@ -986,6 +988,16 @@ if let i = CommandLine.arguments.firstIndex(of: "--test-voice-live"), i + 1 < Co
     meterPanel?.orderOut(nil)
     v.stop()
     exit(0)
+}
+
+// --download-model: only the model download (resumes from a .part), no window; ends when it is complete or failed
+if CommandLine.arguments.contains("--download-model") {
+    Model.onProgress = { f in FileHandle.standardError.write(String(format: "\r%.2f %%", f * 100).data(using: .utf8)!) }
+    Model.onWait = { w in FileHandle.standardError.write(("\n" + w + "\n").data(using: .utf8)!) }
+    Model.onDone = { p in print(p == nil ? "\ncomplete: \(Model.file.path)" : "\nproblem: \(p!)"); exit(p == nil ? 0 : 1) }
+    print("from byte \(Model.partSize)")
+    Model.download()
+    RunLoop.main.run()
 }
 
 // --settings-shot <png>: ⚙'s Settings page drawn off screen (never on his screen), to see nothing is cut
