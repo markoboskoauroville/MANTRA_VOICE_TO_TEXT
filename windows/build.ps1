@@ -9,6 +9,8 @@ $env:DOTNET_CLI_TELEMETRY_OPTOUT = '1'
 $env:DOTNET_NOLOGO = '1'
 if (-not $env:NUGET_PACKAGES -and (Test-Path "$here\build\nuget")) { $env:NUGET_PACKAGES = "$here\build\nuget" }
 Get-Process VoiceToTextMantra, MantraVoiceToText -ErrorAction SilentlyContinue | Stop-Process -Force
+$ver = ([regex]::Match((Get-Content "$here\src\*.csproj" -Raw), '<InformationalVersion>(\d+)')).Groups[1].Value
+if (-not $ver) { throw 'no InformationalVersion in the csproj' }
 $work = 'C:\mvt'
 New-Item -ItemType Directory -Force "$work\src" | Out-Null
 robocopy "$here\src" "$work\src" /MIR /XD bin obj /NFL /NDL /NJH /NJS /NP | Out-Null
@@ -22,7 +24,7 @@ if ($Publish) {
     if (Test-Path $out) { Remove-Item -Recurse -Force $out }
     & $dotnet publish -c Release -r $rid -p:PublishSingleFile=true -o $out -nologo -v q
     if ($LASTEXITCODE -ne 0) { Pop-Location; throw "publish $rid failed" }
-    $zip = "$here\dist\VoiceToTextMantra-v2-$rid.zip"
+    $zip = "$here\dist\VoiceToTextMantra-v$ver-$rid.zip"
     if (Test-Path $zip) { Remove-Item $zip }
     Compress-Archive -Path "$out\*" -DestinationPath $zip
     Write-Output "zip: $zip $([math]::Round((Get-Item $zip).Length/1MB,1)) MB"

@@ -51,11 +51,12 @@ The .NET 8 SDK (8.0.427) on Windows. In the Parallels VM it is in `C:\dotnet`; t
 
 ```
 powershell -ExecutionPolicy Bypass -File windows\build.ps1             # build only
-powershell -ExecutionPolicy Bypass -File windows\build.ps1 -Publish    # + dist\VoiceToTextMantra-v2-win-x64.zip, -win-arm64.zip
+powershell -ExecutionPolicy Bypass -File windows\build.ps1 -Publish    # + dist\VoiceToTextMantra-vN-win-x64.zip, -win-arm64.zip (N from the csproj's InformationalVersion)
 ```
 
 From the Mac: `prlctl exec "Windows 11" --current-user powershell -ExecutionPolicy Bypass -File 'Y:\Developer\MANTRA_VOICE_TO_TEXT\windows\build.ps1' -Publish`
-(Y: is the Mac home shared by Parallels). The NuGet cache is `windows\build\nuget` (gitignored), so nothing is
+(Y: is the Mac home shared by Parallels). `tools/publish.sh` (the release step) runs this by itself when windows/dist lacks
+the zips of the current version. The NuGet cache is `windows\build\nuget` (gitignored), so nothing is
 downloaded twice.
 
 Packages: Whisper.net 1.9.1 + Whisper.net.Runtime 1.9.1 + Whisper.net.Runtime.NoAvx 1.9.1 (whisper.cpp, CPU; NoAvx for

@@ -54,3 +54,17 @@
 - **The model download resumes from the .part** (Marko, 1.11.2026: "always resume downloads"): proven by killing the
   app twice during a download; each new start logged "starting at <the .part's size> bytes (Range: bytes=…-)" and the
   bytes matched the real model. Test it with a few MB only (SIM data) and put the real file back (`tools/dltest.ps1`).
+
+## Downloads (1.11.2026)
+
+- **Cloudflare Pages answers HEAD on a zip without Content-Length** (`curl -sIL` gave 200 and no length), so a size check
+  by HEAD always failed for the page-hosted Mac zip; publish.sh fetches small files whole and compares the sha256, and
+  uses HEAD only for the GitHub assets, which do send the length.
+- **The SEO kit writes the old downloadUrl until it runs**: a "no versioned address left" guard placed before
+  seo_app_page.py tripped on the previous deploy's JSON-LD. The guard goes after the SEO step.
+- **`gh release upload file#label` sets only the label, not the asset name**: a fixed asset name needs the file itself
+  copied to that name (publish.sh does it in a temporary folder).
+- **Cloudflare `_redirects` accepts a splat mid-name** (`/VoiceToTextMantra-* /download/VoiceToText-mac.zip 301`) and
+  redirects only paths with no file behind them, so deploy.sh removes the old versioned zips from site/public.
+- **`set -o pipefail` + an empty grep inside `$( )`** ends a script silently: the first live check stopped without a word;
+  `|| true` on the parsing lines.

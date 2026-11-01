@@ -1,0 +1,6 @@
+# Old versioned Mac addresses go to the fixed one (MANTRA_MANIFEST modules/download-always-latest.md)
+/VoiceToTextMantra-v1-mac.zip /download/VoiceToText-mac.zip 301
+/VoiceToTextMantra-v2-mac.zip /download/VoiceToText-mac.zip 301
+/MantraVoiceToText-v1-mac.zip /download/VoiceToText-mac.zip 301
+/VoiceToTextMantra-* /download/VoiceToText-mac.zip 301
+/MantraVoiceToText-* /download/VoiceToText-mac.zip 301

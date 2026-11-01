@@ -1,8 +1,9 @@
 # Voice to Text (Mantra) for Mac
 
 ```
-./build.sh             # build + sign "Mantra Apps" + dist/VoiceToTextMantra-vN-mac.zip
-./build.sh --install   # also into /Applications
+./build.sh               # build + sign "Mantra Apps" + dist/VoiceToTextMantra-vN-mac.zip, then ../tools/publish.sh
+./build.sh --no-publish  # build and zip only
+./build.sh --install     # also into /Applications
 ```
 
 Swift (the blob of MARKO_TRANSCRIBE, v29) with whisper.cpp linked in statically, Metal shaders embedded. Apple Silicon,

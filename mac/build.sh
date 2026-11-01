@@ -1,10 +1,13 @@
 #!/bin/bash
 # Builds Voice to Text (Mantra).app: Swift + whisper.cpp (Metal, embedded), signed "Mantra Apps", zipped as dist/VoiceToTextMantra-vN-mac.zip.
-#   ./build.sh            build and zip (never installs over anything)
-#   ./build.sh --install  also copy into /Applications
+#   ./build.sh               build, zip and publish (tools/publish.sh: release, page, live check; MANTRA_MANIFEST download-always-latest)
+#   ./build.sh --no-publish  build and zip only
+#   ./build.sh --install     also copy into /Applications (never installs over anything otherwise)
 # WHISPER: a whisper.cpp checkout built as static libraries (see README), default ~/Developer/VOICE_ENGINES/src/whisper.cpp
 set -euo pipefail
 cd "$(dirname "$0")"
+INSTALL=0; PUBLISH=1
+for a in "$@"; do case "$a" in --install) INSTALL=1;; --no-publish) PUBLISH=0;; *) echo "unknown option $a"; exit 1;; esac; done
 W="${WHISPER:-$HOME/Developer/VOICE_ENGINES/src/whisper.cpp}"
 B="$W/build-static"
 if [ ! -f "$B/src/libwhisper.a" ]; then
@@ -32,4 +35,5 @@ codesign --verify --deep "$APP"
 rm -f "dist/VoiceToTextMantra-v$V-mac.zip"
 ditto -c -k --keepParent "$APP" "dist/VoiceToTextMantra-v$V-mac.zip"
 echo "built v$V: $APP and dist/VoiceToTextMantra-v$V-mac.zip ($(du -h "dist/VoiceToTextMantra-v$V-mac.zip" | cut -f1))"
-if [ "${1:-}" = "--install" ]; then rm -rf "/Applications/$NAME.app"; cp -R "$APP" /Applications/; echo "installed /Applications/$NAME.app"; fi
+if [ $INSTALL = 1 ]; then rm -rf "/Applications/$NAME.app"; cp -R "$APP" /Applications/; echo "installed /Applications/$NAME.app"; fi
+if [ $PUBLISH = 1 ]; then ../tools/publish.sh; else echo "not published (--no-publish)"; fi

@@ -87,3 +87,28 @@ Mac: `Voice to Text (Mantra).app`, data ~/Library/Application Support/Voice to T
 log ~/Library/Logs/voice-to-text-mantra.log, bundle id unchanged (com.mantra.voicetotext). Release v2 holds
 VoiceToTextMantra-v2-mac.zip, -win-x64.zip, -win-arm64.zip; the site serves the Mac zip itself and links the Windows ones.
 Proven: Mac Croatian take after the folder move (model not downloaded again); Windows arm64 English take after its move.
+
+## Downloads always the newest (1.11.2026)
+
+MANTRA_MANIFEST modules/download-always-latest.md. The buttons' addresses carry no version and are never edited again:
+- Mac: `https://mantravoicetotext.pages.dev/download/VoiceToText-mac.zip` (hosted on the page, about 2 MB)
+- Windows: `https://github.com/markoboskoauroville/mantra-voice-to-text-downloads/releases/latest/download/VoiceToText-win-x64.zip`
+  and `.../VoiceToText-win-arm64.zip` (public downloads repo; over Pages' 25 MB limit)
+
+**The release step is `tools/publish.sh`, called at the end of `mac/build.sh`** (`--no-publish` skips it): the version N
+from `appVersion` in mac/Sources/Engines.swift, checked against the csproj's InformationalVersion; the Windows zips of vN
+built in the VM by itself (`windows/tools/vmx.sh … build.ps1 -Publish`) when windows/dist lacks them; release vN on
+the downloads repo created if missing and marked Latest, with the fixed names (VoiceToText-win-x64.zip, -win-arm64.zip,
+VoiceToText-mac.zip) and the versioned names beside them, an asset with the same sha256 never uploaded twice;
+then `site/deploy.sh` (Mac zip to site/public/download/VoiceToText-mac.zip, `<span data-app-version>`, `data-mac-mb`,
+`data-win-mb` written from the build, link guard, SEO with downloadUrl = the fixed Mac address, wrangler); then the live
+check (each button 200 with the right size, the Mac file sha256-compared, the page showing vN). A new version therefore
+is: raise appVersion and the csproj Version, `mac/build.sh`. Old addresses: `site/public/_redirects` sends
+VoiceToTextMantra-v*-mac.zip and MantraVoiceToText-v*-mac.zip 301 to the fixed one; on the release the versioned assets
+of v1 and v2 stay, so links already sent keep working.
+
+**Done for v2 without a rebuild** (the local zips had the release's sha256): the fixed-name copies uploaded to release v2
+(still Latest), the page deployed. Live 1.11.2026: Mac 200, 2,241,118 bytes; Windows x64 200, 74,196,736; arm64 200,
+70,009,531; the page shows Version 2; /VoiceToTextMantra-v2-mac.zip, -v1 and MantraVoiceToText-v1-mac.zip answer 301 →
+/download/VoiceToText-mac.zip → 200. **Not run yet:** a real new version through `mac/build.sh` (the release-create and the
+VM build branches of publish.sh have not been exercised).

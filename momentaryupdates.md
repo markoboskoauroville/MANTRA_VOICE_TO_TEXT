@@ -39,4 +39,4 @@ address mantravoicetotext.pages.dev stays (the link already sent to Damjan keeps
 
 > yes, fix download links so every website gets each new version by itself
 
-- The page's buttons point at addresses without a version (MANTRA_MANIFEST modules/download-always-latest.md); the release step puts each new version behind them and writes the version into the page, in one run. **Status:** in progress (1.11.2026)
+- The page's buttons point at addresses without a version (MANTRA_MANIFEST modules/download-always-latest.md); the release step puts each new version behind them and writes the version into the page, in one run. **Status:** done 1.11.2026: Mac download/VoiceToText-mac.zip on the page, Windows releases/latest/download/VoiceToText-win-x64.zip and -win-arm64.zip; mac/build.sh ends with tools/publish.sh (release, page, live check); the old Mac addresses 301 to the new one
