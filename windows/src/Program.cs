@@ -1,4 +1,4 @@
-// Mantra Voice to Text (Windows), v1. The start: one copy at a time (a second start brings the blob back), the tray
+// Voice to Text (Mantra) (Windows), v2 (v1 was called Mantra Voice to Text). The start: one copy at a time (a second start brings the blob back), the tray
 // icon, and the test switches:
 //   --pill-shot <dir>        the blob's faces drawn into PNGs, nothing shown on the screen, then exit
 //   --take <file.wav>        a recording through the same road as a take from the microphone
@@ -52,11 +52,12 @@ namespace MantraVoiceToText
             EventWaitHandle show = null;
             if (!test)
             {
-                single = new Mutex(true, "MantraVoiceToText.single", out bool first);
-                show = new EventWaitHandle(false, EventResetMode.AutoReset, "MantraVoiceToText.show");
+                single = new Mutex(true, "VoiceToTextMantra.single", out bool first);
+                show = new EventWaitHandle(false, EventResetMode.AutoReset, "VoiceToTextMantra.show");
                 if (!first) { show.Set(); return 0; }
             }
 
+            if (Paths.Moved != null) Log.Write("data folder: " + Paths.Moved);
             Log.Write($"start v{Paths.Version} ({System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture}, {Environment.OSVersion}) " + string.Join(" ", args));
             var app = new Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
             app.DispatcherUnhandledException += (s, e) => { Log.Write("UI error: " + e.Exception); e.Handled = true; };
@@ -104,10 +105,18 @@ namespace MantraVoiceToText
                 {
                     await Task.Delay(1500);
                     var w = Application.Current.Windows.OfType<SettingsWindow>().First();
-                    var el = (FrameworkElement)((System.Windows.Controls.ScrollViewer)((System.Windows.Controls.DockPanel)w.Content).Children[1]).Content;
-                    var bmp = new System.Windows.Media.Imaging.RenderTargetBitmap((int)(el.ActualWidth * 1.5), (int)(el.ActualHeight * 1.5), 144, 144, PixelFormats.Pbgra32);
+                    var dock = (System.Windows.Controls.DockPanel)w.Content;
+                    var top = (FrameworkElement)dock.Children[0];
+                    var el = (FrameworkElement)((System.Windows.Controls.ScrollViewer)dock.Children[1]).Content;
+                    double W = Math.Max(top.ActualWidth, el.ActualWidth) + 24, H = top.ActualHeight + el.ActualHeight + 24;
+                    var bmp = new System.Windows.Media.Imaging.RenderTargetBitmap((int)(W * 1.5), (int)(H * 1.5), 144, 144, PixelFormats.Pbgra32);
                     var dv = new DrawingVisual();
-                    using (var dc = dv.RenderOpen()) { dc.DrawRectangle(w.Background, null, new Rect(0, 0, el.ActualWidth, el.ActualHeight)); dc.DrawRectangle(new VisualBrush(el), null, new Rect(0, 0, el.ActualWidth, el.ActualHeight)); }
+                    using (var dc = dv.RenderOpen())
+                    {
+                        dc.DrawRectangle(w.Background, null, new Rect(0, 0, W, H));
+                        dc.DrawRectangle(new VisualBrush(top), null, new Rect(12, 8, top.ActualWidth, top.ActualHeight));
+                        dc.DrawRectangle(new VisualBrush(el), null, new Rect(12, 8 + top.ActualHeight, el.ActualWidth, el.ActualHeight));
+                    }
                     bmp.Render(dv);
                     var enc = new System.Windows.Media.Imaging.PngBitmapEncoder(); enc.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(bmp));
                     using (var fs = File.Create(settingsShot)) enc.Save(fs);

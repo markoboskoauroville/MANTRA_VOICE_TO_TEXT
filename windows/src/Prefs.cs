@@ -1,5 +1,5 @@
-// The settings, the key, the log and the history of Mantra Voice to Text (Windows).
-// Everything lives in %LOCALAPPDATA%\Mantra Voice to Text: settings.json, key.bin (DPAPI, this Windows user only),
+// The settings, the key, the log and the history of Voice to Text (Mantra) (Windows; called Mantra Voice to Text in v1).
+// Everything lives in %LOCALAPPDATA%\Voice to Text (Mantra): settings.json, key.bin (DPAPI, this Windows user only),
 // history.json, log.txt and models\.
 using System;
 using System.Collections.Generic;
@@ -13,9 +13,25 @@ namespace MantraVoiceToText
 {
     public static class Paths
     {
-        public const string Name = "Mantra Voice to Text";
-        public const int Version = 1;
-        public static readonly string Home = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), Name);
+        public const string Name = "Voice to Text (Mantra)";
+        public const int Version = 2;
+        public const string OldName = "Mantra Voice to Text";             // v1's name and data folder
+        public static readonly string Home = HomeFolder();
+        public static string Moved { get; private set; }                  // what happened to v1's folder, for the log
+
+        // v2: v1's folder (the model, a .part, the key, the settings, the history) is moved to the new name once, at the
+        // first start; if it cannot be moved (v1 still running), v1's folder is used as it is, so nothing is downloaded again
+        static string HomeFolder()
+        {
+            var la = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+            string home = Path.Combine(la, Name), old = Path.Combine(la, OldName);
+            if (Directory.Exists(old) && !Directory.Exists(home))
+            {
+                try { Directory.Move(old, home); Moved = $"moved {old} to {home}"; }
+                catch (Exception e) { Moved = $"could not move {old} ({e.Message}): using it as it is"; return old; }
+            }
+            return home;
+        }
         public static readonly string Models = Path.Combine(Home, "models");
         public const string ModelFile = "ggml-large-v3-turbo-q5_0.bin";
         public const string ModelUrl = "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3-turbo-q5_0.bin";

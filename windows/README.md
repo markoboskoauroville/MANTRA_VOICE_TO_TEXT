@@ -1,4 +1,9 @@
-# Mantra Voice to Text for Windows (v1)
+# Voice to Text (Mantra) for Windows (v2)
+
+v2 (1.11.2026): renamed from "Mantra Voice to Text" (v1). The exe is `VoiceToTextMantra.exe`, the data folder
+`%LOCALAPPDATA%\Voice to Text (Mantra)`; at the first start v1's folder `%LOCALAPPDATA%\Mantra Voice to Text` is moved
+there (model, .part, key, settings, history kept: nothing is downloaded again). If it cannot be moved (v1 still
+running), v1's folder is used as it is.
 
 A small floating blob that hears you, writes down what you said on your own PC (Whisper, offline), cleans it with
 Claude if you want, and types it where your cursor is. The Windows copy of the Mac app (`../mac`, first built as
@@ -6,14 +11,14 @@ MARKO_TRANSCRIBE), without the Mac-only parts (voice activation, Accessibility, 
 
 ## Use
 
-1. Unzip `MantraVoiceToText-v1-win-x64.zip` (Intel / AMD PCs) or `MantraVoiceToText-v1-win-arm64.zip` (Snapdragon,
-   Windows on a Mac) anywhere and start `MantraVoiceToText.exe`. Nothing is installed; the settings live in
-   `%LOCALAPPDATA%\Mantra Voice to Text`.
+1. Unzip `VoiceToTextMantra-v2-win-x64.zip` (Intel / AMD PCs) or `VoiceToTextMantra-v2-win-arm64.zip` (Snapdragon,
+   Windows on a Mac) anywhere and start `VoiceToTextMantra.exe`. Nothing is installed; the settings live in
+   `%LOCALAPPDATA%\Voice to Text (Mantra)`.
 2. ⚙ → Settings → **Download the model (547 MB)** (Whisper large-v3-turbo q5_0 from Hugging Face, once). The download
    **always resumes**: it goes to `…\models\ggml-large-v3-turbo-q5_0.bin.part` with an HTTP Range from the .part's size,
    a dropped connection is tried again by itself (2, 4, 8 … 60 s apart), and when the app is closed and opened again it
    goes on by itself from where it stopped (no button). At exactly 574,041,195 bytes it becomes the .bin. If you already
-   have `ggml-large-v3-turbo-q5_0.bin`, put it in `%LOCALAPPDATA%\Mantra Voice to Text\models` instead.
+   have `ggml-large-v3-turbo-q5_0.bin`, put it in `%LOCALAPPDATA%\Voice to Text (Mantra)\models` instead.
    Whisper needs the **Microsoft Visual C++ runtime** (2015-2022); most PCs have it. When it is missing the blob says so
    and ⚙ → Settings has a **Get it** button (Microsoft's vc_redist for x64 or arm64).
 3. Optional: paste your Anthropic key into ⚙ → Settings → Anthropic key → Save (Test lists your models, nothing billed).
@@ -46,7 +51,7 @@ The .NET 8 SDK (8.0.427) on Windows. In the Parallels VM it is in `C:\dotnet`; t
 
 ```
 powershell -ExecutionPolicy Bypass -File windows\build.ps1             # build only
-powershell -ExecutionPolicy Bypass -File windows\build.ps1 -Publish    # + dist\MantraVoiceToText-v1-win-x64.zip, -win-arm64.zip
+powershell -ExecutionPolicy Bypass -File windows\build.ps1 -Publish    # + dist\VoiceToTextMantra-v2-win-x64.zip, -win-arm64.zip
 ```
 
 From the Mac: `prlctl exec "Windows 11" --current-user powershell -ExecutionPolicy Bypass -File 'Y:\Developer\MANTRA_VOICE_TO_TEXT\windows\build.ps1' -Publish`
@@ -55,7 +60,7 @@ downloaded twice.
 
 Packages: Whisper.net 1.9.1 + Whisper.net.Runtime 1.9.1 + Whisper.net.Runtime.NoAvx 1.9.1 (whisper.cpp, CPU; NoAvx for
 old x64 CPUs and x64 emulation on ARM), NAudio.Core / NAudio.WinMM 2.2.1, Anthropic 13.3.0 (the official C# SDK). WPF,
-with WinForms only for the tray icon. The single-file exe extracts itself once to `%TEMP%\.net\MantraVoiceToText`
+with WinForms only for the tray icon. The single-file exe extracts itself once to `%TEMP%\.net\VoiceToTextMantra`
 (`IncludeAllContentForSelfExtract`, so Whisper.net finds its DLLs).
 
 | File | What |
@@ -74,23 +79,23 @@ with WinForms only for the tray icon. The single-file exe extracts itself once t
 ## Test switches
 
 ```
-MantraVoiceToText.exe --pill-shot <dir>              the blob's faces as PNGs (ready, recording, writing, not landed,
+VoiceToTextMantra.exe --pill-shot <dir>              the blob's faces as PNGs (ready, recording, writing, not landed,
                                                      styling, no auto correct, copied, no key, line below); nothing on screen
-MantraVoiceToText.exe --take <file.wav> [--no-type] [--exit]
+VoiceToTextMantra.exe --take <file.wav> [--no-type] [--exit]
                                                      a recording through the same road as a microphone take;
                                                      --no-type writes it down only, --exit quits 4 s after
-MantraVoiceToText.exe --press <id> [s]               presses a blob button after s seconds exactly as a click does
+VoiceToTextMantra.exe --press <id> [s]               presses a blob button after s seconds exactly as a click does
                                                      (close, language, pause, copy, style, settings, send)
-MantraVoiceToText.exe --repeat <n>                   with --take: the same file n times (cold, then warm)
-MantraVoiceToText.exe --bands <file.wav>             the voice meter's eleven bands every 0.1 s, into the log
-MantraVoiceToText.exe --download-model               starts the model download (a waiting .part goes on by itself anyway)
-MantraVoiceToText.exe --settings-shot <png>          ⚙ Settings drawn into a PNG, then exit
-MantraVoiceToText.exe --settings                     opens ⚙ Settings at the start
-MantraVoiceToText.exe --test-style-fake              STYLE writes the box back in CAPITALS without Claude
+VoiceToTextMantra.exe --repeat <n>                   with --take: the same file n times (cold, then warm)
+VoiceToTextMantra.exe --bands <file.wav>             the voice meter's eleven bands every 0.1 s, into the log
+VoiceToTextMantra.exe --download-model               starts the model download (a waiting .part goes on by itself anyway)
+VoiceToTextMantra.exe --settings-shot <png>          ⚙ Settings drawn into a PNG, then exit
+VoiceToTextMantra.exe --settings                     opens ⚙ Settings at the start
+VoiceToTextMantra.exe --test-style-fake              STYLE writes the box back in CAPITALS without Claude
                                                      (tests the reading and writing back of the focused box)
 ```
 
-Results go to `%LOCALAPPDATA%\Mantra Voice to Text\log.txt` (what was heard, the times, where it landed; never the key).
+Results go to `%LOCALAPPDATA%\Voice to Text (Mantra)\log.txt` (what was heard, the times, where it landed; never the key).
 Test recordings: `test/en-test.wav` (macOS `say`, Samantha, 16 kHz), `test/hr-test.wav` (`say`, Lana, Croatian) and
 `test/silence.wav` (2 s of digital silence). Pictures of the blob and Settings from the tests: `docs/`.
 
@@ -101,5 +106,5 @@ Test recordings: `test/en-test.wav` (macOS `say`, Samantha, 16 kHz), `test/hr-te
 `start.ps1`, `notepad.ps1` (a take typed into a fresh Notepad, read back by UI Automation), `nolanding.ps1` (a take with
 the desktop focused, then COPY), `styletest.ps1 [-Select]` (STYLE on Notepad with `--test-style-fake`), `keys.ps1` (F1,
 Esc, the ⚙ menu, the focus kept), `dltest.ps1` (start the download, kill, start again: it resumes; the real model is put
-back), `reltest.ps1 -Rid win-x64|win-arm64` (the zip unzipped and run), `liveshot.ps1` (Win+PrtScn copied out: GDI
+back), `reltest.ps1 -Rid win-x64|win-arm64` (the zip unzipped and run), `relshots.ps1` (the released exe draws its pill and Settings), `liveshot.ps1` (Win+PrtScn copied out: GDI
 screenshots miss the blob, LESSONS.md), `press.ps1` (a button through UI Automation; it moves the focus).

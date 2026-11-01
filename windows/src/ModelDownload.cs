@@ -89,7 +89,7 @@ namespace MantraVoiceToText
             if (have == Total) return Finish();
             if (have > Total) { Log.Write($"model download: the .part is too big ({have}), starting over"); File.Delete(Part); have = 0; }
             using var http = new HttpClient { Timeout = Timeout.InfiniteTimeSpan };
-            http.DefaultRequestHeaders.UserAgent.ParseAdd($"MantraVoiceToText/{Paths.Version}");
+            http.DefaultRequestHeaders.UserAgent.ParseAdd($"VoiceToTextMantra/{Paths.Version}");
             var req = new HttpRequestMessage(HttpMethod.Get, Paths.ModelUrl);
             if (have > 0) req.Headers.Range = new RangeHeaderValue(have, null);
             Log.Write($"model download: starting at {have} bytes" + (have > 0 ? $" (Range: bytes={have}-)" : ""));

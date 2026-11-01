@@ -65,3 +65,18 @@ PC (see the x64 line above); a PC without the VC++ runtime after the "Get it" me
 before it was seen); the download from 0 to the end (only ~18 MB); the hotkey change in Settings; the history window's
 buttons; Windows 10; high-DPI multi-monitor placement; antivirus / SmartScreen reaction to an unsigned exe (it is not
 signed: Windows will warn "unknown publisher" on first start).
+
+### Windows v2 (1.11.2026): Voice to Text (Mantra)
+
+Renamed at Marko's word: the name everywhere the user sees it (window titles, Settings' first row "Voice to Text
+(Mantra)   v2", tray tooltip, menus, the exe's version info: ProductName / FileDescription "Voice to Text (Mantra)",
+ProductVersion 2, FileVersion 2.0.0.0). Exe `VoiceToTextMantra.exe`, zips `windows/dist/VoiceToTextMantra-v2-win-x64.zip`
+and `-win-arm64.zip` (the v1 zips are still beside them). Data folder `%LOCALAPPDATA%\Voice to Text (Mantra)`: v1's
+`%LOCALAPPDATA%\Mantra Voice to Text` is moved there at the first start (kept as it is when the move fails). The C#
+namespace and the .csproj file name stay MantraVoiceToText (not seen by anyone).
+
+**Proven 1.11.2026 (arm64 release zip in the VM):** the first start logged "data folder: moved …\Mantra Voice to Text
+to …\Voice to Text (Mantra)", the model came along (574,041,195 bytes, no download line in the log), and the English
+test file was written down word for word (34.2 s, then 35.0 s). `--pill-shot` and `--settings-shot` from the released exe
+looked at: the new name and v2 in Settings; the exe's version info read back. **Not proven for v2:** the x64 zip was
+built but not run (v1's x64 ran only under emulation), and everything listed as not proven for v1.

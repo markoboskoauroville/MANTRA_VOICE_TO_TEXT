@@ -7,7 +7,7 @@ using System; using System.Runtime.InteropServices;
 public static class W2 { [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr h);
  [DllImport("user32.dll")] public static extern void keybd_event(byte vk, byte scan, uint flags, IntPtr extra); }
 "@
-Get-Process MantraVoiceToText -ErrorAction SilentlyContinue | Stop-Process -Force
+Get-Process VoiceToTextMantra -ErrorAction SilentlyContinue | Stop-Process -Force
 $f = "C:\mvt\s-$(Get-Random).txt"; Set-Content $f 'first line stays. this second part gets styled' -NoNewline
 $np = Start-Process notepad.exe -ArgumentList $f -PassThru; Start-Sleep 3
 $h = (Get-Process notepad | Where-Object { $_.MainWindowTitle -like "*s-*" } | Select-Object -First 1).MainWindowHandle
@@ -18,8 +18,8 @@ if ($Select) { # End, then Shift+Home…: select the last 4 words with Ctrl+Shif
   1..5 | % { [W2]::keybd_event(0x25,0,1,[IntPtr]::Zero); [W2]::keybd_event(0x25,0,3,[IntPtr]::Zero) }
   [W2]::keybd_event(0x10,0,2,[IntPtr]::Zero); [W2]::keybd_event(0x11,0,2,[IntPtr]::Zero)
 }
-$log = Join-Path $env:LOCALAPPDATA 'Mantra Voice to Text\log.txt'; $before = (Get-Content $log).Count
-$exe = 'C:\mvt\src\bin\Release\net8.0-windows10.0.19041.0\MantraVoiceToText.exe'
+$log = Join-Path $env:LOCALAPPDATA 'Voice to Text (Mantra)\log.txt'; $before = (Get-Content $log).Count
+$exe = 'C:\mvt\src\bin\Release\net8.0-windows10.0.19041.0\VoiceToTextMantra.exe'
 Add-Type @"
 using System; using System.Runtime.InteropServices;
 public static class W3 { [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow(); }

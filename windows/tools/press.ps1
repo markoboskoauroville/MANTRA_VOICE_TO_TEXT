@@ -2,7 +2,7 @@
 param([string]$Id = 'style')
 Add-Type -AssemblyName UIAutomationClient, UIAutomationTypes
 $A = [System.Windows.Automation.AutomationElement]
-$p = Get-Process MantraVoiceToText -ErrorAction SilentlyContinue | Select-Object -First 1
+$p = Get-Process VoiceToTextMantra -ErrorAction SilentlyContinue | Select-Object -First 1
 if (-not $p) { "app not running"; exit }
 $cond = New-Object System.Windows.Automation.PropertyCondition($A::ProcessIdProperty, $p.Id)
 $wins = $A::RootElement.FindAll([System.Windows.Automation.TreeScope]::Children, $cond)

@@ -8,7 +8,7 @@ public static class W { [DllImport("user32.dll")] public static extern bool SetF
  [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
  [DllImport("user32.dll")] public static extern void keybd_event(byte vk, byte scan, uint flags, IntPtr extra); }
 "@
-Get-Process MantraVoiceToText -ErrorAction SilentlyContinue | Stop-Process -Force
+Get-Process VoiceToTextMantra -ErrorAction SilentlyContinue | Stop-Process -Force
 $f = "C:\mvt\note-$(Get-Random).txt"; Set-Content $f '' -NoNewline
 $np = Start-Process notepad.exe -ArgumentList $f -PassThru
 Start-Sleep 3
@@ -17,8 +17,8 @@ if (-not $h -or $h -eq 0) { $h = (Get-Process notepad | Where-Object { $_.MainWi
 [W]::SetForegroundWindow($h) | Out-Null
 Start-Sleep 1
 "foreground is notepad: $([W]::GetForegroundWindow() -eq $h)"
-$exe = if ($env:MVT_EXE) { $env:MVT_EXE } else { 'C:\mvt\src\bin\Release\net8.0-windows10.0.19041.0\MantraVoiceToText.exe' }
-$log = Join-Path $env:LOCALAPPDATA 'Mantra Voice to Text\log.txt'; $before = (Get-Content $log).Count
+$exe = if ($env:MVT_EXE) { $env:MVT_EXE } else { 'C:\mvt\src\bin\Release\net8.0-windows10.0.19041.0\VoiceToTextMantra.exe' }
+$log = Join-Path $env:LOCALAPPDATA 'Voice to Text (Mantra)\log.txt'; $before = (Get-Content $log).Count
 $args2 = @('--take', $Wav) + ($Extra -split ' ' | Where-Object { $_ })
 $p = Start-Process $exe -ArgumentList $args2 -PassThru
 $deadline = (Get-Date).AddSeconds(240)

@@ -1,7 +1,7 @@
 param([int]$Wait = 60, [switch]$NoWait, [Parameter(ValueFromRemainingArguments=$true)][string[]]$Rest)
-$env:DOTNET_ROOT = "C:\dotnet"; Get-Process MantraVoiceToText -ErrorAction SilentlyContinue | Stop-Process -Force
-$exe = if ($env:MVT_EXE) { $env:MVT_EXE } else { 'C:\mvt\src\bin\Release\net8.0-windows10.0.19041.0\MantraVoiceToText.exe' }
-$log = Join-Path $env:LOCALAPPDATA 'Mantra Voice to Text\log.txt'
+$env:DOTNET_ROOT = "C:\dotnet"; Get-Process VoiceToTextMantra -ErrorAction SilentlyContinue | Stop-Process -Force
+$exe = if ($env:MVT_EXE) { $env:MVT_EXE } else { 'C:\mvt\src\bin\Release\net8.0-windows10.0.19041.0\VoiceToTextMantra.exe' }
+$log = Join-Path $env:LOCALAPPDATA 'Voice to Text (Mantra)\log.txt'
 $before = if (Test-Path $log) { (Get-Content $log).Count } else { 0 }
 $sw = [Diagnostics.Stopwatch]::StartNew()
 $p = if ($Rest) { Start-Process -PassThru $exe -ArgumentList $Rest } else { Start-Process -PassThru $exe }
