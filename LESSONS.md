@@ -1,5 +1,11 @@
 # Lessons
 
+## v4 (1.11.2026)
+
+- A sound asked to play is not yet out of the speakers: v3 dropped the volume 0.15 s after `play()` of a 0.1 s sound,
+  and Marko heard nothing (the ADAM over USB starts it later). Wait for NSSound's didFinishPlaying, then 0.25 s more.
+  And put the level back before the stop sound, never after it.
+
 ## v3 (1.11.2026)
 
 - A framework-dependent Windows build started by `prlctl exec` without DOTNET_ROOT shows Windows' "install .NET" dialog

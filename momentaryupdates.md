@@ -65,4 +65,4 @@ Marko chose **both** apps (Transcribe Voice to Text RT and Voice to Text (Mantra
 
 > Please in this app fix the bug. You need to send the signal that it's recording in normal volume and then reduce the volume. Now when I press F1 I don't hear that it's recording. I need that signal.
 
-- The start sound plays whole at the normal level, then the speakers go to 6 %; the stop sound plays after the level is back. **Status:** in progress
+- The start sound plays whole at the normal level, then the speakers go to 6 %; the stop sound plays after the level is back. **Status:** done 1.11.2026, v4 installed (the drop waits for the sound's reported end + 0.25 s for the speakers' delay; tested: 69 % held while the sound played, 6 % about half a second after the press, 69 % back before the stop sound); not published yet

@@ -76,7 +76,7 @@ final class Recorder: NSObject, AVCaptureFileOutputRecordingDelegate {
         session = s; output = out; deviceName = dev.localizedName
         started = Date(); accumulated = 0; paused = false
         TakeMark.set(true)
-        Duck.down()                  // v3: the speakers at 6 % while it listens
+        // v4: no duck here: the start sound must be heard whole at the normal level first (listen() ducks after it)
         return true
     }
 
@@ -374,12 +374,32 @@ enum Chime {
         return NSSound(named: start ? "Tink" : "Pop")
     }
 
-    static func play(start: Bool, position: Float? = nil) {
+    /// how long the sound of a start or a stop lasts (0 when there is none)
+    static func duration(start: Bool) -> TimeInterval { sound(start: start)?.duration ?? 0 }
+
+    static func play(start: Bool, position: Float? = nil, then: (() -> Void)? = nil) {
         let s = sound(start: start)
         s?.volume = gain(position ?? (start ? Prefs.startVolume : Prefs.stopVolume))      // v15: the levels in ⚙
         playing = s
-        s?.stop(); s?.play()
+        finished.then = then
+        s?.delegate = finished
+        s?.stop()
+        if s?.play() != true { DispatchQueue.main.async { finished.fire() } }   // no sound: right after the take starts
+        // a sound that never reports its end (a device that went away) still lets the take go on
+        if then != nil { DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { finished.fire() } }
     }
+
+    /// v4: what waits for the start sound to be over (the duck: Marko, 1.11.2026, "send the signal that it's
+    /// recording in normal volume and then reduce the volume")
+    final class Finished: NSObject, NSSoundDelegate {
+        var then: (() -> Void)?
+        func fire() { let t = then; then = nil; t?() }
+        func sound(_ sound: NSSound, didFinishPlaying ok: Bool) {
+            // the speakers' own delay (USB monitors buffer a little): the sound is out of them a moment later
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { [weak self] in self?.fire() }
+        }
+    }
+    static let finished = Finished()
 
     /// v24 (Marko, 31.10.2026: "See if volume slider is actually linearly raising or lowering the sound"): the slider is
     /// a position, the sound follows it in decibels. NSSound's volume is amplitude, so the slider used to move only 6 dB
