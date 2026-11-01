@@ -18,3 +18,12 @@ Decided by Marko: free signing on both (Mantra Apps on the Mac with the "open th
 github.com/markoboskoauroville/mantra-voice-to-text-downloads v1 (Mac 2.2 MB, Windows x64 74 MB, Windows ARM 70 MB),
 card 20 on markobosko.pages.dev #/kod. Not yet proven: a real microphone take on either system, Claude in the public
 builds, x64 transcription on a real Intel/AMD PC (the VM only emulates x64).
+
+## 1.11.2026 (relayed by the hub session claude-code-d6, Marko's words)
+
+> you need to rename it Voice to Text (Mantra), which is a new rule.
+
+He also stressed the language switch (Croatian | English | auto-detect) as an important part: the page must say it.
+
+- Rename "Mantra Voice to Text" → "Voice to Text (Mantra)": app names (Mac bundle, Windows exe and window titles), the page's title and texts, the release files if renamed, README/TAKEOVER, the bio card. **Status:** waiting (received while this session was closing; next session)
+- The page names the language switch: Croatian | English | auto-detect. **Status:** waiting (next session)

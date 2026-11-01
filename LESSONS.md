@@ -1,5 +1,23 @@
 # Lessons
 
+## Mac (1.11.2026)
+
+- **whisper.cpp HEAD did not run on Metal under macOS 15.0**: the runtime Metal compiler rejects `constexpr` on the
+  bfloat casts in `ggml/src/ggml-metal/kernels/unary.metal`, the library fails, the BLAS fallback then aborts inside
+  `whisper_init_state` (the whole app dies). One-line patch (`mac/whisper-metal-macos15.patch`); and a crash during a
+  load now makes the next start use the processor (`loadingModel` / `cpuOnly`).
+- **Build portable:** `-DGGML_NATIVE=OFF` (the first build was `-mcpu=native`), and `-ffile-prefix-map` so the binary
+  does not carry /Users/<name>/… paths in whisper.cpp's assert messages (found with `strings` before publishing).
+- **Cloudflare Pages refuses files over 25 MB**: the 70–74 MB Windows zips went to a public GitHub release in a
+  downloads-only repository (README + zips, no code, so no history to scan beyond one commit).
+- **Gemini pictures from Claude in Chrome**: Gemini's page blocks fetch and form posts to localhost; the extension's
+  `zoom` with `save_to_disk` on the image pinned at its natural size gives the exact pixels (crop the top-left w×h).
+- **Testing a resumable download costs almost nothing**: seed the `.part` from the local model (`head -c`), kill it
+  mid-way, start again, compare the checksum; 14 MB of the SIM instead of 547.
+- **build.sh's "is it running" test missed a copy started with `--login`** (`pgrep -f '…RT$'`), so v29 was installed
+  under a running v28 (MARKO_TRANSCRIBE, fixed: `( |$)`).
+
+
 ## Windows (1.11.2026)
 
 - **whisper.cpp on Windows needs the Visual C++ runtime** (msvcp140.dll, vcruntime140.dll, on x64 also
