@@ -9,7 +9,8 @@ W="${WHISPER:-$HOME/Developer/VOICE_ENGINES/src/whisper.cpp}"
 B="$W/build-static"
 if [ ! -f "$B/src/libwhisper.a" ]; then
   cmake -S "$W" -B "$B" -DBUILD_SHARED_LIBS=OFF -DWHISPER_BUILD_EXAMPLES=OFF -DWHISPER_BUILD_TESTS=OFF -DWHISPER_BUILD_SERVER=OFF \
-    -DGGML_METAL=ON -DGGML_METAL_EMBED_LIBRARY=ON -DGGML_NATIVE=OFF -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_DEPLOYMENT_TARGET=13.0 -DCMAKE_OSX_ARCHITECTURES=arm64
+    -DGGML_METAL=ON -DGGML_METAL_EMBED_LIBRARY=ON -DGGML_NATIVE=OFF -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_DEPLOYMENT_TARGET=13.0 -DCMAKE_OSX_ARCHITECTURES=arm64 \
+    -DCMAKE_C_FLAGS="-ffile-prefix-map=$W=whisper.cpp" -DCMAKE_CXX_FLAGS="-ffile-prefix-map=$W=whisper.cpp" -DCMAKE_OBJC_FLAGS="-ffile-prefix-map=$W=whisper.cpp"
   cmake --build "$B" -j 8 --config Release
 fi
 V=$(grep -E '^let appVersion' Sources/Engines.swift | grep -oE '[0-9]+')
