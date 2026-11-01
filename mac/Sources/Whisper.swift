@@ -58,11 +58,17 @@ enum Whisper {
     private static func load() -> OpaquePointer? {
         if let ctx { return ctx }
         guard Model.ready else { return nil }
+        // a Mac whose Metal cannot build whisper.cpp's shaders aborts inside the load (seen on macOS 15.0 before the
+        // shader patch): the mark stays set, and the next start loads on the processor instead
+        let d = UserDefaults.standard
+        if d.bool(forKey: "loadingModel") { d.set(true, forKey: "cpuOnly"); appendLog("whisper: the last load did not finish, using the processor") }
         var cp = whisper_context_default_params()
-        cp.use_gpu = true
-        cp.flash_attn = true
+        cp.use_gpu = !d.bool(forKey: "cpuOnly")
+        cp.flash_attn = cp.use_gpu
+        d.set(true, forKey: "loadingModel"); d.synchronize()
         ctx = whisper_init_from_file_with_params(Model.file.path, cp)
-        appendLog(ctx == nil ? "whisper: the model did not load" : "whisper: model loaded")
+        d.set(false, forKey: "loadingModel")
+        appendLog(ctx == nil ? "whisper: the model did not load" : "whisper: model loaded (\(cp.use_gpu ? "GPU, Metal" : "processor"))")
         return ctx
     }
 
