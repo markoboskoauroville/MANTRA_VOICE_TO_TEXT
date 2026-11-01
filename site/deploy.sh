@@ -5,11 +5,11 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 V=$(grep -E '^let appVersion' mac/Sources/Engines.swift | grep -oE '[0-9]+')
-[ -f "mac/dist/MantraVoiceToText-v$V-mac.zip" ] || { echo "no mac/dist/MantraVoiceToText-v$V-mac.zip: run mac/build.sh"; exit 1; }
-rm -f site/public/MantraVoiceToText-*-mac.zip; cp "mac/dist/MantraVoiceToText-v$V-mac.zip" site/public/
-grep -q "MantraVoiceToText-v$V-mac.zip" site/public/index.html || { echo "index.html does not link MantraVoiceToText-v$V-mac.zip"; exit 1; }
+[ -f "mac/dist/VoiceToTextMantra-v$V-mac.zip" ] || { echo "no mac/dist/VoiceToTextMantra-v$V-mac.zip: run mac/build.sh"; exit 1; }
+rm -f site/public/VoiceToTextMantra-*-mac.zip site/public/MantraVoiceToText-*-mac.zip; cp "mac/dist/VoiceToTextMantra-v$V-mac.zip" site/public/
+grep -q "VoiceToTextMantra-v$V-mac.zip" site/public/index.html || { echo "index.html does not link VoiceToTextMantra-v$V-mac.zip"; exit 1; }
 # every page with the donation bowl is search-engine optimised (Marko, 31.10.2026)
-python3 ~/Developer/MANTRA_MANIFEST/kits/seo/seo_app_page.py site/public --url https://mantravoicetotext.pages.dev --name "Mantra Voice to Text" --version "$V" --download "MantraVoiceToText-v$V-mac.zip" --keywords "voice to text, dictation app, speech to text mac, speech to text windows, whisper offline, voice typing, dictate prompts, free dictation" --image img/life-prompt.jpg --os "macOS, Windows"
+python3 ~/Developer/MANTRA_MANIFEST/kits/seo/seo_app_page.py site/public --url https://mantravoicetotext.pages.dev --name "Voice to Text (Mantra)" --version "$V" --download "VoiceToTextMantra-v$V-mac.zip" --keywords "voice to text, dictation app, speech to text mac, speech to text windows, whisper offline, voice typing, dictate prompts, free dictation" --image img/life-prompt.jpg --os "macOS, Windows"
 eval "$(python3 - <<'PY'
 import re,os
 raw=open(os.path.expanduser('~/Downloads/API/Cloudflare.api.txt')).read()
