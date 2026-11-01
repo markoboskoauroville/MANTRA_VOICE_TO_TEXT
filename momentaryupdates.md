@@ -73,4 +73,4 @@ Marko chose **both** apps (Transcribe Voice to Text RT and Voice to Text (Mantra
 
 (dictated twice; "B and T" and "plays ... great" are the dictation of "V and T" and "pastes ... gray")
 
-- "VT" in the menu bar: grey at rest, red while a take records, yellow while it is written down / corrected, grey again when it is pasted. **Status:** in progress
+- "VT" in the menu bar: grey at rest, red while a take records, yellow while it is written down / corrected, grey again when it is pasted. **Status:** done 1.11.2026, v5 installed (mac/Sources/MenuBar.swift; all four states seen in screenshots of the menu bar); a click gives Show the blob, Settings, History, Quit; not published

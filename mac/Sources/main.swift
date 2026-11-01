@@ -1082,4 +1082,5 @@ app.setActivationPolicy(.accessory)
 let delegate = AppDelegate()
 app.delegate = delegate
 let stripe = Stripe()
+let menuBar = MenuBar()          // v5: VT in the menu bar, grey · red · yellow
 app.run()
