@@ -47,7 +47,7 @@ address mantravoicetotext.pages.dev stays (the link already sent to Damjan keeps
 
 Marko chose **both** apps (Transcribe Voice to Text RT and Voice to Text (Mantra)).
 
-- While a take records, the system output volume goes to 6%; when the take ends (stop, cancel, ✕, quit, crash) it goes back to exactly the value it had. **Status:** done 1.11.2026 in Voice to Text (Mantra) v3, Mac and Windows (proven 49 → 6 → 49 % and 50 → 6 → 50 %); public release waits for Marko's yes
+- While a take records, the system output volume goes to 6%; when the take ends (stop, cancel, ✕, quit, crash) it goes back to exactly the value it had. **Status:** done 1.11.2026 in Voice to Text (Mantra) v3, Mac and Windows (proven 49 → 6 → 49 % and 50 → 6 → 50 %); published 1.11.2026 at Marko's yes ("there is a drop, it works ... push this V3")
 
 ## 1.11.2026: one app
 

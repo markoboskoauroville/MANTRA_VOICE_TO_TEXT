@@ -14,7 +14,7 @@ Started 1.11.2026.
 - Proven: Mac `--duck-test` 49 % → 6 % → 49 % on the ADAM D3V; Windows VM 50 % → 6 % → 50 %; an artificial take through
   the :8837 ears ("This is a test of the United Voice to Text application from Marko."); his settings, keys and history
   moved; ⚙ off screen, nothing cut. The old /Applications/Transcribe Voice to Text RT (Mantra).app is in the Trash.
-- **Not done:** the public release v3 (tools/publish.sh) waits for Marko's yes; the site and release still offer v2.
+- **Published 1.11.2026** at Marko's yes (he heard the drop: "it works"): release v3, page shows 3, all three buttons 200.
   A real take by hand with the speakers playing.
 
 ## Mac (1.11.2026)
