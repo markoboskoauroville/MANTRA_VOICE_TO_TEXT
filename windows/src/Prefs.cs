@@ -14,7 +14,7 @@ namespace MantraVoiceToText
     public static class Paths
     {
         public const string Name = "Voice to Text (Mantra)";
-        public const int Version = 5;
+        public const int Version = 6;
         public const string OldName = "Mantra Voice to Text";             // v1's name and data folder
         public static readonly string Home = HomeFolder();
         public static string Moved { get; private set; }                  // what happened to v1's folder, for the log

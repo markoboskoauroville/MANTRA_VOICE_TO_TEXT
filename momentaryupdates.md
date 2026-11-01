@@ -79,4 +79,4 @@ Marko chose **both** apps (Transcribe Voice to Text RT and Voice to Text (Mantra
 
 > Please update voice to text. While I am recording my voice for transcription, this VT icon on the bar should become a stopwatch, red stopwatch, which is counting minutes of my talking.
 
-- While a take records, VT in the menu bar becomes a red stopwatch with the time (m:ss) of the take; paused: the same in grey, standing still; after: VT again. **Status:** in progress
+- While a take records, VT in the menu bar becomes a red stopwatch with the time (m:ss) of the take; paused: the same in grey, standing still; after: VT again. **Status:** done 1.11.2026, v6 installed (seen on the menu bar: grey VT → red stopwatch 0:00, 0:04 → yellow VT); not published
