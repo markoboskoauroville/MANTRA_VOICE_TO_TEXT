@@ -28,11 +28,18 @@ enum InputDevice {
 enum TakeMark {
     static let url = FileManager.default.homeDirectoryForCurrentUser
         .appendingPathComponent("Library/Application Support/Voice to Text (Mantra)/take-open")
+    // v3: MANTRA_VOICE voiced.py (until it is restarted with the new path) looks in the old app's folder: both are written
+    static let legacy = FileManager.default.homeDirectoryForCurrentUser
+        .appendingPathComponent("Library/Application Support/Marko Transcribe/take-open")
     static func set(_ on: Bool) {
-        if on {
-            try? FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
-            try? "\(ProcessInfo.processInfo.processIdentifier)".write(to: url, atomically: true, encoding: .utf8)
-        } else { try? FileManager.default.removeItem(at: url) }
+        var places = [url]
+        if FileManager.default.fileExists(atPath: legacy.deletingLastPathComponent().path) { places.append(legacy) }
+        for u in places {
+            if on {
+                try? FileManager.default.createDirectory(at: u.deletingLastPathComponent(), withIntermediateDirectories: true)
+                try? "\(ProcessInfo.processInfo.processIdentifier)".write(to: u, atomically: true, encoding: .utf8)
+            } else { try? FileManager.default.removeItem(at: u) }
+        }
     }
 }
 
@@ -69,6 +76,7 @@ final class Recorder: NSObject, AVCaptureFileOutputRecordingDelegate {
         session = s; output = out; deviceName = dev.localizedName
         started = Date(); accumulated = 0; paused = false
         TakeMark.set(true)
+        Duck.down()                  // v3: the speakers at 6 % while it listens
         return true
     }
 
@@ -78,6 +86,7 @@ final class Recorder: NSObject, AVCaptureFileOutputRecordingDelegate {
         accumulated += Date().timeIntervalSince(started ?? Date())
         started = nil; paused = true
         TakeMark.set(false)          // paused is not talking: the voice may speak (Marko, 31.10.2026)
+        Duck.up()                    // paused is not listening: the speakers back
     }
 
     func resume() {
@@ -85,12 +94,14 @@ final class Recorder: NSObject, AVCaptureFileOutputRecordingDelegate {
         o.resumeRecording()
         started = Date(); paused = false
         TakeMark.set(true)
+        Duck.down()
     }
 
     // The file is complete only when the output says so: `done` gets it then (on the main thread).
     func stop(_ done: @escaping (URL?) -> Void) {
         guard let o = output else { done(nil); return }
         finished = done
+        Duck.up()
         o.stopRecording()
         started = nil; paused = false
     }
@@ -99,6 +110,7 @@ final class Recorder: NSObject, AVCaptureFileOutputRecordingDelegate {
         session?.stopRunning()
         session = nil; self.output = nil
         TakeMark.set(false)
+        Duck.up()
         let done = finished
         finished = nil
         DispatchQueue.main.async { done?(FileManager.default.fileExists(atPath: url.path) ? url : nil) }
@@ -350,7 +362,17 @@ enum Chime {
     /// ... Even the sound must match"): Speechify's own start_dictation.wav / end_dictation.wav, read from the installed
     /// Speechify app (never copied into this repository); Tink and Pop only when Speechify is not installed. At 100 % the
     /// sound and its level are Speechify's own (both files peak at -21 dBFS, played at volume 1).
-    static func sound(start: Bool) -> NSSound? { NSSound(named: start ? "Tink" : "Pop") }
+    // v3: Transcribe RT's way again, for everybody: Speechify's sounds when Speechify is installed, Tink and Pop otherwise
+    static let speechify = "/Applications/Speechify Voice AI.app/Contents/Resources"
+    static func sound(start: Bool) -> NSSound? {
+        let name = start ? "start_dictation.wav" : "end_dictation.wav"
+        if let e = FileManager.default.enumerator(atPath: speechify) {
+            for case let f as String in e where f.hasSuffix("/" + name) || f == name {
+                if let s = NSSound(contentsOfFile: speechify + "/" + f, byReference: true) { return s }
+            }
+        }
+        return NSSound(named: start ? "Tink" : "Pop")
+    }
 
     static func play(start: Bool, position: Float? = nil) {
         let s = sound(start: start)

@@ -188,10 +188,11 @@ final class Stripe: NSObject {
         voiceMeter()
         refresh()
         ready()
-        Whisper.warm()                                      // the model loaded once, before the first take
+        if Ears.current == .server { DispatchQueue.global().async { _ = VoiceServer.ensure() } }   // v3: Marko's ears
+        else { Whisper.warm() }                             // the model loaded once, before the first take
         // a download left half done (the app was quit, the Mac slept) goes on by itself (Marko, 1.11.2026)
-        if !Model.ready && Model.started && !CommandLine.arguments.contains("--take") { Model.download() }
-        if !Model.ready && !CommandLine.arguments.contains("--take") {   // the first start: ⚙ with the download button
+        if Ears.current == .builtIn && !Model.ready && Model.started && !CommandLine.arguments.contains("--take") { Model.download() }
+        if Ears.current == .builtIn && !Model.ready && !CommandLine.arguments.contains("--take") {   // the first start: ⚙ with the download button
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in self?.openSettingsTab() }
         }
         History.purge()
@@ -211,23 +212,26 @@ final class Stripe: NSObject {
             NSApp.unhideWithoutActivation()
             self.panel.orderFrontRegardless()
         }
+        // v3: the old app's names (com.mantra.markotranscribe.*) are heard as well, for anything that still sends them
+        for prefix in ["com.mantra.voicetotext", "com.mantra.markotranscribe"] {
         // A press from outside (tests, and any later remote control): the distributed notification
         // com.mantra.voicetotext.press does what the hotkey does; ".escape" what Esc does.
-        DistributedNotificationCenter.default().addObserver(forName: Notification.Name("com.mantra.voicetotext.press"), object: nil, queue: .main) { [weak self] _ in self?.pressed() }
+        DistributedNotificationCenter.default().addObserver(forName: Notification.Name(prefix + ".press"), object: nil, queue: .main) { [weak self] _ in self?.pressed() }
         // v15: a build quits the running copy and opens the new one (MANTRA_MANIFEST swift-apps.md); never while it listens or
         // writes down, so no take is lost
-        DistributedNotificationCenter.default().addObserver(forName: Notification.Name("com.mantra.voicetotext.quit"), object: nil, queue: .main) { [weak self] _ in
+        DistributedNotificationCenter.default().addObserver(forName: Notification.Name(prefix + ".quit"), object: nil, queue: .main) { [weak self] _ in
             guard let self else { return }
             if self.recorder.recording || self.busy { appendLog("quit asked from outside: refused, a take is in progress"); return }
             appendLog("quit asked from outside (a new build)")
             NSApp.terminate(nil)
         }
         // v22: what a short click on the status line does (tests)
-        DistributedNotificationCenter.default().addObserver(forName: Notification.Name("com.mantra.voicetotext.flipline"), object: nil, queue: .main) { [weak self] _ in self?.statusClicked() }
-        DistributedNotificationCenter.default().addObserver(forName: Notification.Name("com.mantra.voicetotext.history"), object: nil, queue: .main) { [weak self] _ in self?.openHistory() }
-        DistributedNotificationCenter.default().addObserver(forName: Notification.Name("com.mantra.voicetotext.settings"), object: nil, queue: .main) { [weak self] _ in self?.openSettingsTab() }
-        DistributedNotificationCenter.default().addObserver(forName: Notification.Name("com.mantra.voicetotext.escape"), object: nil, queue: .main) { [weak self] _ in
+        DistributedNotificationCenter.default().addObserver(forName: Notification.Name(prefix + ".flipline"), object: nil, queue: .main) { [weak self] _ in self?.statusClicked() }
+        DistributedNotificationCenter.default().addObserver(forName: Notification.Name(prefix + ".history"), object: nil, queue: .main) { [weak self] _ in self?.openHistory() }
+        DistributedNotificationCenter.default().addObserver(forName: Notification.Name(prefix + ".settings"), object: nil, queue: .main) { [weak self] _ in self?.openSettingsTab() }
+        DistributedNotificationCenter.default().addObserver(forName: Notification.Name(prefix + ".escape"), object: nil, queue: .main) { [weak self] _ in
             if self?.recorder.recording == true { self?.cancel() } else { self?.cancelProcessing() }
+        }
         }
         // THE ARTIFICIAL TEST (Marko, 18.10.2026: "test it with artificial voices from edge ... I don't need to speak"):
         // --take <wav> sends a recording through the same road as a take from the microphone, 3 s after the start.
@@ -296,7 +300,7 @@ final class Stripe: NSObject {
                 Chime.play(start: true)
                 usleep(150_000)                             // the sound (0.1 s) is over before the microphone opens
                 guard self.recorder.start() else { self.say("the microphone did not start", Ink.red); return }
-                Whisper.warm()                                 // v28: the model is ready before the words arrive
+                Ears.warm()                                    // v28: the model is ready before the words arrive
                 self.loudest = -160
                 self.dot.color = Ink.red
                 self.escape = HotKey(code: UInt32(kVK_Escape), id: 2) { [weak self] in self?.cancel() }
@@ -808,6 +812,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     // finished launching, and again a moment later.
     func applicationDidFinishLaunching(_ n: Notification) {
         TakeMark.set(false)          // v26: a mark left by a crash never holds the voice
+        Duck.up()                    // v3: speakers left at 6 % by a crash go back to their level
         for delay in [0.3, 2.0, 5.0] {
             DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
                 guard NSApp.isHidden, stripe.minimizedFrame == nil else { return }
@@ -818,6 +823,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     // closing a window leaves the app ON; the star's open (a reopen) brings the stripe back (Marko, 19.10.2026)
+    func applicationWillTerminate(_ n: Notification) { Duck.up(); TakeMark.set(false) }
     func applicationShouldTerminateAfterLastWindowClosed(_ s: NSApplication) -> Bool { false }
     func applicationShouldHandleReopen(_ s: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
         if stripe.minimizedFrame != nil { stripe.showQuietly() } else { stripe.panel.orderFrontRegardless() }
@@ -1051,6 +1057,19 @@ if let i = CommandLine.arguments.firstIndex(of: "--pill-shot"), i + 1 < CommandL
     exit(0)
 }
 
+// --duck-test: the speakers to 6 % for two seconds and back, printed (no microphone, no window)
+if CommandLine.arguments.contains("--duck-test") {
+    let dev = Duck.defaultOutput()
+    print("before:", dev.flatMap(Duck.volume).map { String(format: "%.3f", $0) } ?? "no volume on this output")
+    Duck.down()
+    print("ducked:", dev.flatMap(Duck.volume).map { String(format: "%.3f", $0) } ?? "-")
+    sleep(2)
+    Duck.up()
+    print("after: ", dev.flatMap(Duck.volume).map { String(format: "%.3f", $0) } ?? "-")
+    exit(0)
+}
+
+Merge.once()                     // v3: Transcribe Voice to Text RT's settings, keys and history, once
 Crash.install()
 Crash.testIfAsked()
 let app = NSApplication.shared

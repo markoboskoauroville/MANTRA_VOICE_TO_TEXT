@@ -176,10 +176,13 @@ namespace MantraVoiceToText
             ModelDownload.Changed += ModelChanged;
             Closed += (s, e) => ModelDownload.Changed -= ModelChanged;
 
-            Head("After hide");
+            Head("After hide · while listening");
             var hide = new CheckBox { Content = "Hide the blob 3 s after each take (F1 brings it back)", IsChecked = p.AfterHide, Foreground = text };
             hide.Click += (s, e) => { p.AfterHide = hide.IsChecked == true; p.Save(); };
             body.Children.Add(hide);
+            var duck = new CheckBox { Content = "Speakers at 6 % while listening, back after", IsChecked = p.Duck, Foreground = text, Margin = new Thickness(0, 6, 0, 0) };
+            duck.Click += (s, e) => { p.Duck = duck.IsChecked == true; p.Save(); };
+            body.Children.Add(duck);
 
             historyBox = new Expander { Header = "History (newest first; double-click a take to copy it)", Margin = new Thickness(0, 16, 0, 0), Foreground = text };
             var hp = new StackPanel();

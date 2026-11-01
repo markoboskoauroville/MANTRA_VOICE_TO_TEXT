@@ -17,7 +17,12 @@ namespace MantraVoiceToText
         readonly float[] ring = new float[Bands.N];
         int ringFilled;
         public bool Recording { get; private set; }
-        public bool Paused { get; set; }
+        bool paused;
+        public bool Paused                                  // v3: paused is not listening, the speakers come back
+        {
+            get => paused;
+            set { paused = value; if (Recording) { if (value) Duck.Up(); else Duck.Down(); } }
+        }
         public float Peak { get; private set; }           // linear, 0…1, of the whole take
         public double Seconds { get { lock (gate) return samples.Count / (double)Rate; } }
         public string Error { get; private set; }
@@ -41,7 +46,7 @@ namespace MantraVoiceToText
         {
             Error = null;
             lock (gate) { samples.Clear(); ringFilled = 0; Array.Clear(ring); }
-            Peak = 0; Paused = false;
+            Peak = 0; paused = false;
             try
             {
                 if (WaveInEvent.DeviceCount == 0) { Error = "no microphone found"; return false; }
@@ -49,6 +54,7 @@ namespace MantraVoiceToText
                 wave.DataAvailable += OnData;
                 wave.StartRecording();
                 Recording = true;
+                Duck.Down();                                 // v3: the speakers at 6 % while it listens
                 return true;
             }
             catch (Exception e)
@@ -92,6 +98,7 @@ namespace MantraVoiceToText
 
         public float[] Stop()
         {
+            Duck.Up();
             try { wave?.StopRecording(); } catch { }
             try { wave?.Dispose(); } catch { }
             wave = null;

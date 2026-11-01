@@ -5,7 +5,7 @@ import AppKit
 import AVFoundation
 import Speech
 
-final class SettingsWindow: NSObject, NSTextViewDelegate {
+final class SettingsWindow: NSObject, NSTextViewDelegate, NSTextFieldDelegate {
     let window: NSWindow
     let onChange: () -> Void
     let hotkey = NSPopUpButton()
@@ -18,6 +18,10 @@ final class SettingsWindow: NSObject, NSTextViewDelegate {
     let modelBar = NSProgressIndicator()
     let modelLabel = NSTextField(labelWithString: "")
     let keyField = NSSecureTextField()
+    // v3, one app: who hears (Marko's MANTRA_VOICE ears or the built-in Whisper), the names, the duck
+    let earsButton = NSPopUpButton()
+    let namesField = NSTextField()
+    let duckTick = NSButton(checkboxWithTitle: "Speakers at 6 % while listening, back after", target: nil, action: nil)
     let device = NSPopUpButton()
     // v20 (Marko, 31.10.2026: "add the tick marks after hide so I can turn off after hide"): the same setting, named plainly
     // under its own heading; unticked, the blob never hides by itself (only ✕ sends it away)
@@ -37,11 +41,11 @@ final class SettingsWindow: NSObject, NSTextViewDelegate {
 
     init(onChange: @escaping () -> Void, typeText: @escaping (String) -> Void) {
         self.onChange = onChange
-        window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 900, height: 900), styleMask: [.titled, .closable, .resizable],
+        window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 900, height: 940), styleMask: [.titled, .closable, .resizable],
                           backing: .buffered, defer: false)
         window.title = "Voice to Text (Mantra) v\(appVersion)"
         window.isReleasedWhenClosed = false
-        window.minSize = NSSize(width: 760, height: 880)
+        window.minSize = NSSize(width: 760, height: 920)
         super.init()
         history = HistoryPane(typeText: typeText) { [weak self] in self?.window.orderOut(nil); NSApp.hide(nil) }
 
@@ -76,12 +80,14 @@ final class SettingsWindow: NSObject, NSTextViewDelegate {
         importResult.lineBreakMode = .byWordWrapping
         importResult.preferredMaxLayoutWidth = 600
         importResult.isHidden = true                     // until a pick has something to say
-        var keyRows: [NSView] = [row([keyField, chooseAll, label("console.anthropic.com → API keys")]), importResult]
+        let chooseFiles = NSButton(title: "Choose key files…", target: self, action: #selector(chooseAllKeys))
+        var keyRows: [NSView] = [row([keyField, chooseAll, chooseFiles, label("console.anthropic.com → API keys")]), importResult]
         for (n, p) in Provider.allCases.enumerated() {
             let l = label("")
             keyLabels[p] = l
             var buttons: [NSView] = [l]
-            for (t, sel) in [("Test", #selector(testKeys(_:))), ("Forget", #selector(forgetKeys(_:)))] {
+            for (t, sel) in [("File…", #selector(chooseKeys(_:))), ("Test", #selector(testKeys(_:))),
+                             ("Revive", #selector(reviveKeys(_:))), ("Forget", #selector(forgetKeys(_:)))] {
                 let b = NSButton(title: t, target: self, action: sel)
                 b.tag = n
                 b.controlSize = .small
@@ -160,15 +166,29 @@ final class SettingsWindow: NSObject, NSTextViewDelegate {
         voiceNote.preferredMaxLayoutWidth = 700
         showVoicePermissions()
 
+        for e in [Ears.server, Ears.builtIn] { earsButton.addItem(withTitle: e.title); earsButton.lastItem?.representedObject = e.rawValue }
+        earsButton.selectItem(at: Ears.current == .server ? 0 : 1)
+        earsButton.target = self; earsButton.action = #selector(earsChanged)
+        earsButton.setAccessibilityIdentifier("ears")
+        earsButton.isHidden = !Ears.serverHere                 // only where the MANTRA_VOICE ears live
+        duckTick.state = Duck.enabled ? .on : .off
+        duckTick.target = self; duckTick.action = #selector(duckChanged)
+        duckTick.setAccessibilityIdentifier("duck")
+        namesField.stringValue = Prefs.names
+        namesField.placeholderString = "names to spell right, e.g. Marko (never Marco), Auroville"
+        namesField.widthAnchor.constraint(equalToConstant: 500).isActive = true
+        namesField.target = self; namesField.action = #selector(namesChanged)
+        namesField.delegate = self
+        namesField.setAccessibilityIdentifier("names")
         let col = NSStackView(views: [
-            label("Whisper Turbo: hears you on this Mac, offline (547 MB, downloaded once)", bold: true), row([modelButton, modelBar, modelLabel]),
+            label("Whisper Turbo: hears you on this Mac, offline (547 MB, downloaded once)", bold: true), row([earsButton, modelButton, modelBar, modelLabel]),
             label("Recording device", bold: true), device,
-            label("After hide", bold: true), autoHide,
+            label("After hide · while listening", bold: true), autoHide, duckTick,
             label("Voice activation", bold: true), row([voiceTick, voicePermissions]), voiceNote] + soundRows + [
             label("The key that starts and stops listening", bold: true), hotkey,
             label("Your Anthropic key for auto correct and STYLE (optional; stored on this Mac, never shown again)", bold: true)] + keyRows + [
             label("The STYLE button (pressed by hand)", bold: true), styleButton, styleNote,
-            label("Your additions to auto correct and to STYLE", bold: true), note, scroll,
+            label("Your additions to auto correct and to STYLE", bold: true), note, row([label("Names"), namesField]), scroll,
         ])
         col.orientation = .vertical
         col.alignment = .leading
@@ -373,6 +393,18 @@ final class SettingsWindow: NSObject, NSTextViewDelegate {
     }
 
     func textDidChange(_ n: Notification) { Prefs.extra = extra.string }
+    func controlTextDidChange(_ n: Notification) { if (n.object as? NSTextField) === namesField { Prefs.names = namesField.stringValue } }
+    @objc func namesChanged() { Prefs.names = namesField.stringValue }
+    @objc func duckChanged() {
+        Duck.enabled = duckTick.state == .on
+        appendLog("duck: \(Duck.enabled ? "on" : "off")")
+    }
+    @objc func earsChanged() {
+        Ears.current = Ears(rawValue: earsButton.selectedItem?.representedObject as? String ?? "") ?? .builtIn
+        appendLog("ears: \(Ears.current.title)")
+        if Ears.current == .server { DispatchQueue.global().async { _ = VoiceServer.ensure() } } else { Whisper.warm() }
+        onChange()
+    }
 
     func pickFiles(_ title: String) -> [URL] {
         let panel = NSOpenPanel()

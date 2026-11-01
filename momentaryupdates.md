@@ -47,10 +47,16 @@ address mantravoicetotext.pages.dev stays (the link already sent to Damjan keeps
 
 Marko chose **both** apps (Transcribe Voice to Text RT and Voice to Text (Mantra)).
 
-- While a take records, the system output volume goes to 6%; when the take ends (stop, cancel, ✕, quit, crash) it goes back to exactly the value it had. **Status:** in progress
+- While a take records, the system output volume goes to 6%; when the take ends (stop, cancel, ✕, quit, crash) it goes back to exactly the value it had. **Status:** done 1.11.2026 in Voice to Text (Mantra) v3, Mac and Windows (proven 49 → 6 → 49 % and 50 → 6 → 50 %); public release waits for Marko's yes
 
 ## 1.11.2026: one app
 
 > Please unite these two apps. So public one is also my local one and everything is developed under one hood.
 
-- Transcribe Voice to Text RT (Marko's local) and Voice to Text (Mantra) (public) become one app in one repository, MANTRA_VOICE_TO_TEXT; Marko's extras stay in it. **Status:** in progress
+- Transcribe Voice to Text RT (Marko's local) and Voice to Text (Mantra) (public) become one app in one repository, MANTRA_VOICE_TO_TEXT; Marko's extras stay in it. **Status:** done 1.11.2026, v3 installed and running; MARKO_TRANSCRIBE is a pointer
+
+## 1.11.2026: every Mantra app in the star
+
+> Not part of the Star menu, so all Mantra apps should be in the Star menu. And the same for this app should be in the Star menu at the same time and also inside the application folder.
+
+- Voice to Text (Mantra) in the star (row repointed, star restarted) and in /Applications (build.sh installs every build); the 11 other (Mantra) apps without a row added; rule in MANTRA_MANIFEST swift-apps.md. **Status:** done 1.11.2026

@@ -1,5 +1,14 @@
 # Lessons
 
+## v3 (1.11.2026)
+
+- A framework-dependent Windows build started by `prlctl exec` without DOTNET_ROOT shows Windows' "install .NET" dialog
+  and looks like a hang (no log line at all). The VM's .NET is C:\dotnet: set `$env:DOTNET_ROOT` in test scripts, or
+  test the published self-contained exe.
+- COM interop for IAudioEndpointVolume: every method `[PreserveSig]`, the event-context GUID as
+  `[MarshalAs(UnmanagedType.LPStruct)] Guid` (it is a pointer in C).
+- The star reads its rows only at launch: a changed row means a restart of Star (Mantra).
+
 ## Mac (1.11.2026)
 
 - **whisper.cpp HEAD did not run on Metal under macOS 15.0**: the runtime Metal compiler rejects `constexpr` on the

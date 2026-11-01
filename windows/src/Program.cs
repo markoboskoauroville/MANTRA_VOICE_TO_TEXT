@@ -46,6 +46,14 @@ namespace MantraVoiceToText
                     Log.Write($"bands {i / (double)Recorder.Rate,5:0.0} s " + string.Join(" ", Bands.Analyse(x[i..(i + Bands.N)], Recorder.Rate).Select(v => $"{v,5:0}")));
                 return 0;
             }
+            if (args.Contains("--duck-test"))                // v3: the speakers to 6 % for two seconds and back, into the log
+            {
+                Log.Write("duck-test start");
+                Log.Write($"duck-test before {Duck.Now():0.000}"); Duck.Down();
+                Log.Write($"duck-test ducked {Duck.Now():0.000}"); Thread.Sleep(2000); Duck.Up();
+                Log.Write($"duck-test after {Duck.Now():0.000}"); return 0;
+            }
+            Duck.Up();                                       // v3: speakers left at 6 % by a crash go back
             var takeFile = Arg(args, "--take");
             bool test = takeFile != null || args.Contains("--test-style-fake");
             Mutex single = null;

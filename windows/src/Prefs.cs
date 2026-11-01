@@ -14,7 +14,7 @@ namespace MantraVoiceToText
     public static class Paths
     {
         public const string Name = "Voice to Text (Mantra)";
-        public const int Version = 2;
+        public const int Version = 3;
         public const string OldName = "Mantra Voice to Text";             // v1's name and data folder
         public static readonly string Home = HomeFolder();
         public static string Moved { get; private set; }                  // what happened to v1's folder, for the log
@@ -73,6 +73,7 @@ namespace MantraVoiceToText
         public string Microphone { get; set; } = "";         // "" = the Windows default
         public string Hotkey { get; set; } = "F1";
         public bool AfterHide { get; set; } = true;
+        public bool Duck { get; set; } = true;              // v3: the speakers at 6 % while listening
         public bool LineBelow { get; set; } = false;
         public bool SettingsOnTop { get; set; } = false;
         public double? X { get; set; }

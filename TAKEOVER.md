@@ -2,6 +2,21 @@
 
 Started 1.11.2026.
 
+## v3: one app, and the duck (1.11.2026)
+
+- Mac: `mac/Sources/Local.swift` holds Ears (builtIn / server), VoiceServer, Warm, Merge (from com.mantra.markotranscribe
+  and ~/Library/Application Support/Marko Transcribe, once, flag `mergedFromRT`), Duck (CoreAudio
+  VirtualMainVolume on the default output; the level saved in UserDefaults `duckSaved`/`duckDevice` until it is put back).
+  TakeMark writes take-open in both the new and the old folder (voiced.py of MANTRA_VOICE reads the new one from its next
+  start). The old notification names com.mantra.markotranscribe.* are heard too.
+- Windows: `windows/src/Duck.cs` (IAudioEndpointVolume by COM, calls on a pool thread with a 2 s limit, saved level in
+  duck.txt), Prefs.Duck, ⚙ checkbox, `--duck-test`. Version 3 in the csproj.
+- Proven: Mac `--duck-test` 49 % → 6 % → 49 % on the ADAM D3V; Windows VM 50 % → 6 % → 50 %; an artificial take through
+  the :8837 ears ("This is a test of the United Voice to Text application from Marko."); his settings, keys and history
+  moved; ⚙ off screen, nothing cut. The old /Applications/Transcribe Voice to Text RT (Mantra).app is in the Trash.
+- **Not done:** the public release v3 (tools/publish.sh) waits for Marko's yes; the site and release still offer v2.
+  A real take by hand with the speakers playing.
+
 ## Mac (1.11.2026)
 
 Built from MARKO_TRANSCRIBE v29's sources (copied, then changed; the two now live apart). Bundle id

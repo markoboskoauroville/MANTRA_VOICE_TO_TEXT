@@ -8,7 +8,7 @@
 // does each is a choice on the stripe, remembered.
 import Foundation
 
-let appVersion = 2
+let appVersion = 3
 
 // MARK: the choices
 
@@ -87,6 +87,10 @@ enum Prefs {
         get { UserDefaults.standard.bool(forKey: "lineBelow") }
         set { UserDefaults.standard.set(newValue, forKey: "lineBelow") }
     }
+    static var names: String {                       // v3: names the correction spells right (Marko's came over)
+        get { UserDefaults.standard.string(forKey: "names") ?? "" }
+        set { UserDefaults.standard.set(newValue, forKey: "names") }
+    }
     static var extra: String {                       // "in settings I can also add some things to it"
         get { UserDefaults.standard.string(forKey: "extra") ?? "" }
         set { UserDefaults.standard.set(newValue, forKey: "extra") }
@@ -136,7 +140,17 @@ func json(_ d: Data?) -> [String: Any] { (d.flatMap { try? JSONSerialization.jso
 // MARK: the standing corrections (MANTRA_MANIFEST modules/transcription.md), applied in code before and after any model:
 // in the first tests every model kept "Grok" (it is also a real product) and the small one kept "Amarco".
 
-let corrections: [(NSRegularExpression, String)] = []
+// v3 (one app, Marko 1.11.2026): the corrections are a file of the person's own, one "pattern => text" a line
+// (regular expressions), in Application Support/Voice to Text (Mantra)/corrections.txt; Marko's ("Marco" → "Marko")
+// came over from Transcribe Voice to Text RT (Merge.swift). No file, no corrections.
+let corrections: [(NSRegularExpression, String)] = {
+    guard let t = try? String(contentsOf: appSupport.appendingPathComponent("corrections.txt"), encoding: .utf8) else { return [] }
+    return t.split(separator: "\n").compactMap { line in
+        let parts = line.components(separatedBy: " => ")
+        guard parts.count == 2, !line.hasPrefix("#"), let re = try? NSRegularExpression(pattern: parts[0]) else { return nil }
+        return (re, parts[1])
+    }
+}()
 
 func corrected(_ text: String) -> String {
     var s = text
@@ -165,6 +179,7 @@ enum Hear {
     }
 
     static func heard(_ engine: HearEngine, wav source: URL) -> Result<String, EngineError> {
+        if Ears.current == .server { return Ears.server(source, lang: engine.lang) }
         let r = Whisper.transcribe(source, lang: engine.lang)
         lastLang = Whisper.lastLang
         return r
@@ -196,6 +211,7 @@ enum Rules {
     // The fixed part first (so a cache can hold it), then his additions, then the language, named.
     static func system(lang: String) -> (fixed: String, tail: String) {
         var tail = ""
+        if !Prefs.names.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { tail += "Names, spelled like this: \(Prefs.names)\n\n" }
         if !Prefs.extra.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { tail += "Also, from the person: \(Prefs.extra)\n\n" }
         if lang == "auto" {                                    // v15: Whisper Turbo Auto, the language not named by the voice
             tail += "The message is in Croatian or in English, or mixes both. Write each part in the language it is in, and in no other language."
