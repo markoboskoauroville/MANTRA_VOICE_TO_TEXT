@@ -80,3 +80,12 @@ Marko chose **both** apps (Transcribe Voice to Text RT and Voice to Text (Mantra
 > Please update voice to text. While I am recording my voice for transcription, this VT icon on the bar should become a stopwatch, red stopwatch, which is counting minutes of my talking.
 
 - While a take records, VT in the menu bar becomes a red stopwatch with the time (m:ss) of the take; paused: the same in grey, standing still; after: VT again. **Status:** done 1.11.2026, v6 installed (seen on the menu bar: grey VT → red stopwatch 0:00, 0:04 → yellow VT); published 1.11.2026 as v6
+
+## 1.11.2026, 21:20: is Voice to Text in good shape
+
+> after checking that, please test my transcription application called Voice to Text. Is it running? It's still running. Can it transcribe? Do a few quick tests and report me. Is my application in good shape
+
+- Running? **No** at 21:20: no process, the last log line 14:11 (a dropped take), no crash log. Opened again with --login (v7).
+- Transcribes? **Yes**, built-in Whisper in test mode (nothing typed), the Windows test recordings: EN word for word; HR word for word; AUTO chose hr and en right; silence refused ("nothing said"); about 2 s after the model loads on Metal. Tested on v6 and once more on v7. His settings put back (EN, ears = server). — **Status:** done 1.11.2026
+- Found: with ears = server and voiced down, the app started voiced.py by nohup, a second copy beside launchd's. v7 kickstarts launchd's agent com.mantra.voiced instead. — **Status:** built and installed 1.11.2026, **not published** (waits for Marko's yes)
+- Not tested: the server path (voiced was down; the voice is started only by Marko) and a real microphone take.

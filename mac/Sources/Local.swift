@@ -100,9 +100,18 @@ enum VoiceServer {
                 try? FileManager.default.createDirectory(atPath: home + "/.voice", withIntermediateDirectories: true)
                 let p = Process()
                 p.executableURL = URL(fileURLWithPath: "/bin/sh")
-                p.arguments = ["-c", "exec </dev/null >/dev/null 2>&1; cd '\(dir)' && nohup '\(python)' '\(dir)/voiced.py' >> '\(home)/.voice/voiced.log' 2>&1 &"]
+                // v7 (1.11.2026): through its launchd agent when there is one, never a second nohup copy beside it. Marko: "Two voice
+                // engines are running at the same time, and they are killing each other." A nohup voiced held :8837 while launchd's
+                // copy restarted and fought it for the port.
+                let agent = home + "/Library/LaunchAgents/com.mantra.voiced.plist"
+                if FileManager.default.fileExists(atPath: agent) {
+                    let gui = "gui/\(getuid())"
+                    p.arguments = ["-c", "launchctl kickstart \(gui)/com.mantra.voiced >/dev/null 2>&1 || launchctl bootstrap \(gui) '\(agent)' >/dev/null 2>&1"]
+                } else {
+                    p.arguments = ["-c", "exec </dev/null >/dev/null 2>&1; cd '\(dir)' && nohup '\(python)' '\(dir)/voiced.py' >> '\(home)/.voice/voiced.log' 2>&1 &"]
+                }
                 try? p.run(); p.waitUntilExit()
-                appendLog("voice: started voiced.py")
+                appendLog("voice: started voiced.py" + (FileManager.default.fileExists(atPath: agent) ? " (launchd com.mantra.voiced)" : ""))
                 started = true
             }
             usleep(500_000)

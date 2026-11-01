@@ -83,3 +83,9 @@
   redirects only paths with no file behind them, so deploy.sh removes the old versioned zips from site/public.
 - **`set -o pipefail` + an empty grep inside `$( )`** ends a script silently: the first live check stopped without a word;
   `|| true` on the parsing lines.
+
+## 1.11.2026: zsh does not split words
+
+A test loop `for run in "whisperHR hr-test" …; do set -- $run` passed the whole string as $1 under zsh (no word splitting
+of unquoted variables): the app got `.wav` and an unknown `hear`, and answered "nothing recorded" four times. It looked
+like an app failure and was mine. Pass the two values as separate arguments to a function.

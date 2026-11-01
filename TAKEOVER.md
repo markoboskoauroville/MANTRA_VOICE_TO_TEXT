@@ -127,3 +127,14 @@ of v1 and v2 stay, so links already sent keep working.
 70,009,531; the page shows Version 2; /VoiceToTextMantra-v2-mac.zip, -v1 and MantraVoiceToText-v1-mac.zip answer 301 →
 /download/VoiceToText-mac.zip → 200. **Not run yet:** a real new version through `mac/build.sh` (the release-create and the
 VM build branches of publish.sh have not been exercised).
+
+## v7 (1.11.2026, evening): the voice through launchd
+
+- `VoiceServer.ensure()` (mac/Sources/Local.swift): when ~/Library/LaunchAgents/com.mantra.voiced.plist exists it runs
+  `launchctl kickstart gui/<uid>/com.mantra.voiced` (bootstrap if not loaded), never nohup beside it; elsewhere nohup as
+  before. Cause: two voiced.py fought over :8837 (MANTRA_VOICE TAKEOVER, v21–v22).
+- Built `./build.sh --no-publish`, installed, opened with --login. **Not published**: the release and page still show 6.
+- Tests: `defaults write com.mantra.voicetotext ears builtIn; … testNoTyping -bool true; … hear whisperHR|whisperAuto|whisperEN`,
+  then `"<app>/Contents/MacOS/Voice to Text (Mantra)" --take windows/test/<file>.wav`, the result in
+  ~/Library/Logs/voice-to-text-mantra.log ("test, not typed: …"). Put back hear/ears, delete testNoTyping, move the test
+  entries out of history/.
