@@ -34,3 +34,9 @@ He also stressed the language switch (Croatian | English | auto-detect) as an im
 
 The rename relayed above: "Mantra Voice to Text" → "Voice to Text (Mantra)", as v2 (whole-number versions); the page's
 address mantravoicetotext.pages.dev stays (the link already sent to Damjan keeps working). **Status:** done 1.11.2026, v2 on Mac and Windows, release v2, site and bio card renamed
+
+## 1.11.2026 (relayed by the hub session, Marko's words)
+
+> yes, fix download links so every website gets each new version by itself
+
+- The page's buttons point at addresses without a version (MANTRA_MANIFEST modules/download-always-latest.md); the release step puts each new version behind them and writes the version into the page, in one run. **Status:** in progress (1.11.2026)
