@@ -1,4 +1,6 @@
-# Mantra Voice to Text
+# Voice to Text (Mantra)
+
+Until v1 "Mantra Voice to Text" (renamed 1.11.2026 at Marko's word, v2). Website https://mantravoicetotext.pages.dev, files on the public release markoboskoauroville/mantra-voice-to-text-downloads.
 
 Press F1, talk, press F1 again: your words are typed wherever the cursor is. Whisper Turbo runs on your own computer
 (offline, nothing leaves the machine); an optional Anthropic key adds Auto correct and the STYLE button.

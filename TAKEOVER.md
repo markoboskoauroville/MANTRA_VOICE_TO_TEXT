@@ -80,3 +80,10 @@ to …\Voice to Text (Mantra)", the model came along (574,041,195 bytes, no down
 test file was written down word for word (34.2 s, then 35.0 s). `--pill-shot` and `--settings-shot` from the released exe
 looked at: the new name and v2 in Settings; the exe's version info read back. **Not proven for v2:** the x64 zip was
 built but not run (v1's x64 ran only under emulation), and everything listed as not proven for v1.
+
+## v2 (1.11.2026): renamed Voice to Text (Mantra)
+
+Mac: `Voice to Text (Mantra).app`, data ~/Library/Application Support/Voice to Text (Mantra) (v1's folder moves once),
+log ~/Library/Logs/voice-to-text-mantra.log, bundle id unchanged (com.mantra.voicetotext). Release v2 holds
+VoiceToTextMantra-v2-mac.zip, -win-x64.zip, -win-arm64.zip; the site serves the Mac zip itself and links the Windows ones.
+Proven: Mac Croatian take after the folder move (model not downloaded again); Windows arm64 English take after its move.
