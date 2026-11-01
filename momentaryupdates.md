@@ -27,3 +27,10 @@ He also stressed the language switch (Croatian | English | auto-detect) as an im
 
 - Rename "Mantra Voice to Text" → "Voice to Text (Mantra)": app names (Mac bundle, Windows exe and window titles), the page's title and texts, the release files if renamed, README/TAKEOVER, the bio card. **Status:** waiting (received while this session was closing; next session)
 - The page names the language switch: Croatian | English | auto-detect. **Status:** waiting (next session)
+
+## 1.11.2026, 05:25
+
+> please rename the one and then close
+
+The rename relayed above: "Mantra Voice to Text" → "Voice to Text (Mantra)", as v2 (whole-number versions); the page's
+address mantravoicetotext.pages.dev stays (the link already sent to Damjan keeps working). **Status:** in progress
