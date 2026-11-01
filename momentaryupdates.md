@@ -60,3 +60,9 @@ Marko chose **both** apps (Transcribe Voice to Text RT and Voice to Text (Mantra
 > Not part of the Star menu, so all Mantra apps should be in the Star menu. And the same for this app should be in the Star menu at the same time and also inside the application folder.
 
 - Voice to Text (Mantra) in the star (row repointed, star restarted) and in /Applications (build.sh installs every build); the 11 other (Mantra) apps without a row added; rule in MANTRA_MANIFEST swift-apps.md. **Status:** done 1.11.2026
+
+## 1.11.2026: the start sound before the drop
+
+> Please in this app fix the bug. You need to send the signal that it's recording in normal volume and then reduce the volume. Now when I press F1 I don't hear that it's recording. I need that signal.
+
+- The start sound plays whole at the normal level, then the speakers go to 6 %; the stop sound plays after the level is back. **Status:** in progress
