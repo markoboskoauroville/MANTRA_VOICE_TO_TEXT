@@ -28,7 +28,15 @@ enum Provider: String, CaseIterable {
     var shapeHint: String { "Anthropic keys start with sk-ant-." }
 }
 
-let appSupport = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Application Support/Mantra Voice to Text")
+let appSupport: URL = {
+    let base = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Application Support")
+    let new = base.appendingPathComponent("Voice to Text (Mantra)"), old = base.appendingPathComponent("Mantra Voice to Text")
+    // v2 renamed the app (Marko, 1.11.2026): the v1 folder (the model, a half download, the key, the history) moves once
+    if !FileManager.default.fileExists(atPath: new.path) && FileManager.default.fileExists(atPath: old.path) {
+        try? FileManager.default.moveItem(at: old, to: new)
+    }
+    return new
+}()
 
 struct KeyEntry: Codable, Equatable {
     var key: String
@@ -372,7 +380,7 @@ enum Ring {
 func call(_ req: URLRequest, timeout: TimeInterval = 120) -> (status: Int, data: Data, headers: [AnyHashable: Any], error: String?) {
     var r = req
     r.timeoutInterval = timeout
-    if r.value(forHTTPHeaderField: "User-Agent") == nil { r.setValue("MantraVoiceToText/\(appVersion) (macOS)", forHTTPHeaderField: "User-Agent") }
+    if r.value(forHTTPHeaderField: "User-Agent") == nil { r.setValue("VoiceToTextMantra/\(appVersion) (macOS)", forHTTPHeaderField: "User-Agent") }
     var out: (Int, Data, [AnyHashable: Any], String?) = (0, Data(), [:], nil)
     let done = DispatchSemaphore(value: 0)
     URLSession.shared.dataTask(with: r) { data, resp, err in

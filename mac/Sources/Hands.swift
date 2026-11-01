@@ -27,7 +27,7 @@ enum InputDevice {
 // (MANTRA_VOICE voiced.py) holds every reading while it is there. Voice activation's own listening never makes it.
 enum TakeMark {
     static let url = FileManager.default.homeDirectoryForCurrentUser
-        .appendingPathComponent("Library/Application Support/Mantra Voice to Text/take-open")
+        .appendingPathComponent("Library/Application Support/Voice to Text (Mantra)/take-open")
     static func set(_ on: Bool) {
         if on {
             try? FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
@@ -42,7 +42,7 @@ final class Recorder: NSObject, AVCaptureFileOutputRecordingDelegate {
     private var finished: ((URL?) -> Void)?
     // Request 12 ("recorded to best quality aiff or flac and then using ffmpeg re-encoded to whisper format"): lossless
     // AIFF at the device's own rate, mono, 24-bit; Audio (below) makes the small 16 kHz FLAC that is sent.
-    let file = FileManager.default.temporaryDirectory.appendingPathComponent("mantra-voice-to-text-take.aiff")
+    let file = FileManager.default.temporaryDirectory.appendingPathComponent("voice-to-text-mantra-take.aiff")
     var started: Date?                     // when the running stretch began (nil while paused)
     var accumulated: TimeInterval = 0      // the stretches before a pause (TTT Mini: the clock stops while paused)
     var paused = false

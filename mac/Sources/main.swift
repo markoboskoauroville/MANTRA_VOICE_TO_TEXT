@@ -1,4 +1,4 @@
-// Mantra Voice to Text, until v27 "Marko Transcribe": one floating pill that hears him, corrects what he said and types it into the app he is
+// Voice to Text (Mantra), until v27 "Marko Transcribe": one floating pill that hears him, corrects what he said and types it into the app he is
 // in. Since 30.10.2026 it does one thing one way: Whisper Turbo on this Mac writes the take down (English or Croatian),
 // a Claude model at Anthropic corrects it (or nothing does), and it is typed where the cursor is.
 //
@@ -795,7 +795,7 @@ final class Stripe: NSObject {
 }
 
 // The log: what was heard and what was typed, so a bad result can be looked at afterwards.
-let logFile = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Logs/mantra-voice-to-text.log")
+let logFile = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Logs/voice-to-text-mantra.log")
 func appendLog(_ s: String) {
     let f = ISO8601DateFormatter(); f.timeZone = .current
     let line = "\(f.string(from: Date())) \(s)\n"

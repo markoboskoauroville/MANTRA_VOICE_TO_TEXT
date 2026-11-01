@@ -1,4 +1,4 @@
-// ⚙ of Mantra Voice to Text, two tabs (request 14): Settings (the hotkey, the keys (a file picker; only how many were
+// ⚙ of Voice to Text (Mantra), two tabs (request 14): Settings (the hotkey, the keys (a file picker; only how many were
 // found is ever shown), and his own additions to the style: "you can write the style prompt automatically,
 // but in settings I can also add some things to it") and Transcription history (History.swift).
 import AppKit
@@ -13,7 +13,7 @@ final class SettingsWindow: NSObject, NSTextViewDelegate {
     var keyLabels: [Provider: NSTextField] = [:]
     var testLabels: [Provider: NSTextField] = [:]
     let importResult = NSTextField(wrappingLabelWithString: "")
-    // Mantra Voice to Text: the model downloaded from here, and a key pasted (never shown again)
+    // Voice to Text (Mantra): the model downloaded from here, and a key pasted (never shown again)
     let modelButton = NSButton(title: "", target: nil, action: nil)
     let modelBar = NSProgressIndicator()
     let modelLabel = NSTextField(labelWithString: "")
@@ -39,7 +39,7 @@ final class SettingsWindow: NSObject, NSTextViewDelegate {
         self.onChange = onChange
         window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 900, height: 900), styleMask: [.titled, .closable, .resizable],
                           backing: .buffered, defer: false)
-        window.title = "Mantra Voice to Text v\(appVersion)"
+        window.title = "Voice to Text (Mantra) v\(appVersion)"
         window.isReleasedWhenClosed = false
         window.minSize = NSSize(width: 760, height: 880)
         super.init()
@@ -194,15 +194,15 @@ final class SettingsWindow: NSObject, NSTextViewDelegate {
         let box = NSView()
         tabs.translatesAutoresizingMaskIntoConstraints = false
         box.addSubview(tabs)
-        let x = closeX(self, #selector(closeWindow), tip: "Close; Mantra Voice to Text stays on")
+        let x = closeX(self, #selector(closeWindow), tip: "Close; Voice to Text (Mantra) stays on")
         x.setAccessibilityIdentifier("close"); x.setAccessibilityLabel("Close window")
         let on = rowWord("ON", Ink.green, id: "on", label: "On", #selector(nothing))
-        on.toolTip = "Mantra Voice to Text runs"
+        on.toolTip = "Voice to Text (Mantra) runs"
         let off = rowWord("OFF", Ink.grey, id: "off", label: "Off", #selector(offPressed))
-        off.toolTip = "Quit Mantra Voice to Text (not while a take is open)"
+        off.toolTip = "Quit Voice to Text (Mantra) (not while a take is open)"
         topWord = rowWord("TOP", Ink.grey, id: "top", label: "Top", #selector(topPressed))
         paintTop()
-        let name = NSTextField(labelWithString: "Mantra Voice to Text")
+        let name = NSTextField(labelWithString: "Voice to Text (Mantra)")
         name.font = .systemFont(ofSize: 13, weight: .bold)
         offNote.font = .systemFont(ofSize: 11); offNote.textColor = Ink.amber
         for v in [x, on, off, topWord!, name, offNote] as [NSView] { v.translatesAutoresizingMaskIntoConstraints = false; box.addSubview(v) }

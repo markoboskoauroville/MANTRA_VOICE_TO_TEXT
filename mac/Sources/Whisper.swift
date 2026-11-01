@@ -1,6 +1,6 @@
-// Mantra Voice to Text: Whisper inside the app (whisper.cpp with Metal), no server, no Python, no ffmpeg.
+// Voice to Text (Mantra): Whisper inside the app (whisper.cpp with Metal), no server, no Python, no ffmpeg.
 //
-// The public sibling of Mantra Voice to Text (1.11.2026): the model is one file, Whisper large-v3-turbo quantised
+// The public sibling of Voice to Text (Mantra) (1.11.2026): the model is one file, Whisper large-v3-turbo quantised
 // q5_0 (547 MB), downloaded once from ⚙ into the app's own folder; after that the Mac can be offline for good.
 import Foundation
 import AVFoundation

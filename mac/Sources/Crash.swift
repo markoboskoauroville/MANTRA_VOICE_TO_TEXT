@@ -1,6 +1,6 @@
 // THE CRASH LOG (Marko, 30.10.2026: "please check the crash log. If you don't see anything in a crash log, please improve
 // crash log"). macOS kept no report of the crashes of that evening; only a test launch with stderr caught one. Now every
-// death leaves its story in ~/Library/Logs/mantra-voice-to-text-crash.log:
+// death leaves its story in ~/Library/Logs/voice-to-text-mantra-crash.log:
 //   · an Objective-C exception (the 22:33 one): its name, its reason, the whole stack, and the pill's last line;
 //   · a signal (a Swift fatal error, an index out of range, a bad pointer): its number and the stack, written with
 //     async-signal-safe calls only, from a file opened at launch;
@@ -8,7 +8,7 @@
 import AppKit
 import Darwin
 
-let crashFile = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Logs/mantra-voice-to-text-crash.log")
+let crashFile = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Logs/voice-to-text-mantra-crash.log")
 var crashCrumb = "launching"                    // the pill's last line: what the app was doing (say() keeps it)
 private var crashFD: Int32 = -1
 private var crashHeader = [CChar](repeating: 0, count: 256)
@@ -17,7 +17,7 @@ enum Crash {
     static func install() {
         lastTime()
         crashFD = open(crashFile.path, O_WRONLY | O_APPEND | O_CREAT, 0o644)
-        let head = "\n=== CRASH (signal) · Mantra Voice to Text v\(appVersion) · launched \(stamp()) · pid \(getpid()) · signal "
+        let head = "\n=== CRASH (signal) · Voice to Text (Mantra) v\(appVersion) · launched \(stamp()) · pid \(getpid()) · signal "
         _ = head.withCString { strlcpy(&crashHeader, $0, crashHeader.count) }
         for s in [SIGABRT, SIGSEGV, SIGBUS, SIGILL, SIGTRAP, SIGFPE] {
             signal(s) { n in
@@ -58,7 +58,7 @@ enum Crash {
               let m = (a[.modificationDate] as? Date)?.timeIntervalSince1970, m > seen + 1 else { return }
         UserDefaults.standard.set(m, forKey: "crashLogSeen")
         if seen > 0 || m > Date().timeIntervalSince1970 - 86400 {
-            appendLog("crashed last time (\(Date(timeIntervalSince1970: m))); see ~/Library/Logs/mantra-voice-to-text-crash.log")
+            appendLog("crashed last time (\(Date(timeIntervalSince1970: m))); see ~/Library/Logs/voice-to-text-mantra-crash.log")
         }
     }
 }
@@ -67,12 +67,12 @@ enum Crash {
 private func crashOnException(_ e: NSException) {
     let text = """
 
-    === CRASH (exception) · Mantra Voice to Text v\(appVersion) · \(Crash.stamp())
+    === CRASH (exception) · Voice to Text (Mantra) v\(appVersion) · \(Crash.stamp())
     \(e.name.rawValue): \(e.reason ?? "no reason")
     the pill said: \(crashCrumb)
     \(e.callStackSymbols.joined(separator: "\n"))
 
     """
     if let h = try? FileHandle(forWritingTo: crashFile) { h.seekToEndOfFile(); h.write(text.data(using: .utf8)!); try? h.close() }
-    appendLog("CRASH: \(e.name.rawValue): \(e.reason ?? "")  (the whole story in mantra-voice-to-text-crash.log)")
+    appendLog("CRASH: \(e.name.rawValue): \(e.reason ?? "")  (the whole story in voice-to-text-mantra-crash.log)")
 }

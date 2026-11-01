@@ -1,5 +1,5 @@
 #!/bin/bash
-# Builds Mantra Voice to Text.app: Swift + whisper.cpp (Metal, embedded), signed "Mantra Apps", zipped as dist/MantraVoiceToText-vN-mac.zip.
+# Builds Voice to Text (Mantra).app: Swift + whisper.cpp (Metal, embedded), signed "Mantra Apps", zipped as dist/VoiceToTextMantra-vN-mac.zip.
 #   ./build.sh            build and zip (never installs over anything)
 #   ./build.sh --install  also copy into /Applications
 # WHISPER: a whisper.cpp checkout built as static libraries (see README), default ~/Developer/VOICE_ENGINES/src/whisper.cpp
@@ -14,7 +14,7 @@ if [ ! -f "$B/src/libwhisper.a" ]; then
   cmake --build "$B" -j 8 --config Release
 fi
 V=$(grep -E '^let appVersion' Sources/Engines.swift | grep -oE '[0-9]+')
-NAME="Mantra Voice to Text"
+NAME="Voice to Text (Mantra)"
 APP="build/$NAME.app"
 rm -rf build && mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources" dist
 swiftc -O -swift-version 5 -target arm64-apple-macos14.0 Sources/*.swift \
@@ -29,7 +29,7 @@ swift Tools/make_icon.swift build/AppIcon.iconset "$V"
 iconutil -c icns build/AppIcon.iconset -o "$APP/Contents/Resources/AppIcon.icns"
 codesign --force --deep -s "Mantra Apps" "$APP"
 codesign --verify --deep "$APP"
-rm -f "dist/MantraVoiceToText-v$V-mac.zip"
-ditto -c -k --keepParent "$APP" "dist/MantraVoiceToText-v$V-mac.zip"
-echo "built v$V: $APP and dist/MantraVoiceToText-v$V-mac.zip ($(du -h "dist/MantraVoiceToText-v$V-mac.zip" | cut -f1))"
+rm -f "dist/VoiceToTextMantra-v$V-mac.zip"
+ditto -c -k --keepParent "$APP" "dist/VoiceToTextMantra-v$V-mac.zip"
+echo "built v$V: $APP and dist/VoiceToTextMantra-v$V-mac.zip ($(du -h "dist/VoiceToTextMantra-v$V-mac.zip" | cut -f1))"
 if [ "${1:-}" = "--install" ]; then rm -rf "/Applications/$NAME.app"; cp -R "$APP" /Applications/; echo "installed /Applications/$NAME.app"; fi
