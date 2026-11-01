@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleName</key><string>Mantra Voice to Text</string>
+	<key>CFBundleDisplayName</key><string>Mantra Voice to Text</string>
+	<key>CFBundleIdentifier</key><string>com.mantra.voicetotext</string>
+	<key>CFBundleExecutable</key><string>Mantra Voice to Text</string>
+	<key>CFBundleIconFile</key><string>AppIcon</string>
+	<key>CFBundlePackageType</key><string>APPL</string>
+	<key>CFBundleShortVersionString</key><string>__VERSION__</string>
+	<key>CFBundleVersion</key><string>__VERSION__</string>
+	<key>LSMinimumSystemVersion</key><string>14.0</string>
+	<key>LSUIElement</key><true/>
+	<key>NSHighResolutionCapable</key><true/>
+	<key>NSMicrophoneUsageDescription</key><string>Mantra Voice to Text listens after you press F1, writes down what you said and types it where your cursor is.</string>
+	<key>NSSpeechRecognitionUsageDescription</key><string>Voice activation: Apple's speech recognition on this Mac listens for your start and end words (Listen, Send) and starts or sends a take. Nothing is sent out.</string>
+</dict>
+</plist>
