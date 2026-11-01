@@ -66,3 +66,11 @@ Marko chose **both** apps (Transcribe Voice to Text RT and Voice to Text (Mantra
 > Please in this app fix the bug. You need to send the signal that it's recording in normal volume and then reduce the volume. Now when I press F1 I don't hear that it's recording. I need that signal.
 
 - The start sound plays whole at the normal level, then the speakers go to 6 %; the stop sound plays after the level is back. **Status:** done 1.11.2026, v4 installed (the drop waits for the sound's reported end + 0.25 s for the speakers' delay; tested: 69 % held while the sound played, 6 % about half a second after the press, 69 % back before the stop sound); not published yet
+
+## 1.11.2026: VT in the menu bar
+
+> please build an icon for the menu bar for this application. It will just be a simple text V and T. I need to see the status of what's going on: - When it's grayed out, nothing is going on. - When I'm talking, when it's recording, then it's red. - When it's processing the recording, then it's yellow. - When it plays the recording again, greatThank you. please build a icon for menu bar for this application that it will be just a simple text B and T and I need to see the status of what's going on when it's grayed out nothing is going on when I'm talking when it's recording then it's red when it's processing recording then it's yellow and when it paste recording again gray
+
+(dictated twice; "B and T" and "plays ... great" are the dictation of "V and T" and "pastes ... gray")
+
+- "VT" in the menu bar: grey at rest, red while a take records, yellow while it is written down / corrected, grey again when it is pasted. **Status:** in progress
