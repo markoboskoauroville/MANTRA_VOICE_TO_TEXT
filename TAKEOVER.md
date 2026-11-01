@@ -52,13 +52,16 @@ Range, retries, goes on by itself at the next start; Marko 1.11.2026).
   bytes (Range: bytes=4717622-)", killed at 6,918,154, a third start went on from there; the 18 MB downloaded were
   byte-identical to the model's first 18 MB; then the real model was put back (only ~18 MB used of the SIM).
 - The arm64 release zip, unzipped to a fresh folder with no .NET on the path, transcribed the test file.
+- The x64 release zip runs under Windows-on-ARM emulation: it starts, and Whisper (the NoAvx runtime, since emulation
+  has no AVX) loads the model in 17 to 41 s; the transcription itself did not finish in 10 minutes there (emulated, no
+  SIMD), so **x64 transcription is not proven**: it needs a real Intel / AMD PC.
 - `--pill-shot` faces (ready, recording, writing, not landed with COPY white, styling with STYLE green, no auto correct
   with STYLE grey, copied, no key, line below) and `--settings-shot`.
 
 **Not proven:** the real Claude call (Auto correct, STYLE, the key's Test button) on Windows (no key of Marko's was
 used: the code path without a key was); a mouse click on the blob (buttons were pressed with `--press`, which calls the
 same action; dragging was not tried); a real voice through a real microphone (the F1 take was thrown away); a real x64
-PC (see the x64 line below); a PC without the VC++ runtime after the "Get it" message (the message is code, the failure
+PC (see the x64 line above); a PC without the VC++ runtime after the "Get it" message (the message is code, the failure
 before it was seen); the download from 0 to the end (only ~18 MB); the hotkey change in Settings; the history window's
 buttons; Windows 10; high-DPI multi-monitor placement; antivirus / SmartScreen reaction to an unsigned exe (it is not
 signed: Windows will warn "unknown publisher" on first start).
