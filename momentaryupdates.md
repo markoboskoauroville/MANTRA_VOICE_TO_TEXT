@@ -110,3 +110,8 @@ Marko chose **both** apps (Transcribe Voice to Text RT and Voice to Text (Mantra
 (Said while testing v8 with Parakeet Auto: after a take the bars of the blob stood frozen at the last level and the status line kept "pasted 15 words".) **Status:** started 8.11.2026
 - **Cause of the frozen bars:** the old release timer in `endListening()` stopped itself on its first tick, because `recorder.recording` was still true (finish() and cancel() call it before `recorder.stop`), so the bars stayed at the last level. **Done in v9:** the bars go to zero the moment a take ends (`WaveView.reset()`); the status line says `IDLE · F1 TO TALK · …` whenever the stripe is idle, and 3 s after a take finishes (what was typed stays readable that long; a take being written down or a text that did not land keeps its own words). Built by GitHub; not tested with a real microphone yet. **Status:** pushed 8.11.2026
 - **Marko's test, 8.11.2026, v9 installed:** "the bars are stop jumping ... everything is working ... it works fantastic." The bars drop to zero after he stops talking, and the status line shows IDLE. **Status:** done 8.11.2026. The public download page stays on v7 until Marko says yes.
+
+## 8.11.2026, 13:10 (Marko, word for word)
+
+Please fix my voice to text up. When it's styling, it adds between paragraph one empty line. Please don't do this. Write everything without spaces between paragraphs.
+**Status:** saved first.
