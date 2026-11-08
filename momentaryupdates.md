@@ -102,3 +102,9 @@ Marko chose **both** apps (Transcribe Voice to Text RT and Voice to Text (Mantra
 > Yes, I want that especially because it's faster than whisper.
 
 - v8: "Parakeet (fast)" English / Croatian / Auto in ⚙ Transcription model and History, beside Whisper Turbo; 🌐 cycles within Parakeet; always through the MANTRA_VOICE ears (`/hear?model=parakeet`), offered only where they live. First build on GitHub (.github/workflows/build.yml), release v8 Latest on this repo; the public page not touched. **Status:** pushed 8.11.2026
+
+## 8.11.2026: IDLE in the status line, the meter at zero
+
+> In status line, please put the idle. So I know it's idle. And when it fin. This frequens analyser should be at zero, not frozen.
+
+(Said while testing v8 with Parakeet Auto: after a take the bars of the blob stood frozen at the last level and the status line kept "pasted 15 words".) **Status:** started 8.11.2026
