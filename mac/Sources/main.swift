@@ -272,7 +272,20 @@ final class Stripe: NSObject {
         dot.color = Ink.green
         refresh()
         let word = VoiceWords.enabled ? "SAY \"\(VoiceWords.start.uppercased())\" · " : ""          // v22
-        say(word + "\(HotKey.chosen) TO TALK · " + engines, Ink.dim)
+        say("IDLE · " + word + "\(HotKey.chosen) TO TALK · " + engines, Ink.dim)       // v9: "put the idle in the status line"
+    }
+
+    /// v9 (Marko, 8.11.2026: "In status line, please put the idle. So I know it's idle"): a few seconds after a take is
+    /// finished (what was typed stays readable that long) the status line says IDLE. A new take, a take being written
+    /// down, or text that did not land (COPY waits) keeps its own words.
+    var idleToken = 0
+    func settleIdle(after secs: Double = 3) {
+        idleToken += 1
+        let token = idleToken
+        DispatchQueue.main.asyncAfter(deadline: .now() + secs) { [weak self] in
+            guard let self, token == self.idleToken, !self.busy, !self.recorder.recording, !self.unlanded else { return }
+            self.ready()
+        }
     }
 
     // MARK: the hotkey
@@ -338,14 +351,10 @@ final class Stripe: NSObject {
         tick?.invalidate(); escape = nil
         face.pause.live = false
         if VoiceWords.enabled && voice.running { voiceMeter(); return }      // v22: the listener's meter goes on
-        face.wave.moving = false
-        face.wave.take(nil)
-        // the bars fall back to dots on their own release
-        Timer.scheduledTimer(withTimeInterval: 1.0 / 24, repeats: true) { [weak self] t in
-            guard let self, !self.recorder.recording else { t.invalidate(); return }
-            self.face.wave.take(nil)
-            if self.face.wave.spec.allSatisfy({ $0 <= -140 }) { t.invalidate() }
-        }
+        // v9: the bars go to zero the moment the take ends. The old release timer stopped itself on its first tick,
+        // because recorder.recording was still true while finish() / cancel() call this before recorder.stop: the
+        // bars stood frozen at the last level (Marko, 8.11.2026: "now blob is frozen").
+        face.wave.reset()
     }
 
     @objc func closePressed() {
@@ -417,6 +426,7 @@ final class Stripe: NSObject {
             dot.color = Ink.green
             hideSoon()
             appendLog(String(format: "dropped: %.1f s, loudest %.0f dB", secs, loudest))
+            settleIdle()
             return
         }
         recorder.stop { [weak self] wav in
@@ -491,6 +501,7 @@ final class Stripe: NSObject {
                     self.dot.color = Ink.green
                     self.say(String(format: "test: %d words, not typed · %.1f + %.1f s", n, tHear, tStyle) + (moved.map { " · key moved: \($0)" } ?? ""), Ink.green)
                     appendLog("test, not typed: \(final)")
+                    self.settleIdle()
                     return
                 }
                 Typer.insert(final) { landing in
@@ -507,6 +518,7 @@ final class Stripe: NSObject {
                         self.say(String(format: "%@ %d words · %.1f + %.1f s", how, n, tHear, tStyle), Ink.green)
                     }
                     self.hideSoon()
+                    self.settleIdle()
                 }
                 appendLog("heard (\(hear.title), \(String(format: "%.1f", tHear)) s): \(words)\n  styled (\(style.title), \(String(format: "%.1f", tStyle)) s): \(final)")
             }

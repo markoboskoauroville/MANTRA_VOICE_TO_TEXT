@@ -201,6 +201,8 @@ final class WaveView: NSView {
     var spec = [Double](repeating: -140, count: 11)
     var last = CFAbsoluteTimeGetCurrent()
     static func height(_ db: Double) -> Double { min(1, max(0, (db - (TOP - RANGE)) / RANGE)) }
+    /// v9 (Marko, 8.11.2026: "This frequency analyser should be at zero, not frozen"): every bar to its resting dot, at once
+    func reset() { spec = [Double](repeating: -140, count: spec.count); moving = false; last = CFAbsoluteTimeGetCurrent(); needsDisplay = true }
     func take(_ db: [Double]?) {
         let t = CFAbsoluteTimeGetCurrent(), dt = min(0.2, t - last); last = t
         let db = db ?? []
