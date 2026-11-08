@@ -180,14 +180,15 @@ final class SettingsWindow: NSObject, NSTextViewDelegate, NSTextFieldDelegate {
         namesField.target = self; namesField.action = #selector(namesChanged)
         namesField.delegate = self
         namesField.setAccessibilityIdentifier("names")
+        // by importance (Marko, 8.11.2026): 1 the key that starts listening, 2 the models, 3 the API keys, then the rest
         let col = NSStackView(views: [
-            label("Whisper Turbo: hears you on this Mac, offline (547 MB, downloaded once)", bold: true), row([earsButton, modelButton, modelBar, modelLabel]),
+            label("1 · The key that starts and stops listening", bold: true), hotkey,
+            label("2 · Models: Whisper Turbo hears you on this Mac, offline (547 MB, downloaded once)", bold: true), row([earsButton, modelButton, modelBar, modelLabel]),
+            label("The STYLE button's Claude (pressed by hand)", bold: true), styleButton, styleNote,
+            label("3 · Your Anthropic key for auto correct and STYLE (optional; stored on this Mac, never shown again)", bold: true)] + keyRows + [
             label("Recording device", bold: true), device,
             label("After hide · while listening", bold: true), autoHide, duckTick,
             label("Voice activation", bold: true), row([voiceTick, voicePermissions]), voiceNote] + soundRows + [
-            label("The key that starts and stops listening", bold: true), hotkey,
-            label("Your Anthropic key for auto correct and STYLE (optional; stored on this Mac, never shown again)", bold: true)] + keyRows + [
-            label("The STYLE button (pressed by hand)", bold: true), styleButton, styleNote,
             label("Your additions to auto correct and to STYLE", bold: true), note, row([label("Names"), namesField]), scroll,
         ])
         col.orientation = .vertical

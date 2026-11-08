@@ -1,5 +1,7 @@
 # Takeover
 
+**v11, 8.11.2026:** (1) STYLE no longer echoes the text twice: some boxes take AXSelectedText but ignore the selected range and insert at the caret, so old and new text both stayed. `Restyle.write` (Hands.swift) now compares the box with exactly what it should hold, then sets the whole value, then selects all and types over. (2) ⚙ Settings by importance: 1 the key that starts listening, 2 the models (Whisper, the STYLE Claude), 3 the API keys, then the rest. Compiled by GitHub Actions only; not yet tested by Marko.
+
 **State 8.11.2026, v10:** styling no longer leaves an empty line between paragraphs (Marko: "Write everything without spaces between paragraphs"): the rule in `Rules.base` (Engines.swift) says one paragraph per line with no empty line, and `Style.noEmptyLines` collapses every run of line breaks to one after the model answers, so it holds even when the model ignores the rule. Applies to all styling paths (Style.run).
 
 Started 1.11.2026.

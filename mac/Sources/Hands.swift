@@ -325,28 +325,49 @@ enum Restyle {
     /// replaced: read back in the field; believed: the field took it but cannot be read back; failed: nothing written
     enum Written { case replaced, believed, failed }
 
-    /// the styled text put in place of the target
+    /// the styled text put in place of the target. v11: the OLD text goes out and the NEW text comes in, once. Some boxes
+    /// (browsers, Electron) take AXSelectedText but ignore the selected range and insert at the caret, which left the old
+    /// text AND the new one (Marko, 8.11.2026: "it echoes the text two times"). So the result is compared with exactly
+    /// what the box should now hold; if it differs, the whole box is set to that, or all of it is selected and typed over.
     static func write(_ new: String, to t: Target) -> Written {
         let field = t.field
         let before = Typer.value(field)
         let probe = String(new.prefix(24))
+        var expected: String? = nil
+        if let b = before, let r = t.range, r.location >= 0, r.location + r.length <= (b as NSString).length {
+            expected = (b as NSString).replacingCharacters(in: NSRange(location: r.location, length: r.length), with: new)
+        }
+        /// the box's value after a short wait (some boxes update a moment later)
+        func settled(_ want: String?) -> String? {
+            var v = Typer.value(field)
+            for _ in 0..<5 where v == before || (want != nil && v != want) { usleep(80_000); v = Typer.value(field) }
+            return v
+        }
         // 1. the range selected, the selection replaced (what a person typing over a selection does)
         var selected = t.range == nil
         if var cf = t.range, let rv = AXValueCreate(.cfRange, &cf) {
             selected = AXUIElementSetAttributeValue(field, kAXSelectedTextRangeAttribute as CFString, rv) == .success
         }
         if selected, AXUIElementSetAttributeValue(field, kAXSelectedTextAttribute as CFString, new as CFTypeRef) == .success {
-            usleep(100_000)
-            let after = Typer.value(field)
-            if let after, after != before, after.contains(probe) { return .replaced }
-            if before == nil && after == nil { return .believed }
+            let after = settled(expected)
+            if let exp = expected {
+                if after == exp { return .replaced }
+                // the box took the text but not the range (an echo, or a part left behind): put it right
+                if let a = after, a != before { appendLog("STYLE write: box held \(a.count) characters, wanted \(exp.count): setting the whole value") }
+            } else if let after, after != before, after.contains(probe) { return .replaced }
+            else if before == nil && after == nil { return .believed }
         }
-        // 2. the whole value with the range replaced (fields that take no AXSelectedText)
-        if let b = before, let r = t.range, r.location + r.length <= (b as NSString).length {
-            let whole = (b as NSString).replacingCharacters(in: NSRange(location: r.location, length: r.length), with: new)
-            if AXUIElementSetAttributeValue(field, kAXValueAttribute as CFString, whole as CFTypeRef) == .success {
-                usleep(100_000)
-                if Typer.value(field) == whole { return .replaced }
+        // 2. the whole value with the range replaced (fields that take no AXSelectedText, or ignored the range)
+        if let exp = expected {
+            if AXUIElementSetAttributeValue(field, kAXValueAttribute as CFString, exp as CFTypeRef) == .success {
+                if settled(exp) == exp { return .replaced }
+            }
+            // 3. everything selected and typed over, then checked again
+            var all = CFRange(location: 0, length: ((Typer.value(field) ?? exp) as NSString).length)
+            if let rv = AXValueCreate(.cfRange, &all),
+               AXUIElementSetAttributeValue(field, kAXSelectedTextRangeAttribute as CFString, rv) == .success,
+               AXUIElementSetAttributeValue(field, kAXSelectedTextAttribute as CFString, exp as CFTypeRef) == .success {
+                if settled(exp) == exp { return .replaced }
             }
         }
         return .failed

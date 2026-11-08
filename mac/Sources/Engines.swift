@@ -8,7 +8,7 @@
 // does each is a choice on the stripe, remembered.
 import Foundation
 
-let appVersion = 10
+let appVersion = 11
 
 // MARK: the choices
 
