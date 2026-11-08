@@ -96,3 +96,9 @@ Marko chose **both** apps (Transcribe Voice to Text RT and Voice to Text (Mantra
 
 - TTT session (VM_SES5_05-NOV) answered 8.11.2026: ready and usable, tested on the Pixel 7; tests continue, it will message again. Model NVIDIA Parakeet TDT 0.6B v3 int8 ONNX (sherpa-onnx 2.0.1), Croatian correction tools/hr_fix/hr_fix.py with the dictionaries from TTT app/src/main/assets/ime/dict. Lessons: always to_latin() first (Cyrillic output), then fix(); name Marco→Marko; spoken email; times; language choice matters more than engine.
 - Plan: engine "parakeet" in MANTRA_VOICE ears.py (so :8837 /hear serves it to every app), model fetched through the Download Monitor into VOICE_ENGINES, hr_fix copied in; then Voice to Text (Mantra) gets "Parakeet EN / HR" among "Who hears you". **Status:** started 8.11.2026
+
+## 8.11.2026: Parakeet in the app
+
+> Yes, I want that especially because it's faster than whisper.
+
+- v8: "Parakeet (fast)" English / Croatian / Auto in ⚙ Transcription model and History, beside Whisper Turbo; 🌐 cycles within Parakeet; always through the MANTRA_VOICE ears (`/hear?model=parakeet`), offered only where they live. First build on GitHub (.github/workflows/build.yml), release v8 Latest on this repo; the public page not touched. **Status:** pushed 8.11.2026

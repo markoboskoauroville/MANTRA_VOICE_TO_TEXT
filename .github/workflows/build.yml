@@ -1,0 +1,32 @@
+# From MANTRA_MANIFEST/workflows/mac-swift.yml (8.11.2026, v8: the first build on GitHub). The Mac app in mac/:
+# build.sh with SIGN=- (ad hoc) and NO_INSTALL=1; release vN (appVersion in mac/Sources/Engines.swift) marked Latest.
+# On the Mac the zip is downloaded, unzipped into /Applications and re-signed "Mantra Apps" (workflows/README.md).
+# The public download page (tools/publish.sh) is not touched here: it waits for Marko's yes.
+name: build
+on:
+  push:
+    branches: [main]
+    paths: ["mac/**", ".github/workflows/build.yml"]
+  workflow_dispatch:
+permissions:
+  contents: write
+env:
+  APP: "Voice to Text (Mantra)"
+  VERSION_FILE: mac/Sources/Engines.swift
+jobs:
+  build:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build
+        working-directory: mac
+        run: WHISPER="$RUNNER_TEMP/whisper.cpp" SIGN=- NO_INSTALL=1 ./build.sh --no-publish
+      - name: Pack
+        run: cd mac/build && ditto -c -k --keepParent "$APP.app" app.zip
+      - name: Release (Latest)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          V=$(sed -n 's/^let appVersion = \([0-9]*\).*/\1/p' "$VERSION_FILE")
+          if gh release view "v$V" >/dev/null 2>&1; then gh release upload "v$V" mac/build/app.zip --clobber
+          else gh release create "v$V" mac/build/app.zip --target "$GITHUB_SHA" --latest --title "$APP v$V" --notes "$(git log -1 --format=%s)"; fi

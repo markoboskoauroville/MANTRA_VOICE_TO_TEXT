@@ -8,7 +8,7 @@
 // does each is a choice on the stripe, remembered.
 import Foundation
 
-let appVersion = 7
+let appVersion = 8
 
 // MARK: the choices
 
@@ -19,23 +19,40 @@ let appVersion = 7
 // the transcription model: Whisper large-v3-turbo on this Mac, told which language to listen for
 // v15 (Marko, 31.10.2026: "should be Whisper Turbo Auto which works with Croatian and English at the same time"):
 // AUTO lets Whisper find the language of each take, held to Croatian or English (MANTRA_VOICE ears.py, lang=auto).
+// v8 PARAKEET (Marko, 8.11.2026: "I want that especially because it's faster than whisper"): NVIDIA Parakeet TDT 0.6B v3
+// in the MANTRA_VOICE ears (/hear?model=parakeet), about three times faster than Whisper Turbo, with TTT's Croatian
+// correction. Only where the MANTRA_VOICE ears live (Marko's Mac): the public app keeps the three Whisper choices.
 enum HearEngine: String, CaseIterable {
-    case whisperEN, whisperHR, whisperAuto
+    case whisperEN, whisperHR, whisperAuto, parakeetEN, parakeetHR, parakeetAuto
 
     var title: String {
-        switch self { case .whisperEN: return "Whisper Turbo EN"; case .whisperHR: return "Whisper Turbo HR"; case .whisperAuto: return "Whisper Turbo AUTO" }
+        switch self {
+        case .whisperEN: return "Whisper Turbo EN"; case .whisperHR: return "Whisper Turbo HR"; case .whisperAuto: return "Whisper Turbo AUTO"
+        case .parakeetEN: return "Parakeet EN"; case .parakeetHR: return "Parakeet HR"; case .parakeetAuto: return "Parakeet AUTO"
+        }
     }
     var menuTitle: String {
         switch self {
         case .whisperEN: return "Whisper Turbo, English"
         case .whisperHR: return "Whisper Turbo, Croatian"
         case .whisperAuto: return "Whisper Turbo, Auto (Croatian and English)"
+        case .parakeetEN: return "Parakeet (fast), English"
+        case .parakeetHR: return "Parakeet (fast), Croatian"
+        case .parakeetAuto: return "Parakeet (fast), Auto (Croatian and English)"
         }
     }
-    var lang: String { switch self { case .whisperEN: return "en"; case .whisperHR: return "hr"; case .whisperAuto: return "auto" } }
+    var lang: String {
+        switch self { case .whisperEN, .parakeetEN: return "en"; case .whisperHR, .parakeetHR: return "hr"; case .whisperAuto, .parakeetAuto: return "auto" }
+    }
+    var isParakeet: Bool { self == .parakeetEN || self == .parakeetHR || self == .parakeetAuto }
+    /// what this Mac can offer: Parakeet only beside the MANTRA_VOICE ears
+    static var offered: [HearEngine] { allCases.filter { !$0.isParakeet || Ears.serverHere } }
 
     static var current: HearEngine {
-        get { HearEngine(rawValue: UserDefaults.standard.string(forKey: "hear") ?? "") ?? .whisperEN }
+        get {
+            let e = HearEngine(rawValue: UserDefaults.standard.string(forKey: "hear") ?? "") ?? .whisperEN
+            return offered.contains(e) ? e : .whisperEN
+        }
         set { UserDefaults.standard.set(newValue.rawValue, forKey: "hear") }
     }
 }
@@ -179,6 +196,7 @@ enum Hear {
     }
 
     static func heard(_ engine: HearEngine, wav source: URL) -> Result<String, EngineError> {
+        if engine.isParakeet { return Ears.server(source, lang: engine.lang, model: "parakeet") }   // v8: always the ears
         if Ears.current == .server { return Ears.server(source, lang: engine.lang) }
         let r = Whisper.transcribe(source, lang: engine.lang)
         lastLang = Whisper.lastLang

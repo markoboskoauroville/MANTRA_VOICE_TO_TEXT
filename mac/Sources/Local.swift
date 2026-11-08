@@ -27,10 +27,10 @@ enum Ears: String {
     var title: String { self == .server ? "MANTRA_VOICE ears (:8837, MLX)" : "built in (whisper.cpp, this app)" }
 
     /// a take through the ears server: 16 kHz mono 16-bit WAV, never leaves the Mac
-    static func server(_ source: URL, lang: String) -> Result<String, EngineError> {
+    static func server(_ source: URL, lang: String, model: String = "") -> Result<String, EngineError> {
         guard let pcm = Audio.pcm16k(source), pcm.count > 8000 else { return .failure(EngineError("nothing recorded")) }
-        if !VoiceServer.up() { VoiceServer.ensure() }
-        var req = URLRequest(url: URL(string: serverURL("voice", 8837) + "/hear?lang=\(lang)")!)
+        if !VoiceServer.up() { VoiceServer.ensure(force: !model.isEmpty) }
+        var req = URLRequest(url: URL(string: serverURL("voice", 8837) + "/hear?lang=\(lang)" + (model.isEmpty ? "" : "&model=\(model)"))!)
         req.httpMethod = "POST"
         req.setValue("audio/wav", forHTTPHeaderField: "Content-Type")
         req.httpBody = wav16(pcm)
@@ -39,7 +39,7 @@ enum Ears: String {
         let j = json(r.data)
         Hear.lastLang = j["lang"] as? String
         if let t = j["text"] as? String { return .success(t) }
-        return .failure(EngineError("Whisper: \(j["error"] as? String ?? "HTTP \(r.status)")"))
+        return .failure(EngineError("\(model.isEmpty ? "Whisper" : model.capitalized): \(j["error"] as? String ?? "HTTP \(r.status)")"))
     }
 
     static func wav16(_ pcm: [Float]) -> Data {
@@ -56,7 +56,7 @@ enum Ears: String {
     }
 
     /// when a take starts: the chosen Whisper gets ready
-    static func warm() { current == .server ? Warm.ears() : Whisper.warm() }
+    static func warm() { (current == .server || HearEngine.current.isParakeet) ? Warm.ears() : Whisper.warm() }
 }
 
 // the local servers, found through the port registry (MANTRA_MANIFEST modules/ports.md)
@@ -88,8 +88,8 @@ enum VoiceServer {
     }
 
     /// up already, or started and waited for (up to 60 s); a voiced still shutting down is waited out. Off the main thread.
-    @discardableResult static func ensure() -> Bool {
-        guard Ears.current == .server else { return false }
+    @discardableResult static func ensure(force: Bool = false) -> Bool {
+        guard force || Ears.current == .server || HearEngine.current.isParakeet else { return false }
         var started = false
         for _ in 0..<120 {
             if up() { return true }

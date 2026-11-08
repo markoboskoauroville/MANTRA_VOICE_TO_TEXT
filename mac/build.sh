@@ -9,7 +9,19 @@ set -euo pipefail
 cd "$(dirname "$0")"
 PUBLISH=1
 for a in "$@"; do case "$a" in --install) ;; --no-publish) PUBLISH=0;; *) echo "unknown option $a"; exit 1;; esac; done
+# GITHUB (v8, 8.11.2026, MANTRA_MANIFEST android-app.md §0: compiled only by GitHub): the workflow runs
+# SIGN=- NO_INSTALL=1 ./build.sh; then nothing is installed or published here, and whisper.cpp is fetched at the
+# pinned commit with the macOS 15 Metal patch when it is not on the machine.
+SIGN="${SIGN:-Mantra Apps}"
+NO_INSTALL="${NO_INSTALL:-0}"
+[ "$NO_INSTALL" = 1 ] && PUBLISH=0
+WHISPER_COMMIT=482279b8a18855ba741d7b88c30fcb3874691f59
 W="${WHISPER:-$HOME/Developer/VOICE_ENGINES/src/whisper.cpp}"
+if [ ! -d "$W/include" ]; then
+  git clone -q https://github.com/ggml-org/whisper.cpp.git "$W"
+  git -C "$W" checkout -q "$WHISPER_COMMIT"
+  git -C "$W" apply "$(pwd)/whisper-metal-macos15.patch"
+fi
 B="$W/build-static"
 if [ ! -f "$B/src/libwhisper.a" ]; then
   cmake -S "$W" -B "$B" -DBUILD_SHARED_LIBS=OFF -DWHISPER_BUILD_EXAMPLES=OFF -DWHISPER_BUILD_TESTS=OFF -DWHISPER_BUILD_SERVER=OFF \
@@ -31,11 +43,12 @@ swiftc -O -swift-version 5 -target arm64-apple-macos14.0 Sources/*.swift \
 sed "s/__VERSION__/$V/g" Resources/Info.plist > "$APP/Contents/Info.plist"
 swift Tools/make_icon.swift build/AppIcon.iconset "$V"
 iconutil -c icns build/AppIcon.iconset -o "$APP/Contents/Resources/AppIcon.icns"
-codesign --force --deep -s "Mantra Apps" "$APP"
+codesign --force --deep -s "$SIGN" "$APP"
 codesign --verify --deep "$APP"
 rm -f "dist/VoiceToTextMantra-v$V-mac.zip"
 ditto -c -k --keepParent "$APP" "dist/VoiceToTextMantra-v$V-mac.zip"
 echo "built v$V: $APP and dist/VoiceToTextMantra-v$V-mac.zip ($(du -h "dist/VoiceToTextMantra-v$V-mac.zip" | cut -f1))"
+if [ "$NO_INSTALL" = 1 ]; then echo "not installed (NO_INSTALL=1)"; exit 0; fi
 running() { pgrep -qf "/Contents/MacOS/(Voice to Text \(Mantra\)|Transcribe Voice to Text RT)( |$)"; }
 WAS=0
 if running; then

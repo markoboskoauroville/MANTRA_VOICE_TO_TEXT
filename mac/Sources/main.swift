@@ -361,7 +361,8 @@ final class Stripe: NSObject {
 
     // 🌐: Whisper in the other language (EN ⇄ HR), for this take and the next
     @objc func toggleLanguage() {
-        let swap: [HearEngine: HearEngine] = [.whisperEN: .whisperHR, .whisperHR: .whisperAuto, .whisperAuto: .whisperEN]   // v15: EN → HR → AUTO
+        let swap: [HearEngine: HearEngine] = [.whisperEN: .whisperHR, .whisperHR: .whisperAuto, .whisperAuto: .whisperEN,   // v15: EN → HR → AUTO
+                                             .parakeetEN: .parakeetHR, .parakeetHR: .parakeetAuto, .parakeetAuto: .parakeetEN]  // v8: within Parakeet
         if let other = swap[HearEngine.current] { HearEngine.current = other; refresh(); recorder.recording ? showListening() : ready() }
     }
 
@@ -520,7 +521,7 @@ final class Stripe: NSObject {
         let m = NSMenu()
         func head(_ t: String) { let h = NSMenuItem(title: t, action: nil, keyEquivalent: ""); h.isEnabled = false; m.addItem(h) }
         head("Transcription model")
-        for e in HearEngine.allCases {
+        for e in HearEngine.offered {
             let i = NSMenuItem(title: e.menuTitle, action: #selector(pickHear(_:)), keyEquivalent: "")
             i.target = self; i.representedObject = e.rawValue; i.state = e == HearEngine.current ? .on : .off
             m.addItem(i)

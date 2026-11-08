@@ -127,7 +127,7 @@ final class HistoryPane: NSObject, NSTableViewDataSource, NSTableViewDelegate, N
         detailScroll.hasVerticalScroller = true
         detailScroll.borderType = .bezelBorder
 
-        for e in HearEngine.allCases { hear.addItem(withTitle: e.title); hear.lastItem?.representedObject = e.rawValue }
+        for e in HearEngine.offered { hear.addItem(withTitle: e.title); hear.lastItem?.representedObject = e.rawValue }
         for e in StyleEngine.allCases { style.addItem(withTitle: e.title); style.lastItem?.representedObject = e.rawValue }
         hear.toolTip = "The ear (and language) for the new version"
         style.toolTip = "The style for the new version"
