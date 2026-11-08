@@ -151,7 +151,7 @@ final class Stripe: NSObject {
                         pause: { [weak self] in self?.togglePause() },
                         style: { [weak self] in self?.stylePressed() },
                         copy: { [weak self] in self?.copyPressed() },
-                        gear: { [weak self] in self?.gearMenu() },
+                        gear: { [weak self] in self?.openSettingsTab() },   // v12: the gear opens ⚙ itself, no menu
                         send: { [weak self] in self?.sendPressed() })
         face.line.clicked = { [weak self] in self?.statusClicked() }
         face.placeLine(below: Prefs.lineBelow)
@@ -370,9 +370,10 @@ final class Stripe: NSObject {
 
     // 🌐: Whisper in the other language (EN ⇄ HR), for this take and the next
     @objc func toggleLanguage() {
-        let swap: [HearEngine: HearEngine] = [.whisperEN: .whisperHR, .whisperHR: .whisperAuto, .whisperAuto: .whisperEN,   // v15: EN → HR → AUTO
-                                             .parakeetEN: .parakeetHR, .parakeetHR: .parakeetAuto, .parakeetAuto: .parakeetEN]  // v8: within Parakeet
-        if let other = swap[HearEngine.current] { HearEngine.current = other; refresh(); recorder.recording ? showListening() : ready() }
+        // EN → HR → AUTO within the same model (v15; v8 Parakeet; v12 AssemblyAI)
+        let now = HearEngine.current
+        HearEngine.current = HearEngine.of(now.family, lang: ["en": "hr", "hr": "auto"][now.lang] ?? "en")
+        refresh(); recorder.recording ? showListening() : ready()
     }
 
     // WHILE THE TAKE IS WRITTEN DOWN AND STYLED: the Braille spinner in front of the words, the meter quiet (request 13:
@@ -473,7 +474,7 @@ final class Stripe: NSObject {
                 return
             }
             // Auto: the language Whisper heard, or "auto" for the correction when the voice did not say
-            let lang = hear == .whisperAuto ? (Hear.lastLang.flatMap { ["en", "hr"].contains($0) ? $0 : nil } ?? "auto") : hear.lang
+            let lang = hear.lang == "auto" ? (Hear.lastLang.flatMap { ["en", "hr"].contains($0) ? $0 : nil } ?? "auto") : hear.lang
             if style != .off { DispatchQueue.main.async { self.say("auto correct (\(style.title))…", Ink.amber) } }
             let t1 = Date()
             var final = corrected(words), warning: String?
@@ -525,46 +526,9 @@ final class Stripe: NSObject {
         }
     }
 
-    // MARK: the drop-downs
-
-    // ⚙ ON THE PILL (Marko, 30.10.2026: "remove quick choices. Too many choices ... the first selection is called
-    // transcription model and the second correction. Simplify the wordings in the menu")
-    @objc func gearMenu() {
-        let m = NSMenu()
-        func head(_ t: String) { let h = NSMenuItem(title: t, action: nil, keyEquivalent: ""); h.isEnabled = false; m.addItem(h) }
-        head("Transcription model")
-        for e in HearEngine.offered {
-            let i = NSMenuItem(title: e.menuTitle, action: #selector(pickHear(_:)), keyEquivalent: "")
-            i.target = self; i.representedObject = e.rawValue; i.state = e == HearEngine.current ? .on : .off
-            m.addItem(i)
-        }
-        m.addItem(.separator())
-        head("Auto correct (after a take)")          // v23 (Marko, 31.10.2026: "It's not corrections ... Auto correct")
-        for e in StyleEngine.allCases {
-            let i = NSMenuItem(title: e.menuTitle, action: #selector(pickStyle(_:)), keyEquivalent: "")
-            i.target = self; i.representedObject = e.rawValue; i.state = e == StyleEngine.current ? .on : .off
-            m.addItem(i)
-        }
-        m.addItem(.separator())
-        for (t, sel, on) in [("History…", #selector(openHistory), true),
-                             ("Type the last text again", #selector(typeAgain), !lastText.isEmpty),
-                             ("Settings…", #selector(openSettingsTab), true)] {
-            let i = NSMenuItem(title: t, action: sel, keyEquivalent: ""); i.target = self; i.isEnabled = on; m.addItem(i)
-        }
-        m.addItem(.separator())
-        m.addItem(NSMenuItem(title: "Quit", action: #selector(NSApplication.terminate(_:)), keyEquivalent: ""))
-        m.popUp(positioning: nil, at: NSPoint(x: 0, y: face.gear.bounds.height + 4), in: face.gear)
-    }
-
-    @objc func pickHear(_ i: NSMenuItem) {
-        HearEngine.current = HearEngine(rawValue: i.representedObject as! String)!
-        refresh(); ready()
-    }
-
-    @objc func pickStyle(_ i: NSMenuItem) {
-        StyleEngine.current = StyleEngine(rawValue: i.representedObject as! String)!
-        refresh(); ready()
-    }
+    // MARK: the gear
+    // v12 (Marko, 8.11.2026: "remove from drop down menus options. It must be very simple inside settings ... a gear icon
+    // settings is opening up"): the gear on the pill opens ⚙ straight away; the models are chosen there, nothing drops down.
 
     @objc func typeAgain() {
         guard !lastText.isEmpty else { return }
@@ -829,6 +793,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     // finished launching, and again a moment later.
     func applicationDidFinishLaunching(_ n: Notification) {
         TakeMark.set(false)          // v26: a mark left by a crash never holds the voice
+        DispatchQueue.global().async { let r = Keys.loadFamous(); if !r.isEmpty { appendLog("keys from ~/Downloads/API: " + r.replacingOccurrences(of: "\n", with: "; ")) } }
         Duck.up()                    // v3: speakers left at 6 % by a crash go back to their level
         for delay in [0.3, 2.0, 5.0] {
             DispatchQueue.main.asyncAfter(deadline: .now() + delay) {

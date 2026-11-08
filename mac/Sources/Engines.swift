@@ -8,11 +8,11 @@
 // does each is a choice on the stripe, remembered.
 import Foundation
 
-let appVersion = 11
+let appVersion = 12
 
 // MARK: the choices
 
-// ONLY WHISPER AND ANTHROPIC (Marko, 30.10.2026: "strip all out, only Whisper model turbo and models from Anthropic for
+// (until v12) ONLY WHISPER AND ANTHROPIC (Marko, 30.10.2026: "strip all out, only Whisper model turbo and models from Anthropic for
 // style correction ... simplify code, support only Whisper and Anthropic and that is all"). Speechify, Groq, AssemblyAI,
 // the local style model and the quick choices are gone from the app and from its code.
 
@@ -22,17 +22,37 @@ let appVersion = 11
 // v8 PARAKEET (Marko, 8.11.2026: "I want that especially because it's faster than whisper"): NVIDIA Parakeet TDT 0.6B v3
 // in the MANTRA_VOICE ears (/hear?model=parakeet), about three times faster than Whisper Turbo, with TTT's Croatian
 // correction. Only where the MANTRA_VOICE ears live (Marko's Mac): the public app keeps the three Whisper choices.
+// v12 ASSEMBLYAI BACK (Marko, 8.11.2026: "Bring back assembly AI ... we using assembly AI from now on"): online, the
+// keys from ~/Downloads/API, the default. Upload, submit, poll on one key (keyring.md §2b); Auto = its language detection
+// held to English and Croatian (measured 8.11.2026: 2.2 s for a 3 s take).
 enum HearEngine: String, CaseIterable {
-    case whisperEN, whisperHR, whisperAuto, parakeetEN, parakeetHR, parakeetAuto
+    case assemblyEN, assemblyHR, assemblyAuto, whisperEN, whisperHR, whisperAuto, parakeetEN, parakeetHR, parakeetAuto
+
+    /// the model, without the language: what ⚙ shows as one choice
+    enum Family: String, CaseIterable { case assembly, whisper, parakeet }
+    var family: Family { isAssembly ? .assembly : isParakeet ? .parakeet : .whisper }
+    static func of(_ f: Family, lang: String) -> HearEngine {
+        let i = lang == "en" ? 0 : lang == "hr" ? 1 : 2
+        switch f {
+        case .assembly: return [.assemblyEN, .assemblyHR, .assemblyAuto][i]
+        case .whisper: return [.whisperEN, .whisperHR, .whisperAuto][i]
+        case .parakeet: return [.parakeetEN, .parakeetHR, .parakeetAuto][i]
+        }
+    }
+    var isAssembly: Bool { self == .assemblyEN || self == .assemblyHR || self == .assemblyAuto }
 
     var title: String {
         switch self {
+        case .assemblyEN: return "AssemblyAI EN"; case .assemblyHR: return "AssemblyAI HR"; case .assemblyAuto: return "AssemblyAI AUTO"
         case .whisperEN: return "Whisper Turbo EN"; case .whisperHR: return "Whisper Turbo HR"; case .whisperAuto: return "Whisper Turbo AUTO"
         case .parakeetEN: return "Parakeet EN"; case .parakeetHR: return "Parakeet HR"; case .parakeetAuto: return "Parakeet AUTO"
         }
     }
     var menuTitle: String {
         switch self {
+        case .assemblyEN: return "AssemblyAI, English"
+        case .assemblyHR: return "AssemblyAI, Croatian"
+        case .assemblyAuto: return "AssemblyAI, Auto (Croatian and English)"
         case .whisperEN: return "Whisper Turbo, English"
         case .whisperHR: return "Whisper Turbo, Croatian"
         case .whisperAuto: return "Whisper Turbo, Auto (Croatian and English)"
@@ -42,7 +62,11 @@ enum HearEngine: String, CaseIterable {
         }
     }
     var lang: String {
-        switch self { case .whisperEN, .parakeetEN: return "en"; case .whisperHR, .parakeetHR: return "hr"; case .whisperAuto, .parakeetAuto: return "auto" }
+        switch self {
+        case .assemblyEN, .whisperEN, .parakeetEN: return "en"
+        case .assemblyHR, .whisperHR, .parakeetHR: return "hr"
+        case .assemblyAuto, .whisperAuto, .parakeetAuto: return "auto"
+        }
     }
     var isParakeet: Bool { self == .parakeetEN || self == .parakeetHR || self == .parakeetAuto }
     /// what this Mac can offer: Parakeet only beside the MANTRA_VOICE ears
@@ -50,8 +74,15 @@ enum HearEngine: String, CaseIterable {
 
     static var current: HearEngine {
         get {
-            let e = HearEngine(rawValue: UserDefaults.standard.string(forKey: "hear") ?? "") ?? .whisperEN
-            return offered.contains(e) ? e : .whisperEN
+            let d = UserDefaults.standard
+            // v12, once: whatever heard before, AssemblyAI hears now, in the same language
+            if !d.bool(forKey: "v12assembly") {
+                d.set(true, forKey: "v12assembly")
+                let was = HearEngine(rawValue: d.string(forKey: "hear") ?? "") ?? .whisperAuto
+                d.set(HearEngine.of(.assembly, lang: was.lang).rawValue, forKey: "hear")
+            }
+            let e = HearEngine(rawValue: d.string(forKey: "hear") ?? "") ?? .assemblyAuto
+            return offered.contains(e) ? e : .assemblyAuto
         }
         set { UserDefaults.standard.set(newValue.rawValue, forKey: "hear") }
     }
@@ -196,6 +227,10 @@ enum Hear {
     }
 
     static func heard(_ engine: HearEngine, wav source: URL) -> Result<String, EngineError> {
+        if engine.isAssembly {
+            guard let pcm = Audio.pcm16k(source), pcm.count > 8000 else { return .failure(EngineError("nothing recorded")) }
+            return Assembly.transcribe(Ears.wav16(pcm), lang: engine.lang)
+        }
         if engine.isParakeet { return Ears.server(source, lang: engine.lang, model: "parakeet") }   // v8: always the ears
         if Ears.current == .server { return Ears.server(source, lang: engine.lang) }
         let r = Whisper.transcribe(source, lang: engine.lang)
@@ -310,11 +345,76 @@ enum Claude {
     }
 }
 
+// MARK: AssemblyAI (back in v12; the code of Marko Transcribe v7-v13, MANTRA_MANIFEST apis/assemblyai.md): the raw key in
+// `authorization`, no Bearer; `speech_models` left out = its own best default, always current.
+
+enum Assembly {
+    static let base = "https://api.assemblyai.com/v2"
+
+    static func request(_ url: String, key: String, json body: [String: Any]? = nil, data: Data? = nil) -> URLRequest {
+        var req = URLRequest(url: URL(string: url)!)
+        req.setValue(key, forHTTPHeaderField: "authorization")
+        if let body {
+            req.httpMethod = "POST"
+            req.setValue("application/json", forHTTPHeaderField: "content-type")
+            req.httpBody = try? JSONSerialization.data(withJSONObject: body)
+        } else if let data {
+            req.httpMethod = "POST"
+            req.setValue("application/octet-stream", forHTTPHeaderField: "content-type")
+            req.httpBody = data
+        }
+        return req
+    }
+
+    // ONE KEY FOR THE WHOLE JOB (keyring.md §2b): the upload belongs to the account that made it
+    static func transcribe(_ audio: Data, lang: String) -> Result<String, EngineError> {
+        let language: [String: Any] = lang == "auto"
+            ? ["language_detection": true, "language_detection_options": ["expected_languages": ["en", "hr"]]]
+            : ["language_code": lang]
+        return Ring.run(.assemblyai) { key -> Ring.Outcome<String> in
+            let up = call(request(base + "/upload", key: key, data: audio))
+            guard up.status == 200, let url = json(up.data)["upload_url"] as? String else { return .from(up) { _ in nil } }
+            let sub = call(request(base + "/transcript", key: key, json: language.merging(["audio_url": url]) { a, _ in a }))
+            guard sub.status == 200, let id = json(sub.data)["id"] as? String else { return .from(sub) { _ in nil } }
+            let until = Date().addingTimeInterval(180)
+            while Date() < until {
+                usleep(300_000)
+                let poll = call(request(base + "/transcript/\(id)", key: key), timeout: 30)
+                guard poll.status == 200 else { return .from(poll) { _ in nil } }
+                let j = json(poll.data)
+                switch j["status"] as? String {
+                case "completed":
+                    Hear.lastLang = j["language_code"] as? String
+                    return .ok((j["text"] as? String ?? "").trimmingCharacters(in: .whitespacesAndNewlines))
+                // quota-and-fallback.md trap 3: a failed job arrives as HTTP 200; its words decide
+                case "error": return .fail(Failure(status: 400, body: "{\"error\": \(String(reflecting: j["error"] as? String ?? "error"))}", headers: [:]))
+                default: continue
+                }
+            }
+            return .fail(Failure(status: 504, body: "AssemblyAI did not finish within 3 minutes", headers: [:]))
+        }
+    }
+
+    // the probe clip of key-testing.md §2i: 1 s, 16 kHz mono, 440 Hz at a quarter of full scale
+    static func probeClip() -> Data {
+        Ears.wav16((0..<16000).map { Float(0.25 * sin(2 * Double.pi * 440 * Double($0) / 16000)) })
+    }
+}
+
 // MARK: TEST (the button, keyring.md §6: a person asking is not the app guessing). Every key asked to do the smallest
 // billable thing its provider sells (key-testing.md §3); the five states a person sees (§6).
 
 enum KeyTest {
     static func probe(_ p: Provider, _ key: String) -> Failure? {
+        if p == .assemblyai {
+            // upload the tone, submit it; a refusal at either stage is the answer; never polled (key-testing.md §2i)
+            let up = call(Assembly.request(Assembly.base + "/upload", key: key, data: Assembly.probeClip()), timeout: 20)
+            guard up.status == 200, let url = json(up.data)["upload_url"] as? String else {
+                return Failure(status: up.status == 200 ? 500 : up.status, body: String(data: up.data, encoding: .utf8) ?? up.error ?? "", headers: up.headers)
+            }
+            let sub = call(Assembly.request(Assembly.base + "/transcript", key: key, json: ["audio_url": url]), timeout: 20)
+            return sub.status == 200 ? nil : Failure(status: sub.status, body: String(data: sub.data, encoding: .utf8) ?? sub.error ?? "", headers: sub.headers)
+        }
         guard let model = Claude.model(key) else { return Failure(status: 401, body: "no model listed", headers: [:]) }
         let r = call(Claude.request("/messages", key: key, body: ["model": model, "max_tokens": 1, "messages": [["role": "user", "content": "hi"]]]), timeout: 20)
         return r.status == 200 ? nil : Failure(status: r.status, body: String(data: r.data, encoding: .utf8) ?? r.error ?? "", headers: r.headers)

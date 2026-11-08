@@ -328,7 +328,7 @@ final class PillFace: NSView {
         self.copy = BlobButton("", NSRect(x: 222, y: 2, width: 56, height: 36), circle: nil, tint: BlobButton.dim,
                                tip: "Copy the last words to the clipboard, then ⌘V where you want them", copy)
         self.copy.text = "COPY"
-        self.gear = BlobButton("gearshape.fill", NSRect(x: 348, y: 2, width: 36, height: 36), circle: nil, tint: white, tip: "Who hears you, who cleans the words, the history, the settings", gear)
+        self.gear = BlobButton("gearshape.fill", NSRect(x: 348, y: 2, width: 36, height: 36), circle: nil, tint: white, tip: "Settings: the recognition model, the correction model, the API keys, the history", gear)
         self.send = BlobButton("arrow.up", NSRect(x: 390, y: 2, width: 36, height: 36), circle: BLUE, tint: white, tip: "Send: write it down and type it (F1)", send)
         pill.addSubview(self.close); pill.addSubview(wave)
         for b in [self.lang!, self.pause!, self.style!, self.copy!, self.gear!, self.send!] { pill.addSubview(b) }

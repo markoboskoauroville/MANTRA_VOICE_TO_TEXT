@@ -19,13 +19,17 @@
 import Foundation
 import CryptoKit
 
-// only Anthropic (30.10.2026): the keys of the correction; Whisper runs on this Mac and needs none
+// v12 (Marko, 8.11.2026: "Bring back assembly AI ... we using assembly AI from now on"): AssemblyAI hears, Anthropic
+// corrects. AssemblyAI's key is 32 hex with no prefix, so it is taken only where AssemblyAI is meant (its own file
+// picker, a file or block that names it: keyring.md §4).
 enum Provider: String, CaseIterable {
-    case anthropic
+    case assemblyai, anthropic
 
-    var title: String { "Anthropic" }
-    var pattern: String { #"sk-ant-[A-Za-z0-9_\-]{20,}"# }
-    var shapeHint: String { "Anthropic keys start with sk-ant-." }
+    var title: String { self == .assemblyai ? "AssemblyAI" : "Anthropic" }
+    var pattern: String {
+        self == .assemblyai ? #"(?<![0-9A-Za-z])[0-9a-f]{32}(?![0-9A-Za-z])"# : #"sk-ant-[A-Za-z0-9_\-]{20,}"#
+    }
+    var shapeHint: String { self == .assemblyai ? "AssemblyAI keys are 32 letters and digits (0-9, a-f)." : "Anthropic keys start with sk-ant-." }
 }
 
 let appSupport: URL = {
@@ -98,11 +102,13 @@ enum Keys {
 
     static func parse(_ text: String, sourceName: String, only: Provider? = nil) -> [Provider: [KeyEntry]] {
         var out: [Provider: [KeyEntry]] = [:]
+        let fileSaysAssembly = sourceName.lowercased().contains("assembly")
         let blocks = text.components(separatedBy: .newlines).split(whereSeparator: { $0.trimmingCharacters(in: .whitespaces).isEmpty })
         for block in blocks {
             let lines = block.map { String($0) }
             let joined = lines.joined(separator: "\n")
             for p in Provider.allCases where only == nil || only == p {
+                if p == .assemblyai && only != .assemblyai && !fileSaysAssembly && !joined.lowercased().contains("assembly") { continue }
                 let found = matches(p.pattern, in: joined).filter { k in !(out[p] ?? []).contains { $0.key == k } }
                 guard !found.isEmpty else { continue }
                 let title = lines.map(stripKeys).map { $0.trimmingCharacters(in: CharacterSet(charactersIn: " \t:#-=*")) }
@@ -163,6 +169,21 @@ enum Keys {
     }
 
     static func forget(_ p: Provider) { set(p, []); Ring.reset(p) }
+
+    // v12 (Marko, 8.11.2026: "Load the API codes from the text file in famous location ... they will be already
+    // entered"): on his Mac the keys come by themselves from ~/Downloads/API (AssemblyAI-api.txt, Claude.api.txt), at
+    // every launch and every time ⚙ opens; new keys are added, the ones held stay. Elsewhere nothing happens.
+    static let famous = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Downloads/API")
+    @discardableResult
+    static func loadFamous() -> String {
+        var said: [String] = []
+        for (p, words) in [(Provider.assemblyai, ["assembly"]), (Provider.anthropic, ["claude", "anthropic"])] {
+            let files = ((try? FileManager.default.contentsOfDirectory(at: famous, includingPropertiesForKeys: nil)) ?? [])
+                .filter { u in u.pathExtension.lowercased() == "txt" && words.contains { u.lastPathComponent.lowercased().contains($0) } }
+            if !files.isEmpty { said.append(importFiles(files, only: p)) }
+        }
+        return said.joined(separator: "\n")
+    }
 }
 
 // MARK: the verdict (quota-and-fallback.md §3, key-testing.md §5): one classifier for every provider

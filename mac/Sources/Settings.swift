@@ -37,6 +37,13 @@ final class SettingsWindow: NSObject, NSTextViewDelegate, NSTextFieldDelegate {
     let voicePermissions = NSButton(title: "PERMISSIONS", target: nil, action: nil)
     var permTimer: Timer?
     let tabs = NSTabView()
+    // v12 (Marko, 8.11.2026: "remove from drop down menus options. It must be very simple"): the models are round buttons,
+    // every choice in sight, one click
+    var familyRadios: [HearEngine.Family: NSButton] = [:]
+    var langRadios: [String: NSButton] = [:]
+    var styleRadios: [StyleEngine: NSButton] = [:]
+    var styleButtonRadios: [StyleEngine: NSButton] = [:]
+    var whisperRow: NSStackView!
     var history: HistoryPane!
 
     init(onChange: @escaping () -> Void, typeText: @escaping (String) -> Void) {
@@ -63,12 +70,6 @@ final class SettingsWindow: NSObject, NSTextViewDelegate, NSTextFieldDelegate {
         hotkey.target = self; hotkey.action = #selector(hotkeyChanged)
 
 
-        // THE KEYS (request 17; MANTRA_MANIFEST keyring.md §6b, mandatory): one picker for several files at once, every
-        // key found by its shape; each row says how many, the key in use by its title, and the flagged.
-        let chooseAll = NSButton(title: "Add", target: self, action: #selector(addPastedKey))
-        keyField.placeholderString = "paste your Anthropic key (sk-ant-…)"
-        keyField.widthAnchor.constraint(equalToConstant: 340).isActive = true
-        keyField.setAccessibilityIdentifier("anthropicKey")
         modelButton.target = self; modelButton.action = #selector(modelPressed)
         modelButton.setAccessibilityIdentifier("model")
         modelBar.isIndeterminate = false; modelBar.minValue = 0; modelBar.maxValue = 1; modelBar.style = .bar
@@ -80,26 +81,48 @@ final class SettingsWindow: NSObject, NSTextViewDelegate, NSTextFieldDelegate {
         importResult.lineBreakMode = .byWordWrapping
         importResult.preferredMaxLayoutWidth = 600
         importResult.isHidden = true                     // until a pick has something to say
-        let chooseFiles = NSButton(title: "Choose key files…", target: self, action: #selector(chooseAllKeys))
-        var keyRows: [NSView] = [row([keyField, chooseAll, chooseFiles, label("console.anthropic.com → API keys")]), importResult]
+
+        // THE KEYS (v12): one row per provider, how many keys and the one in use (never a key), a file picker and Test.
+        // On Marko's Mac they are read by themselves from ~/Downloads/API (Keys.loadFamous), so they are already there.
+        var keyRows: [NSView] = []
         for (n, p) in Provider.allCases.enumerated() {
             let l = label("")
             keyLabels[p] = l
             var buttons: [NSView] = [l]
-            for (t, sel) in [("File…", #selector(chooseKeys(_:))), ("Test", #selector(testKeys(_:))),
-                             ("Revive", #selector(reviveKeys(_:))), ("Forget", #selector(forgetKeys(_:)))] {
+            for (t, sel) in [("File…", #selector(chooseKeys(_:))), ("Test", #selector(testKeys(_:)))] {
                 let b = NSButton(title: t, target: self, action: sel)
                 b.tag = n
                 b.controlSize = .small
+                b.setAccessibilityIdentifier("\(p.rawValue)\(t.prefix(4))")
                 buttons.append(b)
             }
             let result = label("")
             result.textColor = .secondaryLabelColor
             testLabels[p] = result
-            l.widthAnchor.constraint(equalToConstant: 470).isActive = true
+            l.widthAnchor.constraint(equalToConstant: 420).isActive = true
             l.lineBreakMode = .byTruncatingTail
             keyRows.append(row(buttons + [result]))
         }
+        keyRows.append(importResult)
+
+        // THE MODELS (v12): recognition first, then the correction
+        func radios<T>(_ items: [(T, String)], _ sel: Selector, into: (T, NSButton) -> Void) -> NSStackView {
+            row(items.map { v, t in
+                let b = NSButton(radioButtonWithTitle: t, target: self, action: sel)
+                into(v, b); return b
+            })
+        }
+        var families: [(HearEngine.Family, String)] = [(.assembly, "AssemblyAI (online, the best)"), (.whisper, "Whisper Turbo (this Mac, offline)")]
+        if Ears.serverHere { families.append((.parakeet, "Parakeet (this Mac, fast)")) }
+        let familyRow = radios(families, #selector(familyPicked(_:))) { f, b in b.identifier = .init(f.rawValue); b.setAccessibilityIdentifier("hear-" + f.rawValue); familyRadios[f] = b }
+        let langRow = radios([("en", "English"), ("hr", "Croatian"), ("auto", "Auto (Croatian and English)")], #selector(langPicked(_:))) { l, b in
+            b.identifier = .init(l); b.setAccessibilityIdentifier("lang-" + l); langRadios[l] = b }
+        let styleRow = radios(StyleEngine.allCases.map { ($0, $0.menuTitle) }, #selector(stylePicked(_:))) { e, b in
+            b.identifier = .init(e.rawValue); b.setAccessibilityIdentifier("correct-" + e.rawValue); styleRadios[e] = b }
+        let styleButtonRow = radios(StyleButtonEngine.choices.map { ($0, $0.menuTitle) }, #selector(styleButtonPicked(_:))) { e, b in
+            b.identifier = .init(e.rawValue); b.setAccessibilityIdentifier("stylebutton-" + e.rawValue); styleButtonRadios[e] = b }
+        whisperRow = row([modelButton, modelBar, modelLabel])
+        paintChoices()
 
         let scroll = NSScrollView()
         scroll.hasVerticalScroller = true
@@ -180,12 +203,13 @@ final class SettingsWindow: NSObject, NSTextViewDelegate, NSTextFieldDelegate {
         namesField.target = self; namesField.action = #selector(namesChanged)
         namesField.delegate = self
         namesField.setAccessibilityIdentifier("names")
-        // by importance (Marko, 8.11.2026): 1 the key that starts listening, 2 the models, 3 the API keys, then the rest
+        // by importance (Marko, 8.11.2026): 1 the key, 2 the recognition model, 3 the correction model, 4 their API keys
         let col = NSStackView(views: [
             label("1 · The key that starts and stops listening", bold: true), hotkey,
-            label("2 · Models: Whisper Turbo hears you on this Mac, offline (547 MB, downloaded once)", bold: true), row([earsButton, modelButton, modelBar, modelLabel]),
-            label("The STYLE button's Claude (pressed by hand)", bold: true), styleButton, styleNote,
-            label("3 · Your Anthropic key for auto correct and STYLE (optional; stored on this Mac, never shown again)", bold: true)] + keyRows + [
+            label("2 · Recognition model: who writes down what you say", bold: true), familyRow, row([label("Language"), langRow]), whisperRow,
+            label("3 · Correction model: who cleans the text after each take (Anthropic)", bold: true), styleRow,
+            row([label("The STYLE button"), styleButtonRow]),
+            label("4 · API keys, read by themselves from ~/Downloads/API (File… adds another file)", bold: true)] + keyRows + [
             label("Recording device", bold: true), device,
             label("After hide · while listening", bold: true), autoHide, duckTick,
             label("Voice activation", bold: true), row([voiceTick, voicePermissions]), voiceNote] + soundRows + [
@@ -315,6 +339,35 @@ final class SettingsWindow: NSObject, NSTextViewDelegate, NSTextFieldDelegate {
 
     @objc func closeWindow() { window.performClose(nil) }
 
+    // v12: the round buttons
+    func paintChoices() {
+        let h = HearEngine.current
+        for (f, b) in familyRadios { b.state = f == h.family ? .on : .off }
+        for (l, b) in langRadios { b.state = l == h.lang ? .on : .off }
+        for (e, b) in styleRadios { b.state = e == StyleEngine.current ? .on : .off }
+        for (e, b) in styleButtonRadios { b.state = e == StyleButtonEngine.current ? .on : .off }
+        whisperRow?.isHidden = h.family != .whisper || Ears.current == .server
+    }
+    @objc func familyPicked(_ b: NSButton) {
+        guard let f = HearEngine.Family(rawValue: b.identifier?.rawValue ?? "") else { return }
+        HearEngine.current = HearEngine.of(f, lang: HearEngine.current.lang)
+        appendLog("recognition model: \(HearEngine.current.title)")
+        if f != .assembly { Ears.warm() }
+        paintChoices(); onChange()
+    }
+    @objc func langPicked(_ b: NSButton) {
+        HearEngine.current = HearEngine.of(HearEngine.current.family, lang: b.identifier?.rawValue ?? "auto")
+        paintChoices(); onChange()
+    }
+    @objc func stylePicked(_ b: NSButton) {
+        if let e = StyleEngine(rawValue: b.identifier?.rawValue ?? "") { StyleEngine.current = e; appendLog("correction model: \(e.title)") }
+        paintChoices(); onChange()
+    }
+    @objc func styleButtonPicked(_ b: NSButton) {
+        if let e = StyleEngine(rawValue: b.identifier?.rawValue ?? "") { StyleButtonEngine.current = e }
+        paintChoices()
+    }
+
     // v27: the first row's words (MANTRA_MANIFEST swift-apps.md, "The first row of every app")
     var topWord: NSButton!
     let offNote = NSTextField(labelWithString: "")
@@ -353,6 +406,8 @@ final class SettingsWindow: NSObject, NSTextViewDelegate, NSTextFieldDelegate {
     // tab 0 Settings, 1 Transcription history
     func show(tab: Int = 0) {
         fillDevices()
+        Keys.loadFamous()                                       // v12: keys new in ~/Downloads/API come in by themselves
+        paintChoices()
         showKeys()
         history.reload()
         showVoicePermissions()
