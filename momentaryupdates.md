@@ -116,3 +116,9 @@ Marko chose **both** apps (Transcribe Voice to Text RT and Voice to Text (Mantra
 Please fix my voice to text up. When it's styling, it adds between paragraph one empty line. Please don't do this. Write everything without spaces between paragraphs.
 **Status:** saved first.
 **Status (8.11.2026):** v10: prompt rule + Style.noEmptyLines after every styling; pushed, GitHub build next, then installed.
+
+## 8.11.2026, evening (Marko, word for word)
+
+> Please.Fix my voice to text application. Fifth oneSwift one.Uh Bring back assembly AI. Load the API codes from the text file in famous location. And give me options. And remove from drop down menus options. It must be very simple inside settings, which I can access directly on the user interface. There will be a gear icon settings is opening up Correction model and the first is recognition model, or what is the right wording you choose.And then we're going to go Correction model. File pickers for all models which need API keys, but they will be already entered and we using assembly AI from now on.
+
+**Status:** saved first.
