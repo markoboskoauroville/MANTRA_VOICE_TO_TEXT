@@ -115,3 +115,4 @@ Marko chose **both** apps (Transcribe Voice to Text RT and Voice to Text (Mantra
 
 Please fix my voice to text up. When it's styling, it adds between paragraph one empty line. Please don't do this. Write everything without spaces between paragraphs.
 **Status:** saved first.
+**Status (8.11.2026):** v10: prompt rule + Style.noEmptyLines after every styling; pushed, GitHub build next, then installed.

@@ -1,5 +1,7 @@
 # Takeover
 
+**State 8.11.2026, v10:** styling no longer leaves an empty line between paragraphs (Marko: "Write everything without spaces between paragraphs"): the rule in `Rules.base` (Engines.swift) says one paragraph per line with no empty line, and `Style.noEmptyLines` collapses every run of line breaks to one after the model answers, so it holds even when the model ignores the rule. Applies to all styling paths (Style.run).
+
 Started 1.11.2026.
 
 ## v3: one app, and the duck (1.11.2026)

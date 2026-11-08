@@ -8,7 +8,7 @@
 // does each is a choice on the stripe, remembered.
 import Foundation
 
-let appVersion = 9
+let appVersion = 10
 
 // MARK: the choices
 
@@ -220,7 +220,7 @@ enum Rules {
 
     Keep every fact, name, number, date, request and decision. Add nothing they did not say. Do not soften what they said firmly and do not make firmer what they said gently. Keep English words mixed into Croatian.
 
-    Style: short paragraphs of one or two sentences. Plain everyday words. Written to one person as "you". The reason comes before the request. Warm, never gushing.
+    Style: short paragraphs of one or two sentences, each paragraph on its own line, with no empty line between paragraphs. Plain everyday words. Written to one person as "you". The reason comes before the request. Warm, never gushing.
 
     Never use dashes, bullet points, headings, bold, exclamation marks or emoji. Normal sentence capitals and correct apostrophes.
 
@@ -245,7 +245,14 @@ enum Style {
     static func run(_ engine: StyleEngine, text: String, lang: String) -> Result<String, EngineError> {
         let input = corrected(text)
         guard engine != .off else { return .success(input) }
-        return Claude.style(input, lang: lang, family: engine.rawValue).map(corrected)
+        return Claude.style(input, lang: lang, family: engine.rawValue).map(corrected).map(noEmptyLines)
+    }
+
+    /// v10 (Marko, 8.11.2026: "When it's styling, it adds between paragraph one empty line. Please don't do this. Write
+    /// everything without spaces between paragraphs."): every run of line breaks, empty lines included, becomes one line break.
+    static func noEmptyLines(_ text: String) -> String {
+        text.replacingOccurrences(of: "[ \\t]*(\\r?\\n[ \\t]*)+", with: "\n", options: .regularExpression)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
     }
 }
 
