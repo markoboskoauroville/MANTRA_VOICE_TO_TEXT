@@ -1,5 +1,13 @@
 # Lessons
 
+## v13 (10.11.2026)
+
+- A closure with explicit arguments cannot use `$0` inside a nested closure (the build said "anonymous closure arguments cannot be used"): write the loop out. The Mac is never compiled here, so every such slip costs a GitHub run; read the code twice before the push.
+- Deepgram's `detect_language=true` put a Croatian sentence into Slovak; `language=multi` heard it right. Its `detect_language=hr&detect_language=en` is a parse error. Speechmatics takes `"language": "auto"` and refuses `language_identification_config`. Measured with curl before the code was changed, one free job each.
+- The file the keys come from is read by name: ~/Downloads/API holds GitHub tokens, Twilio, Tailscale. Only files whose names say a speech or Claude provider are opened, and a key that failed its free test is remembered by fingerprint so it is not asked again at every launch.
+- Google keys are two keys in one: an AIza key is tested as Gemini and as Speech v1 and goes into each ring that answers. A service account is a JWT signed RS256: Security needs the PKCS#1 inside the PKCS#8, so the DER header is walked and skipped.
+- Settings grew past the screen with the 13-engine panel: the page scrolls (a flipped document view), widths 280 / 190 / 220, minimum window width 800.
+
 ## v4 (1.11.2026)
 
 - A sound asked to play is not yet out of the speakers: v3 dropped the volume 0.15 s after `play()` of a 0.1 s sound,
