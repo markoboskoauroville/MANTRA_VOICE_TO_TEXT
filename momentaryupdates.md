@@ -123,3 +123,9 @@ Please fix my voice to text up. When it's styling, it adds between paragraph one
 
 **Status:** saved first.
 **Status (8.11.2026):** v12: AssemblyAI back as the recognition model and the default (English, Croatian, Auto = its language detection held to en/hr; measured 2.2 s on a 3 s clip with key 1 of 24); every recognition model switched to AssemblyAI once, language kept. Keys read by themselves from ~/Downloads/API (AssemblyAI-api.txt, Claude.api.txt) at launch and whenever ⚙ opens. The gear on the pill opens ⚙ directly (the drop-down menu is gone). ⚙: 1 hotkey, 2 Recognition model (round buttons: AssemblyAI / Whisper Turbo / Parakeet, Language EN / HR / Auto), 3 Correction model (None / Haiku / Sonnet / Opus, and the STYLE button's Claude), 4 API keys (count, File…, Test). Pushed; GitHub build next.
+
+## 10.11.2026 (Marko, word for word, via the master session task 87)
+
+> Please upgrade my local app, my voice-to-text app, to have the same features as my TTT app for voice transcription with all these models and everything. Same copy.
+
+**Status:** saved first.
