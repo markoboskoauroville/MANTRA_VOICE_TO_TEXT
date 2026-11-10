@@ -371,8 +371,7 @@ final class Stripe: NSObject {
     // 🌐: Whisper in the other language (EN ⇄ HR), for this take and the next
     @objc func toggleLanguage() {
         // EN → HR → AUTO within the same model (v15; v8 Parakeet; v12 AssemblyAI)
-        let now = HearEngine.current
-        HearEngine.current = HearEngine.of(now.family, lang: ["en": "hr", "hr": "auto"][now.lang] ?? "en")
+        HearEngine.cycleLang()
         refresh(); recorder.recording ? showListening() : ready()
     }
 
@@ -448,12 +447,13 @@ final class Stripe: NSObject {
         escape = HotKey(code: UInt32(kVK_Escape), id: 2) { [weak self] in self?.cancelProcessing() }
         dot.color = Ink.amber
         say("writing it down…", Ink.amber)
-        let hear = HearEngine.current, style = StyleEngine.current
+        let hear = HearEngine.current, styleChosen = StyleEngine.current
         let byVoice = voiceTake
         voiceTake = false
         DispatchQueue.global().async {
             let t0 = Date()
             Ring.lastMove = nil
+            Hear.used = nil
             // v21: a take started or sent by voice has "listen" / "send" cut from its text (Whisper hears them too)
             let heard = byVoice ? Hear.run(hear, wav: wav).map(VoiceWords.strip) : Hear.run(hear, wav: wav)
             let tHear = Date().timeIntervalSince(t0)
@@ -475,6 +475,10 @@ final class Stripe: NSObject {
             }
             // Auto: the language Whisper heard, or "auto" for the correction when the voice did not say
             let lang = hear.lang == "auto" ? (Hear.lastLang.flatMap { ["en", "hr"].contains($0) ? $0 : nil } ?? "auto") : hear.lang
+            // v13 (TTT: "AI correction off for Croatian dictation"): Croatian goes in as the engine heard it, unless ⚙ asks for the
+            // correction there too; the STYLE button is not touched by this
+            let style: StyleEngine = (lang == "hr" && !Prefs.correctCroatian) ? .off : styleChosen
+            let usedTitle = Hear.used ?? hear.title
             if style != .off { DispatchQueue.main.async { self.say("auto correct (\(style.title))…", Ink.amber) } }
             let t1 = Date()
             var final = corrected(words), warning: String?
@@ -492,7 +496,7 @@ final class Stripe: NSObject {
                 self.lastText = final
                 self.lastLang = lang
                 self.busy = false
-                History.add(wav: wav, Version(at: Date(), hear: hear.title, style: style.title, lang: hear.lang, heard: words,
+                History.add(wav: wav, Version(at: Date(), hear: usedTitle, style: style.title, lang: hear.lang, heard: words,
                                               text: final))
                 if self.settings?.window.isVisible == true { self.settings?.history.reload() }
                 let n = final.split(whereSeparator: { $0 == " " || $0 == "\n" }).count
@@ -793,7 +797,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     // finished launching, and again a moment later.
     func applicationDidFinishLaunching(_ n: Notification) {
         TakeMark.set(false)          // v26: a mark left by a crash never holds the voice
-        DispatchQueue.global().async { let r = Keys.loadFamous(); if !r.isEmpty { appendLog("keys from ~/Downloads/API: " + r.replacingOccurrences(of: "\n", with: "; ")) } }
+        DispatchQueue.global().async { KeyImporter.loadFamous() }
         Duck.up()                    // v3: speakers left at 6 % by a crash go back to their level
         for delay in [0.3, 2.0, 5.0] {
             DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
@@ -813,13 +817,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 }
 
-// THE TERMINAL TOO (keyring.md §6b): --import-keys FILE... reads key notes the way ⚙'s picker does (every provider by its
-// shape), prints the sentence back, never a key.
+// THE TERMINAL TOO: --import-keys FILE... reads key notes the way ⚙'s picker does (every provider by its shape, each new key
+// tested free), prints the sentence back, never a key.
 if let i = CommandLine.arguments.firstIndex(of: "--import-keys"), i + 1 < CommandLine.arguments.count {
-    var rest = Array(CommandLine.arguments[(i + 1)...])
-    let only = Provider(rawValue: rest[0])
-    if only != nil { rest.removeFirst() }
-    print(Keys.importFiles(rest.map { URL(fileURLWithPath: $0) }, only: only))
+    print(KeyImporter.importFiles(CommandLine.arguments[(i + 1)...].map { URL(fileURLWithPath: $0) }))
     for p in Provider.allCases { print("\(p.title): \(Keys.entries(p).count) key(s) held") }
     exit(0)
 }
@@ -834,32 +835,40 @@ if let i = CommandLine.arguments.firstIndex(of: "--chime"), i + 2 < CommandLine.
     exit(0)
 }
 
-// --parse FILE...: what the picker would take from each file, nothing kept; titles and counts only, never a key (tests)
+// --parse FILE...: what the picker would take from each file, nothing kept; the kinds and counts only, never a key (tests)
 if let i = CommandLine.arguments.firstIndex(of: "--parse"), i + 1 < CommandLine.arguments.count {
     for path in CommandLine.arguments[(i + 1)...] {
         let url = URL(fileURLWithPath: path)
         let text = (try? String(contentsOf: url, encoding: .utf8)) ?? ""
-        for (p, list) in Keys.parse(text, sourceName: url.lastPathComponent).sorted(by: { $0.key.rawValue < $1.key.rawValue }) {
-            print("\(url.lastPathComponent): \(p.title) \(list.count): " + list.map { "\"\($0.title)\"" }.joined(separator: ", "))
-        }
+        var kinds: [String: Int] = [:]
+        for c in KeyScan.scan(url.lastPathComponent, text) { kinds[c.kinds.joined(separator: "/"), default: 0] += 1 }
+        print("\(url.lastPathComponent): " + (kinds.isEmpty ? "no key" : kinds.sorted { $0.key < $1.key }.map { "\($0.key) \($0.value)" }.joined(separator: ", ")))
     }
     exit(0)
 }
 
-
-// --test-keys <assemblyai|groq|anthropic>: what ⚙'s Test button does, from the command line.
-if let i = CommandLine.arguments.firstIndex(of: "--test-keys"), i + 1 < CommandLine.arguments.count,
-   let p = Provider(rawValue: CommandLine.arguments[i + 1]) {
-    print("\(p.title): \(KeyTest.run(p))")
+// --retest-keys: ⚙'s "Re-test keys" from the command line; --keys: how many keys each provider holds (numbers only)
+if CommandLine.arguments.contains("--retest-keys") { print(KeyImporter.retest()); exit(0) }
+if CommandLine.arguments.contains("--keys") {
+    for p in Provider.allCases { print("\(p.title): \(Keys.entries(p).count)") }
     exit(0)
 }
 
-// --hear <engine> <audio> / --style <engine> <lang> <text>: one engine alone, the time it took (tests, no stripe)
+// --hear <engine id> <audio> [en|hr|auto]: one engine alone through its key ring, the time it took (tests, no stripe);
+// with `defaults write com.mantra.voicetotext testDropKeys -int N` the first N keys of each job fail, to see the rotation
 if let i = CommandLine.arguments.firstIndex(of: "--hear"), i + 2 < CommandLine.arguments.count,
-   let e = HearEngine(rawValue: CommandLine.arguments[i + 1]) {
+   Catalog.byId(CommandLine.arguments[i + 1]) != nil {
+    let lang = i + 3 < CommandLine.arguments.count ? CommandLine.arguments[i + 3] : "en"
     let t0 = Date()
-    switch Hear.run(e, wav: URL(fileURLWithPath: CommandLine.arguments[i + 2])) {
-    case .success(let t): print(String(format: "%.2f s", Date().timeIntervalSince(t0)), t)
+    Ring.lastMove = nil
+    let e = HearEngine(id: CommandLine.arguments[i + 1], lang: lang)
+    let only = CommandLine.arguments.contains("--only")      // no fallback walk: this engine alone
+    let r: Result<String, EngineError>
+    if only, let pcm = Audio.pcm16k(URL(fileURLWithPath: CommandLine.arguments[i + 2])) {
+        r = Chain.once(e.spec, source: URL(fileURLWithPath: CommandLine.arguments[i + 2]), wav: Ears.wav16(pcm), lang: lang, seconds: Double(pcm.count) / 16000)
+    } else { r = Hear.run(e, wav: URL(fileURLWithPath: CommandLine.arguments[i + 2])) }
+    switch r {
+    case .success(let t): print(String(format: "%.2f s", Date().timeIntervalSince(t0)), (Hear.used ?? e.title) + ":", t)
     case .failure(let err): print("FAILED:", err.message)
     }
     if let m = Ring.lastMove { print("ring:", m) }

@@ -10,8 +10,12 @@ final class SettingsWindow: NSObject, NSTextViewDelegate, NSTextFieldDelegate {
     let onChange: () -> Void
     let hotkey = NSPopUpButton()
     let extra = NSTextView()
-    var keyLabels: [Provider: NSTextField] = [:]
-    var testLabels: [Provider: NSTextField] = [:]
+    // v13: the engine panel (TTT's): one row per engine, its radio, its free/paid label and minutes, its numbered key
+    var engineRadios: [String: NSButton] = [:]
+    var engineFree: [String: NSTextField] = [:]
+    var engineKey: [String: NSTextField] = [:]
+    let anthropicLabel = NSTextField(labelWithString: "")
+    let croatianTick = NSButton(checkboxWithTitle: "Auto correct Croatian takes too (off: Croatian goes in as the engine heard it)", target: nil, action: nil)
     let importResult = NSTextField(wrappingLabelWithString: "")
     // Voice to Text (Mantra): the model downloaded from here, and a key pasted (never shown again)
     let modelButton = NSButton(title: "", target: nil, action: nil)
@@ -39,7 +43,6 @@ final class SettingsWindow: NSObject, NSTextViewDelegate, NSTextFieldDelegate {
     let tabs = NSTabView()
     // v12 (Marko, 8.11.2026: "remove from drop down menus options. It must be very simple"): the models are round buttons,
     // every choice in sight, one click
-    var familyRadios: [HearEngine.Family: NSButton] = [:]
     var langRadios: [String: NSButton] = [:]
     var styleRadios: [StyleEngine: NSButton] = [:]
     var styleButtonRadios: [StyleEngine: NSButton] = [:]
@@ -52,7 +55,7 @@ final class SettingsWindow: NSObject, NSTextViewDelegate, NSTextFieldDelegate {
                           backing: .buffered, defer: false)
         window.title = "Voice to Text (Mantra) v\(appVersion)"
         window.isReleasedWhenClosed = false
-        window.minSize = NSSize(width: 760, height: 920)
+        window.minSize = NSSize(width: 800, height: 600)
         super.init()
         history = HistoryPane(typeText: typeText) { [weak self] in self?.window.orderOut(nil); NSApp.hide(nil) }
 
@@ -77,33 +80,34 @@ final class SettingsWindow: NSObject, NSTextViewDelegate, NSTextFieldDelegate {
         modelLabel.textColor = .secondaryLabelColor
         showModel(); followModel()
         importResult.textColor = .secondaryLabelColor
-        importResult.maximumNumberOfLines = 4
+        importResult.maximumNumberOfLines = 14
         importResult.lineBreakMode = .byWordWrapping
         importResult.preferredMaxLayoutWidth = 600
         importResult.isHidden = true                     // until a pick has something to say
 
-        // THE KEYS (v12): one row per provider, how many keys and the one in use (never a key), a file picker and Test.
-        // On Marko's Mac they are read by themselves from ~/Downloads/API (Keys.loadFamous), so they are already there.
-        var keyRows: [NSView] = []
-        for (n, p) in Provider.allCases.enumerated() {
-            let l = label("")
-            keyLabels[p] = l
-            var buttons: [NSView] = [l]
-            for (t, sel) in [("File…", #selector(chooseKeys(_:))), ("Test", #selector(testKeys(_:)))] {
-                let b = NSButton(title: t, target: self, action: sel)
-                b.tag = n
-                b.controlSize = .small
-                b.setAccessibilityIdentifier("\(p.rawValue)\(t.prefix(4))")
-                buttons.append(b)
-            }
-            let result = label("")
-            result.textColor = .secondaryLabelColor
-            testLabels[p] = result
-            l.widthAnchor.constraint(equalToConstant: 420).isActive = true
-            l.lineBreakMode = .byTruncatingTail
-            keyRows.append(row(buttons + [result]))
+        // THE KEYS (v13, TTT): no key field, no per-provider button: one picker (File…) that sorts every key by its shape and tests
+        // it free, and Re-test. On Marko's Mac the key notes in ~/Downloads/API come in by themselves (KeyImporter.loadFamous).
+        let importButton = NSButton(title: "Import keys from file…", target: self, action: #selector(chooseAllKeys))
+        importButton.setAccessibilityIdentifier("importKeys")
+        let retestButton = NSButton(title: "Re-test keys", target: self, action: #selector(retestKeys))
+        retestButton.setAccessibilityIdentifier("retestKeys")
+        let keyRows: [NSView] = [row([importButton, retestButton]), importResult]
+
+        // THE ENGINE PANEL (v13, TTT's long-press panel): all 13, one click selects; the accuracy of the language chosen beside
+        // the name, free or paid and the minutes, and the numbered key in use ("Groq 2/3 in use")
+        var engineRows: [NSView] = []
+        for s in Catalog.all {
+            let b = NSButton(radioButtonWithTitle: s.name, target: self, action: #selector(enginePicked(_:)))
+            b.identifier = .init(s.id); b.setAccessibilityIdentifier("engine-" + s.id)
+            let free = label(s.label); free.textColor = .secondaryLabelColor
+            let key = label("")
+            b.widthAnchor.constraint(equalToConstant: 280).isActive = true
+            free.widthAnchor.constraint(equalToConstant: 190).isActive = true
+            key.widthAnchor.constraint(equalToConstant: 220).isActive = true
+            for t in [free, key] { t.lineBreakMode = .byTruncatingTail }
+            engineRadios[s.id] = b; engineFree[s.id] = free; engineKey[s.id] = key
+            engineRows.append(row([b, free, key]))
         }
-        keyRows.append(importResult)
 
         // THE MODELS (v12): recognition first, then the correction
         func radios<T>(_ items: [(T, String)], _ sel: Selector, into: (T, NSButton) -> Void) -> NSStackView {
@@ -112,9 +116,6 @@ final class SettingsWindow: NSObject, NSTextViewDelegate, NSTextFieldDelegate {
                 into(v, b); return b
             })
         }
-        var families: [(HearEngine.Family, String)] = [(.assembly, "AssemblyAI (online, the best)"), (.whisper, "Whisper Turbo (this Mac, offline)")]
-        if Ears.serverHere { families.append((.parakeet, "Parakeet (this Mac, fast)")) }
-        let familyRow = radios(families, #selector(familyPicked(_:))) { f, b in b.identifier = .init(f.rawValue); b.setAccessibilityIdentifier("hear-" + f.rawValue); familyRadios[f] = b }
         let langRow = radios([("en", "English"), ("hr", "Croatian"), ("auto", "Auto (Croatian and English)")], #selector(langPicked(_:))) { l, b in
             b.identifier = .init(l); b.setAccessibilityIdentifier("lang-" + l); langRadios[l] = b }
         let styleRow = radios(StyleEngine.allCases.map { ($0, $0.menuTitle) }, #selector(stylePicked(_:))) { e, b in
@@ -204,26 +205,43 @@ final class SettingsWindow: NSObject, NSTextViewDelegate, NSTextFieldDelegate {
         namesField.delegate = self
         namesField.setAccessibilityIdentifier("names")
         // by importance (Marko, 8.11.2026): 1 the key, 2 the recognition model, 3 the correction model, 4 their API keys
-        let col = NSStackView(views: [
-            label("1 · The key that starts and stops listening", bold: true), hotkey,
-            label("2 · Recognition model: who writes down what you say", bold: true), familyRow, row([label("Language"), langRow]), whisperRow,
-            label("3 · Correction model: who cleans the text after each take (Anthropic)", bold: true), styleRow,
-            row([label("The STYLE button"), styleButtonRow]),
-            label("4 · API keys, read by themselves from ~/Downloads/API (File… adds another file)", bold: true)] + keyRows + [
-            label("Recording device", bold: true), device,
-            label("After hide · while listening", bold: true), autoHide, duckTick,
-            label("Voice activation", bold: true), row([voiceTick, voicePermissions]), voiceNote] + soundRows + [
-            label("Your additions to auto correct and to STYLE", bold: true), note, row([label("Names"), namesField]), scroll,
-        ])
+        croatianTick.state = Prefs.correctCroatian ? .on : .off
+        croatianTick.target = self; croatianTick.action = #selector(croatianChanged)
+        croatianTick.setAccessibilityIdentifier("correctCroatian")
+        var views: [NSView] = []
+        views.append(label("1 · The key that starts and stops listening", bold: true)); views.append(hotkey)
+        views.append(label("2 · Recognition engine: who writes down what you say (13, the same as TTT; the % is the accuracy in this language)", bold: true))
+        views.append(row([label("Language"), langRow]))
+        views.append(contentsOf: engineRows)
+        views.append(whisperRow)
+        views.append(label("3 · Correction model: who cleans the text after each take (Anthropic)", bold: true)); views.append(styleRow)
+        views.append(row([label("The STYLE button"), styleButtonRow])); views.append(croatianTick); views.append(anthropicLabel)
+        views.append(label("4 · API keys: read by themselves from ~/Downloads/API; no key is ever shown, only its number", bold: true))
+        views.append(contentsOf: keyRows)
+        views.append(label("Recording device", bold: true)); views.append(device)
+        views.append(label("After hide · while listening", bold: true)); views.append(autoHide); views.append(duckTick)
+        views.append(label("Voice activation", bold: true)); views.append(row([voiceTick, voicePermissions])); views.append(voiceNote)
+        views.append(contentsOf: soundRows)
+        views.append(label("Your additions to auto correct and to STYLE", bold: true)); views.append(note)
+        views.append(row([label("Names"), namesField])); views.append(scroll)
+        let col = NSStackView(views: views)
         col.orientation = .vertical
         col.alignment = .leading
         col.spacing = 10
         col.edgeInsets = NSEdgeInsets(top: 20, left: 20, bottom: 20, right: 20)
-        let settingsPage = NSView()
+        // v13: the page scrolls (the engine panel made it taller than a screen): nothing is cut
+        let settingsPage = NSScrollView()
+        settingsPage.hasVerticalScroller = true
+        settingsPage.drawsBackground = false
+        let holder = FlippedView()
+        holder.translatesAutoresizingMaskIntoConstraints = false
         col.translatesAutoresizingMaskIntoConstraints = false
-        settingsPage.addSubview(col)
-        NSLayoutConstraint.activate([col.leadingAnchor.constraint(equalTo: settingsPage.leadingAnchor),
-                                     col.topAnchor.constraint(equalTo: settingsPage.topAnchor)])
+        holder.addSubview(col)
+        settingsPage.documentView = holder
+        NSLayoutConstraint.activate([col.leadingAnchor.constraint(equalTo: holder.leadingAnchor),
+                                     col.topAnchor.constraint(equalTo: holder.topAnchor),
+                                     col.bottomAnchor.constraint(equalTo: holder.bottomAnchor),
+                                     holder.widthAnchor.constraint(equalTo: settingsPage.contentView.widthAnchor)])
         for (title, page) in [("Settings", settingsPage), ("Transcription history", history.view)] {
             let item = NSTabViewItem(identifier: title)
             item.label = title
@@ -321,20 +339,25 @@ final class SettingsWindow: NSObject, NSTextViewDelegate, NSTextFieldDelegate {
         if VoiceWords.enabled { stripe.voiceChanged() }        // v21: the commands are heard on the same microphone
     }
 
-    @objc func testKeys(_ b: NSButton) {
-        let p = Provider.allCases[b.tag]
-        testLabels[p]?.stringValue = "asking each key to do the smallest real thing…"
+    @objc func retestKeys() {
+        importResult.stringValue = "asking each key one free question…"; importResult.isHidden = false
         DispatchQueue.global().async {
-            let r = KeyTest.run(p)
-            DispatchQueue.main.async { self.testLabels[p]?.stringValue = r; self.showKeys() }
+            let r = KeyImporter.retest()
+            DispatchQueue.main.async { self.importResult.stringValue = r; self.showKeys() }
         }
     }
 
-    @objc func reviveKeys(_ b: NSButton) {
-        let p = Provider.allCases[b.tag]
-        Ring.revive(p)
-        testLabels[p]?.stringValue = "every key may be tried again"
-        showKeys()
+    @objc func croatianChanged() {
+        Prefs.correctCroatian = croatianTick.state == .on
+        appendLog("auto correct Croatian: \(Prefs.correctCroatian ? "on" : "off")")
+    }
+
+    @objc func enginePicked(_ b: NSButton) {
+        guard let id = b.identifier?.rawValue, Catalog.byId(id) != nil else { return }
+        HearEngine.setEngine(id)
+        appendLog("recognition engine: \(HearEngine.current.title)")
+        if id == "parakeet" || id == "whisper" { Ears.warm() }
+        paintChoices(); onChange()
     }
 
     @objc func closeWindow() { window.performClose(nil) }
@@ -342,21 +365,17 @@ final class SettingsWindow: NSObject, NSTextViewDelegate, NSTextFieldDelegate {
     // v12: the round buttons
     func paintChoices() {
         let h = HearEngine.current
-        for (f, b) in familyRadios { b.state = f == h.family ? .on : .off }
+        for (id, b) in engineRadios {
+            b.state = id == h.id ? .on : .off
+            if let sp = Catalog.byId(id) { b.title = Catalog.shown(sp, lang: h.lang) }
+        }
         for (l, b) in langRadios { b.state = l == h.lang ? .on : .off }
         for (e, b) in styleRadios { b.state = e == StyleEngine.current ? .on : .off }
         for (e, b) in styleButtonRadios { b.state = e == StyleButtonEngine.current ? .on : .off }
-        whisperRow?.isHidden = h.family != .whisper || Ears.current == .server
-    }
-    @objc func familyPicked(_ b: NSButton) {
-        guard let f = HearEngine.Family(rawValue: b.identifier?.rawValue ?? "") else { return }
-        HearEngine.current = HearEngine.of(f, lang: HearEngine.current.lang)
-        appendLog("recognition model: \(HearEngine.current.title)")
-        if f != .assembly { Ears.warm() }
-        paintChoices(); onChange()
+        whisperRow?.isHidden = Ears.current == .server
     }
     @objc func langPicked(_ b: NSButton) {
-        HearEngine.current = HearEngine.of(HearEngine.current.family, lang: b.identifier?.rawValue ?? "auto")
+        HearEngine.setLang(b.identifier?.rawValue ?? "auto")
         paintChoices(); onChange()
     }
     @objc func stylePicked(_ b: NSButton) {
@@ -406,7 +425,7 @@ final class SettingsWindow: NSObject, NSTextViewDelegate, NSTextFieldDelegate {
     // tab 0 Settings, 1 Transcription history
     func show(tab: Int = 0) {
         fillDevices()
-        Keys.loadFamous()                                       // v12: keys new in ~/Downloads/API come in by themselves
+        DispatchQueue.global().async { let r = KeyImporter.loadFamous(); if !r.isEmpty { DispatchQueue.main.async { self.showKeys() } } }   // keys new in ~/Downloads/API come in by themselves
         paintChoices()
         showKeys()
         history.reload()
@@ -425,22 +444,36 @@ final class SettingsWindow: NSObject, NSTextViewDelegate, NSTextFieldDelegate {
         window.makeKeyAndOrderFront(nil)
     }
 
+    /// "Groq 2/3 in use" (the key the next take starts with), "3 keys", "no key"; never a key
+    func keyText(_ p: Provider) -> String {
+        let list = Keys.entries(p)
+        if list.isEmpty { return "no key" }
+        let m = Ring.memory(p)
+        var t = p == .cloudflare || p == .chirp ? "1 account" : "\(list.count) key\(list.count == 1 ? "" : "s")"
+        if let cur = m.current, let k = list.first(where: { Ring.fingerprint($0.key) == cur }) { t = Ring.name(p, k) + " in use" }
+        let resting = list.filter { k in m.states[Ring.fingerprint(k.key)].map { !Ring.usable($0) } ?? false }.count
+        if resting > 0 { t += " · \(resting) resting" }
+        return t
+    }
+
     func showKeys() {
-        for p in Provider.allCases {
-            let list = Keys.entries(p)
-            let m = Ring.memory(p)
-            var t = "\(p.title): " + (list.isEmpty ? "no key" : "\(list.count) key\(list.count == 1 ? "" : "s")")
-            if let cur = m.current, let k = list.first(where: { Ring.fingerprint($0.key) == cur }) { t += " · in use: \(k.title)" }
-            var flagged: [Verdict: Int] = [:]
-            for k in list { if let st = m.states[Ring.fingerprint(k.key)], !Ring.usable(st) { flagged[st.verdict, default: 0] += 1 } }
-            for (v, n) in flagged.sorted(by: { $0.key.rawValue < $1.key.rawValue }) { t += " · \(n) \(KeyTest.word(v))" }
-            keyLabels[p]?.stringValue = t
-            keyLabels[p]?.toolTip = list.enumerated().map { i, k in
-                let st = m.states[Ring.fingerprint(k.key)]
-                return "\(i + 1). \(k.title): " + (st.map { "\(KeyTest.word($0.verdict)) (\($0.detail))" } ?? "not asked yet")
-            }.joined(separator: "\n")
-            keyLabels[p]?.textColor = list.isEmpty ? .secondaryLabelColor : .labelColor
+        let lang = HearEngine.current.lang
+        for s in Catalog.all {
+            let ok = Catalog.available(s)
+            engineRadios[s.id]?.isEnabled = ok
+            engineRadios[s.id]?.title = Catalog.shown(s, lang: lang)
+            let t = s.ring.map(keyText) ?? (ok ? "on this Mac" : "not on this Mac")
+            engineKey[s.id]?.stringValue = t
+            engineKey[s.id]?.textColor = ok ? .labelColor : .secondaryLabelColor
+            if let p = s.ring {
+                let m = Ring.memory(p)
+                engineKey[s.id]?.toolTip = Keys.entries(p).enumerated().map { i, k in
+                    let st = m.states[Ring.fingerprint(k.key)]
+                    return "\(i + 1). \(k.title): " + (st.map { "\(KeyTest.word($0.verdict)) (\($0.detail))" } ?? "not asked yet")
+                }.joined(separator: "\n")
+            }
         }
+        anthropicLabel.stringValue = "Anthropic (the correction): " + keyText(.anthropic)
     }
 
     @objc func hotkeyChanged() {
@@ -522,24 +555,16 @@ final class SettingsWindow: NSObject, NSTextViewDelegate, NSTextFieldDelegate {
     }
 
     @objc func chooseAllKeys() {
-        let urls = pickFiles("Your key files (several at once)")
+        let urls = pickFiles("Key files (several at once): Groq, Deepgram, AssemblyAI, Gemini, Cloudflare, Anthropic ...")
         guard !urls.isEmpty else { return }
-        importResult.stringValue = Keys.importFiles(urls)
+        importResult.stringValue = "testing each key, free calls only…"
         importResult.isHidden = false
-        showKeys()
-    }
-
-    @objc func chooseKeys(_ b: NSButton) {
-        let p = Provider.allCases[b.tag]
-        let urls = pickFiles("The file with your \(p.title) keys")
-        guard !urls.isEmpty else { return }
-        importResult.stringValue = Keys.importFiles(urls, only: p)
-        importResult.isHidden = false
-        showKeys()
-    }
-
-    @objc func forgetKeys(_ b: NSButton) {
-        Keys.forget(Provider.allCases[b.tag])
-        showKeys()
+        DispatchQueue.global().async {
+            let r = KeyImporter.importFiles(urls)
+            DispatchQueue.main.async { self.importResult.stringValue = r; self.showKeys() }
+        }
     }
 }
+
+// a scroll view's document that sits at the top
+final class FlippedView: NSView { override var isFlipped: Bool { true } }

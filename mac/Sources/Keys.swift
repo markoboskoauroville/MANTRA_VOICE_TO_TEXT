@@ -23,13 +23,20 @@ import CryptoKit
 // corrects. AssemblyAI's key is 32 hex with no prefix, so it is taken only where AssemblyAI is meant (its own file
 // picker, a file or block that names it: keyring.md §4).
 enum Provider: String, CaseIterable {
-    case assemblyai, anthropic
+    case groq, assemblyai, deepgram, speechmatics, gemini, google, chirp, cloudflare, soniox, elevenlabs, anthropic
 
-    var title: String { self == .assemblyai ? "AssemblyAI" : "Anthropic" }
-    var pattern: String {
-        self == .assemblyai ? #"(?<![0-9A-Za-z])[0-9a-f]{32}(?![0-9A-Za-z])"# : #"sk-ant-[A-Za-z0-9_\-]{20,}"#
+    var title: String {
+        switch self {
+        case .groq: return "Groq"; case .assemblyai: return "AssemblyAI"; case .deepgram: return "Deepgram"
+        case .speechmatics: return "Speechmatics"; case .gemini: return "Gemini"; case .google: return "Google Speech"
+        case .chirp: return "Google service account"; case .cloudflare: return "Cloudflare"; case .soniox: return "Soniox"
+        case .elevenlabs: return "ElevenLabs"; case .anthropic: return "Anthropic"
+        }
     }
-    var shapeHint: String { self == .assemblyai ? "AssemblyAI keys are 32 letters and digits (0-9, a-f)." : "Anthropic keys start with sk-ant-." }
+    /// the name on a numbered key: "Groq 2/3"
+    var short: String { self == .chirp ? "Chirp 3" : self == .google ? "Google" : title }
+    var pattern: String { self == .anthropic ? #"sk-ant-[A-Za-z0-9_\-]{20,}"# : #"$^"# }
+    var shapeHint: String { self == .anthropic ? "Anthropic keys start with sk-ant-." : "" }
 }
 
 let appSupport: URL = {
@@ -97,93 +104,8 @@ enum Keys {
         return new
     }
 
-    // MARK: the parser (keyring.md §4, §6b, §10d): blocks split on blank lines, the key by SHAPE, the title by elimination:
-    // the first line of the block that holds no key, with every key shape taken out of it.
-
-    static func parse(_ text: String, sourceName: String, only: Provider? = nil) -> [Provider: [KeyEntry]] {
-        var out: [Provider: [KeyEntry]] = [:]
-        let fileSaysAssembly = sourceName.lowercased().contains("assembly")
-        let blocks = text.components(separatedBy: .newlines).split(whereSeparator: { $0.trimmingCharacters(in: .whitespaces).isEmpty })
-        for block in blocks {
-            let lines = block.map { String($0) }
-            let joined = lines.joined(separator: "\n")
-            for p in Provider.allCases where only == nil || only == p {
-                if p == .assemblyai && only != .assemblyai && !fileSaysAssembly && !joined.lowercased().contains("assembly") { continue }
-                let found = matches(p.pattern, in: joined).filter { k in !(out[p] ?? []).contains { $0.key == k } }
-                guard !found.isEmpty else { continue }
-                let title = lines.map(stripKeys).map { $0.trimmingCharacters(in: CharacterSet(charactersIn: " \t:#-=*")) }
-                    .first { !$0.isEmpty && $0.count <= 60 } ?? ""
-                for (i, k) in found.enumerated() {
-                    let t = title.isEmpty ? "" : (found.count > 1 ? "\(title) \(i + 1)" : title)
-                    out[p, default: []].append(KeyEntry(key: k, title: t))
-                }
-            }
-        }
-        // untitled keys are named by their place in the file
-        for (p, list) in out {
-            out[p] = list.enumerated().map { $1.title.isEmpty ? KeyEntry(key: $1.key, title: "key \($0 + 1)") : $1 }
-        }
-        return out
-    }
-
-    static func matches(_ pattern: String, in text: String) -> [String] {
-        guard let re = try? NSRegularExpression(pattern: pattern) else { return [] }
-        var seen = Set<String>(), out: [String] = []
-        for m in re.matches(in: text, range: NSRange(text.startIndex..., in: text)) {
-            guard let r = Range(m.range, in: text) else { continue }
-            let k = String(text[r])
-            if seen.insert(k).inserted { out.append(k) }
-        }
-        return out
-    }
-
-    // a title can never contain a key (keyring.md §6b, the ring.py _label_from bug)
-    static func stripKeys(_ line: String) -> String {
-        var s = line
-        for p in Provider.allCases {
-            s = s.replacingOccurrences(of: p.pattern, with: "", options: .regularExpression)
-        }
-        return s.replacingOccurrences(of: #"[0-9A-Za-z_\-\.]{28,}"#, with: "", options: .regularExpression)
-    }
-
-    // THE FILE PICKER'S ANSWER (keyring.md §6b "a sentence back"): what was read from each file, sorted by shape.
-    static func importFiles(_ urls: [URL], only: Provider? = nil) -> String {
-        var lines: [String] = []
-        for url in urls {
-            guard let text = (try? String(contentsOf: url, encoding: .utf8)) ?? (try? String(contentsOf: url, encoding: .isoLatin1)) else {
-                lines.append("\(url.lastPathComponent): not a text file"); continue
-            }
-            let found = parse(text, sourceName: url.lastPathComponent, only: only)
-            if found.isEmpty {
-                lines.append("\(url.lastPathComponent): no key found in it" + (only.map { " (\($0.shapeHint))" } ?? "")); continue
-            }
-            var parts: [String] = []
-            for p in Provider.allCases {
-                guard let list = found[p] else { continue }
-                let new = add(p, list)
-                parts.append("\(list.count) \(p.title) key\(list.count == 1 ? "" : "s")" + (new < list.count ? " (\(list.count - new) already held)" : ""))
-            }
-            lines.append("\(url.lastPathComponent): " + parts.joined(separator: ", "))
-        }
-        return lines.joined(separator: "\n")
-    }
-
     static func forget(_ p: Provider) { set(p, []); Ring.reset(p) }
 
-    // v12 (Marko, 8.11.2026: "Load the API codes from the text file in famous location ... they will be already
-    // entered"): on his Mac the keys come by themselves from ~/Downloads/API (AssemblyAI-api.txt, Claude.api.txt), at
-    // every launch and every time ⚙ opens; new keys are added, the ones held stay. Elsewhere nothing happens.
-    static let famous = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Downloads/API")
-    @discardableResult
-    static func loadFamous() -> String {
-        var said: [String] = []
-        for (p, words) in [(Provider.assemblyai, ["assembly"]), (Provider.anthropic, ["claude", "anthropic"])] {
-            let files = ((try? FileManager.default.contentsOfDirectory(at: famous, includingPropertiesForKeys: nil)) ?? [])
-                .filter { u in u.pathExtension.lowercased() == "txt" && words.contains { u.lastPathComponent.lowercased().contains($0) } }
-            if !files.isEmpty { said.append(importFiles(files, only: p)) }
-        }
-        return said.joined(separator: "\n")
-    }
 }
 
 // MARK: the verdict (quota-and-fallback.md §3, key-testing.md §5): one classifier for every provider
@@ -309,8 +231,7 @@ enum Ring {
         guard let s else { return true }
         switch s.verdict {
         case .ok, .soft: return true
-        case .dead: return false
-        case .cool, .noCredit: return (s.until ?? .distantPast) <= now
+        case .dead, .cool, .noCredit: return (s.until ?? .distantPast) <= now
         }
     }
 
@@ -333,19 +254,28 @@ enum Ring {
         var m = all[p.rawValue] ?? Memory()
         let fp = fingerprint(k.key)
         var until: Date?
+        // TTT's rests (KeyRing.kt): a rate limit a minute (or what the provider said), a refused key an hour, a key out of free
+        // use until 00:00 UTC, when the free tiers renew
         if v == .cool { until = Date().addingTimeInterval(rest ?? 60) }
-        if v == .noCredit { until = Date().addingTimeInterval(6 * 3600) }     // TTT Mini: topped up in a minute, so 6 h
+        if v == .dead { until = Date().addingTimeInterval(3600) }
+        if v == .noCredit { until = nextUTCMidnight() }
         m.states[fp] = State(verdict: v, at: Date(), until: until, detail: detail)
         if current { m.current = fp }
         all[p.rawValue] = m
         save(all)
     }
 
-    // the key's place in his list, "key 7 of 21" (keyring.md §10d: the position, never key material)
-    static func place(_ p: Provider, _ k: KeyEntry) -> String {
-        let list = Keys.entries(p)
-        return "\(k.title), key \((list.firstIndex(of: k) ?? 0) + 1) of \(list.count)"
+    static func nextUTCMidnight(_ now: Date = Date()) -> Date {
+        var c = Calendar(identifier: .gregorian); c.timeZone = TimeZone(identifier: "UTC")!
+        return c.nextDate(after: now, matching: DateComponents(hour: 0, minute: 0, second: 0), matchingPolicy: .nextTime) ?? now.addingTimeInterval(86400)
     }
+
+    // the key's number in his list, "Groq 2/3" (TTT: the status line says every switch; the number, never the key)
+    static func name(_ p: Provider, _ k: KeyEntry) -> String {
+        let list = Keys.entries(p)
+        return "\(p.short) \((list.firstIndex(of: k) ?? 0) + 1)/\(list.count)"
+    }
+    static func place(_ p: Provider, _ k: KeyEntry) -> String { name(p, k) }
 
     enum Outcome<T> { case ok(T), fail(Failure) }
 
@@ -359,7 +289,7 @@ enum Ring {
 
     static func run<T>(_ p: Provider, _ job: (String) -> Outcome<T>) -> Result<T, EngineError> {
         let keys = order(p)
-        guard !keys.isEmpty else { return .failure(EngineError("no \(p.title) key: paste one in ⚙ → Settings")) }
+        guard !keys.isEmpty else { return .failure(EngineError("no \(p.title) key: ⚙ → Import keys from file")) }
         var moved: [String] = []
         var last = ""
         let t0 = Date()
@@ -371,7 +301,7 @@ enum Ring {
             case .ok(let v):
                 mark(p, k, .ok, "worked", current: true)
                 if n > 0 {
-                    lastMove = "\(p.title): \(moved.joined(separator: ", ")); now \(k.title)"
+                    lastMove = "\(moved.joined(separator: ", ")) → \(name(p, k))"
                     appendLog("ring \(p.rawValue): \(lastMove!)")
                 }
                 return .success(v)
@@ -381,14 +311,14 @@ enum Ring {
                 appendLog("ring \(p.rawValue): \(place(p, k)) \(v.rawValue): \(f.short)")
                 switch v {
                 case .soft:
-                    moved.append("\(k.title) \(f.status == 0 ? "no connection" : "failed")")
+                    moved.append("\(name(p, k)) \(f.status == 0 ? "no connection" : "failed")")
                     if Date().timeIntervalSince(t0) > softBudget {
                         return .failure(EngineError("\(p.title): \(n + 1) of \(keys.count) keys tried for \(Int(softBudget)) s, last: \(f.short)"))
                     }
                     if f.status == 0 { usleep(300_000) }      // let a dropped connection come back before the next key
                 case .dead, .noCredit, .cool:
                     mark(p, k, v, f.short, rest: v == .cool ? Classify.rest(f) : nil)
-                    moved.append("\(k.title) \(v == .dead ? "refused" : v == .noCredit ? "no credit" : "resting")")
+                    moved.append("\(name(p, k)) \(v == .dead ? "refused" : v == .noCredit ? "out of free use" : "rate limit")")
                 case .ok: break
                 }
             }

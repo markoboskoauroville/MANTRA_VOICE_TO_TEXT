@@ -8,7 +8,7 @@
 // does each is a choice on the stripe, remembered.
 import Foundation
 
-let appVersion = 12
+let appVersion = 13
 
 // MARK: the choices
 
@@ -25,68 +25,7 @@ let appVersion = 12
 // v12 ASSEMBLYAI BACK (Marko, 8.11.2026: "Bring back assembly AI ... we using assembly AI from now on"): online, the
 // keys from ~/Downloads/API, the default. Upload, submit, poll on one key (keyring.md §2b); Auto = its language detection
 // held to English and Croatian (measured 8.11.2026: 2.2 s for a 3 s take).
-enum HearEngine: String, CaseIterable {
-    case assemblyEN, assemblyHR, assemblyAuto, whisperEN, whisperHR, whisperAuto, parakeetEN, parakeetHR, parakeetAuto
-
-    /// the model, without the language: what ⚙ shows as one choice
-    enum Family: String, CaseIterable { case assembly, whisper, parakeet }
-    var family: Family { isAssembly ? .assembly : isParakeet ? .parakeet : .whisper }
-    static func of(_ f: Family, lang: String) -> HearEngine {
-        let i = lang == "en" ? 0 : lang == "hr" ? 1 : 2
-        switch f {
-        case .assembly: return [.assemblyEN, .assemblyHR, .assemblyAuto][i]
-        case .whisper: return [.whisperEN, .whisperHR, .whisperAuto][i]
-        case .parakeet: return [.parakeetEN, .parakeetHR, .parakeetAuto][i]
-        }
-    }
-    var isAssembly: Bool { self == .assemblyEN || self == .assemblyHR || self == .assemblyAuto }
-
-    var title: String {
-        switch self {
-        case .assemblyEN: return "AssemblyAI EN"; case .assemblyHR: return "AssemblyAI HR"; case .assemblyAuto: return "AssemblyAI AUTO"
-        case .whisperEN: return "Whisper Turbo EN"; case .whisperHR: return "Whisper Turbo HR"; case .whisperAuto: return "Whisper Turbo AUTO"
-        case .parakeetEN: return "Parakeet EN"; case .parakeetHR: return "Parakeet HR"; case .parakeetAuto: return "Parakeet AUTO"
-        }
-    }
-    var menuTitle: String {
-        switch self {
-        case .assemblyEN: return "AssemblyAI, English"
-        case .assemblyHR: return "AssemblyAI, Croatian"
-        case .assemblyAuto: return "AssemblyAI, Auto (Croatian and English)"
-        case .whisperEN: return "Whisper Turbo, English"
-        case .whisperHR: return "Whisper Turbo, Croatian"
-        case .whisperAuto: return "Whisper Turbo, Auto (Croatian and English)"
-        case .parakeetEN: return "Parakeet (fast), English"
-        case .parakeetHR: return "Parakeet (fast), Croatian"
-        case .parakeetAuto: return "Parakeet (fast), Auto (Croatian and English)"
-        }
-    }
-    var lang: String {
-        switch self {
-        case .assemblyEN, .whisperEN, .parakeetEN: return "en"
-        case .assemblyHR, .whisperHR, .parakeetHR: return "hr"
-        case .assemblyAuto, .whisperAuto, .parakeetAuto: return "auto"
-        }
-    }
-    var isParakeet: Bool { self == .parakeetEN || self == .parakeetHR || self == .parakeetAuto }
-    /// what this Mac can offer: Parakeet only beside the MANTRA_VOICE ears
-    static var offered: [HearEngine] { allCases.filter { !$0.isParakeet || Ears.serverHere } }
-
-    static var current: HearEngine {
-        get {
-            let d = UserDefaults.standard
-            // v12, once: whatever heard before, AssemblyAI hears now, in the same language
-            if !d.bool(forKey: "v12assembly") {
-                d.set(true, forKey: "v12assembly")
-                let was = HearEngine(rawValue: d.string(forKey: "hear") ?? "") ?? .whisperAuto
-                d.set(HearEngine.of(.assembly, lang: was.lang).rawValue, forKey: "hear")
-            }
-            let e = HearEngine(rawValue: d.string(forKey: "hear") ?? "") ?? .assemblyAuto
-            return offered.contains(e) ? e : .assemblyAuto
-        }
-        set { UserDefaults.standard.set(newValue.rawValue, forKey: "hear") }
-    }
-}
+// v13: the engine is one of the 13 of Catalog.swift (TTT's list), with a language; see HearEngine there.
 
 // the correction: a Claude model at Anthropic, by its family (the newest of it, asked once a day), or none
 enum StyleEngine: String, CaseIterable {
@@ -134,6 +73,11 @@ enum Prefs {
     static var lineBelow: Bool {
         get { UserDefaults.standard.bool(forKey: "lineBelow") }
         set { UserDefaults.standard.set(newValue, forKey: "lineBelow") }
+    }
+    // v13 (TTT, maAiCorrectDictation): auto correct after a Croatian take is OFF by default, the words go in as the engine heard them
+    static var correctCroatian: Bool {
+        get { UserDefaults.standard.bool(forKey: "correctCroatian") }
+        set { UserDefaults.standard.set(newValue, forKey: "correctCroatian") }
     }
     static var names: String {                       // v3: names the correction spells right (Marko's came over)
         get { UserDefaults.standard.string(forKey: "names") ?? "" }
@@ -215,26 +159,25 @@ let inventions: Set<String> = ["you", "thank you", "thank you.", "thanks for wat
                                "hvala.", "hvala vam", "hvala na gledanju", ".", ""]
 
 enum Hear {
-    /// the language Whisper heard in the last take ("en" / "hr"), when the voice says it (lang=auto)
+    /// the language heard in the last take ("en" / "hr"), when the engine says it (or the letters give it away)
     static var lastLang: String?
+    /// the engine that really wrote the last take down (the one picked, or the one the fallback walk reached)
+    static var used: String?
 
     static func run(_ engine: HearEngine, wav: URL) -> Result<String, EngineError> {
         let r = heard(engine, wav: wav)
         if case .success(let t) = r, inventions.contains(t.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)) {
-            return .failure(EngineError("nothing said (Whisper heard only \"\(t)\")"))
+            return .failure(EngineError("nothing said (the engine heard only \"\(t)\")"))
         }
         return r
     }
 
     static func heard(_ engine: HearEngine, wav source: URL) -> Result<String, EngineError> {
-        if engine.isAssembly {
-            guard let pcm = Audio.pcm16k(source), pcm.count > 8000 else { return .failure(EngineError("nothing recorded")) }
-            return Assembly.transcribe(Ears.wav16(pcm), lang: engine.lang)
+        lastLang = nil; used = nil
+        let r = Chain.run(engine, source: source)
+        if case .success(let t) = r, engine.lang == "auto", lastLang == nil {
+            lastLang = t.range(of: "[čćšžđČĆŠŽĐ]", options: .regularExpression) != nil ? "hr" : nil
         }
-        if engine.isParakeet { return Ears.server(source, lang: engine.lang, model: "parakeet") }   // v8: always the ears
-        if Ears.current == .server { return Ears.server(source, lang: engine.lang) }
-        let r = Whisper.transcribe(source, lang: engine.lang)
-        lastLang = Whisper.lastLang
         return r
     }
 }
@@ -398,54 +341,6 @@ enum Assembly {
     // the probe clip of key-testing.md §2i: 1 s, 16 kHz mono, 440 Hz at a quarter of full scale
     static func probeClip() -> Data {
         Ears.wav16((0..<16000).map { Float(0.25 * sin(2 * Double.pi * 440 * Double($0) / 16000)) })
-    }
-}
-
-// MARK: TEST (the button, keyring.md §6: a person asking is not the app guessing). Every key asked to do the smallest
-// billable thing its provider sells (key-testing.md §3); the five states a person sees (§6).
-
-enum KeyTest {
-    static func probe(_ p: Provider, _ key: String) -> Failure? {
-        if p == .assemblyai {
-            // upload the tone, submit it; a refusal at either stage is the answer; never polled (key-testing.md §2i)
-            let up = call(Assembly.request(Assembly.base + "/upload", key: key, data: Assembly.probeClip()), timeout: 20)
-            guard up.status == 200, let url = json(up.data)["upload_url"] as? String else {
-                return Failure(status: up.status == 200 ? 500 : up.status, body: String(data: up.data, encoding: .utf8) ?? up.error ?? "", headers: up.headers)
-            }
-            let sub = call(Assembly.request(Assembly.base + "/transcript", key: key, json: ["audio_url": url]), timeout: 20)
-            return sub.status == 200 ? nil : Failure(status: sub.status, body: String(data: sub.data, encoding: .utf8) ?? sub.error ?? "", headers: sub.headers)
-        }
-        guard let model = Claude.model(key) else { return Failure(status: 401, body: "no model listed", headers: [:]) }
-        let r = call(Claude.request("/messages", key: key, body: ["model": model, "max_tokens": 1, "messages": [["role": "user", "content": "hi"]]]), timeout: 20)
-        return r.status == 200 ? nil : Failure(status: r.status, body: String(data: r.data, encoding: .utf8) ?? r.error ?? "", headers: r.headers)
-    }
-
-    static func word(_ v: Verdict) -> String {
-        switch v { case .ok: return "works"; case .dead: return "rejected"; case .noCredit: return "no credit"; case .cool: return "throttled"; case .soft: return "unclear" }
-    }
-
-    // every key of the provider, a few at a time; the ring learns each answer
-    static func run(_ p: Provider) -> String {
-        let keys = Keys.entries(p)
-        guard !keys.isEmpty else { return "no key" }
-        var counts: [Verdict: Int] = [:]
-        var lines: [String] = []
-        let q = DispatchQueue(label: "keytest"), group = DispatchGroup(), gate = DispatchSemaphore(value: 5)
-        for k in keys {
-            group.enter(); gate.wait()
-            DispatchQueue.global().async {
-                let f = probe(p, k.key)
-                let v = f.map(Classify.verdict) ?? .ok
-                Ring.mark(p, k, v, f?.short ?? "works", rest: v == .cool ? f.map(Classify.rest) : nil)
-                q.sync { counts[v, default: 0] += 1; if v != .ok { lines.append("\(k.title): \(word(v)) (\(f?.short ?? ""))") } }
-                gate.signal(); group.leave()
-            }
-        }
-        group.wait()
-        let order: [Verdict] = [.ok, .noCredit, .dead, .cool, .soft]
-        let summary = order.compactMap { v in counts[v].map { "\($0) \(word(v))" } }.joined(separator: " · ")
-        appendLog("key test \(p.rawValue): \(summary)" + (lines.isEmpty ? "" : "; " + lines.joined(separator: "; ")))
-        return "\(summary) of \(keys.count)"
     }
 }
 

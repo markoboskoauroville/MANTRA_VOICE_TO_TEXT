@@ -80,6 +80,7 @@ final class HistoryPane: NSObject, NSTableViewDataSource, NSTableViewDelegate, N
     let count = NSTextField(labelWithString: "")
     let detail = NSTextView()
     let hear = NSPopUpButton()
+    let hearLang = NSPopUpButton()
     let style = NSPopUpButton()
     let retranscribe = NSButton(title: "Transcribe again", target: nil, action: nil)
     let status = NSTextField(labelWithString: "")
@@ -127,7 +128,12 @@ final class HistoryPane: NSObject, NSTableViewDataSource, NSTableViewDelegate, N
         detailScroll.hasVerticalScroller = true
         detailScroll.borderType = .bezelBorder
 
-        for e in HearEngine.offered { hear.addItem(withTitle: e.title); hear.lastItem?.representedObject = e.rawValue }
+        // v13 (TTT: "Re-transcribe with..." and the accuracy % next to every model): every engine of the catalogue, the
+        // accuracy for the language chosen beside it; one without a key is greyed
+        for l in HearEngine.langs { hearLang.addItem(withTitle: l == "auto" ? "AUTO" : l.uppercased()); hearLang.lastItem?.representedObject = l }
+        hearLang.target = self; hearLang.action = #selector(langChanged)
+        hearLang.toolTip = "The language for the new version"
+        fillEngines()
         for e in StyleEngine.allCases { style.addItem(withTitle: e.title); style.lastItem?.representedObject = e.rawValue }
         hear.toolTip = "The ear (and language) for the new version"
         style.toolTip = "The style for the new version"
@@ -137,15 +143,20 @@ final class HistoryPane: NSObject, NSTableViewDataSource, NSTableViewDelegate, N
         typeAgain.toolTip = "Type the version shown into the app you were in"
         status.textColor = .secondaryLabelColor
         status.lineBreakMode = .byTruncatingTail
-        let buttons = NSStackView(views: [hear, style, retranscribe, NSView(), copy, typeAgain])
+        let buttons = NSStackView(views: [hear, hearLang, style])
+        let buttons2 = NSStackView(views: [retranscribe, NSView(), copy, typeAgain])
+        buttons2.orientation = .horizontal
         buttons.orientation = .horizontal
-        let right = NSStackView(views: [detailScroll, buttons, status])
+        let right = NSStackView(views: [detailScroll, buttons, buttons2, status])
         right.orientation = .vertical
         right.alignment = .leading
         detailScroll.translatesAutoresizingMaskIntoConstraints = false
         buttons.translatesAutoresizingMaskIntoConstraints = false
+        buttons2.translatesAutoresizingMaskIntoConstraints = false
+        hear.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
         NSLayoutConstraint.activate([detailScroll.widthAnchor.constraint(equalTo: right.widthAnchor),
-                                     buttons.widthAnchor.constraint(equalTo: right.widthAnchor)])
+                                     buttons.widthAnchor.constraint(equalTo: right.widthAnchor),
+                                     buttons2.widthAnchor.constraint(equalTo: right.widthAnchor)])
         let split = NSStackView(views: [tableScroll, right])
         split.orientation = .horizontal
         split.alignment = .top
@@ -169,6 +180,21 @@ final class HistoryPane: NSObject, NSTableViewDataSource, NSTableViewDelegate, N
             split.widthAnchor.constraint(equalTo: page.widthAnchor, constant: -24),
         ])
     }
+
+    // the engines with their accuracy in the language chosen for the new version, and a note for the ones that cannot run now
+    func fillEngines() {
+        let lang = hearLang.selectedItem?.representedObject as? String ?? "auto"
+        let keep = hear.selectedItem?.representedObject as? String ?? HearEngine.current.id
+        hear.removeAllItems()
+        hear.menu?.autoenablesItems = false
+        for s in Catalog.all {
+            hear.addItem(withTitle: Catalog.shown(s, lang: lang) + (Catalog.available(s) ? "" : (s.local ? "  (not on this Mac)" : "  (no key)")))
+            hear.lastItem?.representedObject = s.id
+            hear.lastItem?.isEnabled = Catalog.available(s)
+        }
+        if let i = hear.itemArray.firstIndex(where: { $0.representedObject as? String == keep && $0.isEnabled }) { hear.selectItem(at: i) }
+    }
+    @objc func langChanged() { fillEngines() }
 
     func reload() {
         History.purge()
@@ -244,14 +270,17 @@ final class HistoryPane: NSObject, NSTableViewDataSource, NSTableViewDelegate, N
         }.joined(separator: "\n\n────────\n\n")
         retranscribe.isEnabled = History.hasAudio(e.id)
         status.stringValue = History.hasAudio(e.id) ? "The audio is kept until \(f.string(from: e.versions.first!.at.addingTimeInterval(History.audioDays)))." : "The audio is gone (kept one day); the words stay."
-        if let i = hear.itemArray.firstIndex(where: { $0.title == e.latest.hear }) { hear.selectItem(at: i) }
+        if let i = hearLang.itemArray.firstIndex(where: { $0.representedObject as? String == e.latest.lang }) { hearLang.selectItem(at: i); fillEngines() }
+        if let sp = Catalog.all.first(where: { $0.short + " " + e.latest.lang.uppercased() == e.latest.hear }),
+           let i = hear.itemArray.firstIndex(where: { $0.representedObject as? String == sp.id }), hear.itemArray[i].isEnabled { hear.selectItem(at: i) }
         if let i = style.itemArray.firstIndex(where: { $0.title == StyleEngine.current.title }) { style.selectItem(at: i) }
     }
 
     // TTT Mini's re-transcribe: the same audio, another ear or language, another style; the result is a new version.
     @objc func again() {
-        guard let e = selected, let he = HearEngine(rawValue: hear.selectedItem?.representedObject as? String ?? ""),
+        guard let e = selected, let eid = hear.selectedItem?.representedObject as? String, Catalog.byId(eid) != nil,
               let st = StyleEngine(rawValue: style.selectedItem?.representedObject as? String ?? "") else { return }
+        let he = HearEngine(id: eid, lang: hearLang.selectedItem?.representedObject as? String ?? "auto")
         retranscribe.isEnabled = false
         status.stringValue = "transcribing again with \(he.title), \(st.title)…"
         DispatchQueue.global().async {
@@ -270,7 +299,7 @@ final class HistoryPane: NSObject, NSTableViewDataSource, NSTableViewDelegate, N
             DispatchQueue.main.async {
                 if !result.hasPrefix("✗ ") {
                     var updated = e
-                    updated.versions.append(Version(at: Date(), hear: he.title, style: st.title, lang: he.lang, heard: words, text: result))
+                    updated.versions.append(Version(at: Date(), hear: Hear.used ?? he.title, style: st.title, lang: he.lang, heard: words, text: result))
                     History.save(updated)
                     if let i = self.everything.firstIndex(where: { $0.id == e.id }) { self.everything[i] = updated }
                     self.filter()
