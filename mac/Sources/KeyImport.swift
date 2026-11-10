@@ -252,7 +252,8 @@ enum KeyImporter {
     /// Files in, sentence out. `skipRejected`: the by-itself import at launch does not ask again about a key that failed before.
     static func importTexts(_ files: [(name: String, text: String)], skipRejected: Bool, source: String = "file") -> String {
         var seen = Set<String>()
-        let cands = files.flatMap { KeyScan.scan($0.name, $0.text).map { c in (c, $0.name) } }.filter { seen.insert($0.0.value).inserted }
+        var cands: [(KeyScan.Cand, String)] = []
+        for f in files { for c in KeyScan.scan(f.name, f.text) where seen.insert(c.value).inserted { cands.append((c, f.name)) } }
         if cands.isEmpty { return "No keys found in \(files.count) file(s)." }
         var held = Set<String>()
         for p in Provider.allCases { for k in Keys.entries(p) { held.insert(k.key) } }
