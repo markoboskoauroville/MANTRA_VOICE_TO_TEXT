@@ -4,6 +4,7 @@
 
 - A closure with explicit arguments cannot use `$0` inside a nested closure (the build said "anonymous closure arguments cannot be used"): write the loop out. The Mac is never compiled here, so every such slip costs a GitHub run; read the code twice before the push.
 - Deepgram's `detect_language=true` put a Croatian sentence into Slovak; `language=multi` heard it right. Its `detect_language=hr&detect_language=en` is a parse error. Speechmatics takes `"language": "auto"` and refuses `language_identification_config`. Measured with curl before the code was changed, one free job each.
+- Speechmatics AUTO on a 5 s clip came back "Language identification could not identify any language with sufficient confidence" (the job is accepted, then rejected at the status call): its AUTO falls through to the chain; fix later by running en or hr from the other engine's language.
 - The file the keys come from is read by name: ~/Downloads/API holds GitHub tokens, Twilio, Tailscale. Only files whose names say a speech or Claude provider are opened, and a key that failed its free test is remembered by fingerprint so it is not asked again at every launch.
 - Google keys are two keys in one: an AIza key is tested as Gemini and as Speech v1 and goes into each ring that answers. A service account is a JWT signed RS256: Security needs the PKCS#1 inside the PKCS#8, so the DER header is walked and skipped.
 - Settings grew past the screen with the 13-engine panel: the page scrolls (a flipped document view), widths 280 / 190 / 220, minimum window width 800.
