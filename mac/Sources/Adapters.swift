@@ -88,7 +88,7 @@ enum Adapters {
     static func deepgram(_ wav: Data, lang: String) -> Result<String, EngineError> {
         Ring.run(.deepgram) { key -> Ring.Outcome<String> in
             var q = "model=nova-3&smart_format=true"
-            q += lang == "auto" ? "&detect_language=en&detect_language=hr" : "&language=\(lang)"
+            q += lang == "auto" ? "&language=multi" : "&language=\(lang)"   // measured 10.11.2026: multi heard Croatian right, detect_language did not
             for n in names().prefix(50) { q += "&keyterm=" + (n.addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? "") }
             let r = request("https://api.deepgram.com/v1/listen?" + q, headers: ["Authorization": "Token " + key, "Content-Type": "audio/wav"], body: wav)
             return .from(call(r)) { d in
@@ -144,8 +144,7 @@ enum Adapters {
     // MARK: Speechmatics (upload, poll, fetch: one key for the whole job)
     static func speechmatics(_ wav: Data, lang: String) -> Result<String, EngineError> {
         Ring.run(.speechmatics) { key -> Ring.Outcome<String> in
-            var tc: [String: Any] = ["language": lang == "auto" ? "auto" : lang]
-            if lang == "auto" { tc["language_identification_config"] = ["expected_languages": ["en", "hr"]] }
+            let tc: [String: Any] = ["language": lang == "auto" ? "auto" : lang]      // "auto" accepted 10.11.2026; expected_languages is not allowed
             var m = Multipart()
             m.field("config", text(jsonBody(["type": "transcription", "transcription_config": tc])))
             m.file("data_file", filename: "clip.wav", mime: "audio/wav", data: wav)
