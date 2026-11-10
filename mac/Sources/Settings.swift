@@ -224,6 +224,9 @@ final class SettingsWindow: NSObject, NSTextViewDelegate, NSTextFieldDelegate {
         views.append(contentsOf: soundRows)
         views.append(label("Your additions to auto correct and to STYLE", bold: true)); views.append(note)
         views.append(row([label("Names"), namesField])); views.append(scroll)
+        let copyright = label("© 2026 Mantra Productions")
+        copyright.font = NSFont.systemFont(ofSize: 11); copyright.textColor = .secondaryLabelColor; copyright.alignment = .center
+        views.append(copyright)
         let col = NSStackView(views: views)
         col.orientation = .vertical
         col.alignment = .leading

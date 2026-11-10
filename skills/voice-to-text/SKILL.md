@@ -44,3 +44,5 @@ Marko, 10.11.2026: "upgrade my local app, my voice-to-text app, to have the same
 - 10.11.2026, v13: the thirteen engines, numbered rings, import by shape, engine panel, Croatian correction off, History picker with accuracy. Android on-device became Whisper on this Mac.
 
 - **Pressable controls highlight** on hover/press, nothing else does: MANTRA_MANIFEST modules/workflow-interface.md, "Pressable controls highlight" (Marko 10.11.2026).
+
+**Copyright footer (10.11.2026):** at the very bottom of the app's Settings, one muted centred line "© 2026 Mantra Productions" (MANTRA_MANIFEST modules/copyright-footer.md).
