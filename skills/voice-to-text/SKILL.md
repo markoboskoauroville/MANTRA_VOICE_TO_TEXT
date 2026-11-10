@@ -19,7 +19,7 @@ Marko, 10.11.2026: "upgrade my local app, my voice-to-text app, to have the same
 | The 13 engines | Catalog.swift: Parakeet, Whisper Turbo (this Mac), Groq turbo, Groq large-v3, Cloudflare, Gemini, Deepgram, AssemblyAI, Speechmatics, Google v1, Chirp 3, Soniox, ElevenLabs | write the take down | run paid ones unless picked (Soniox, ElevenLabs) |
 | Groq 1/3, Groq 2/3 ... | the numbered keys of a ring (Ring in Keys.swift) | rotate always on, wrap to key 1, rest until 00:00 UTC / a minute / an hour | be shown, logged, committed |
 | KeyImporter | the picker and the by-itself import | sort keys by shape, test each free, keep the working | read other secrets in ~/Downloads/API |
-| Chain | fallback walk | go on to the next free engine with quota and a key | spend money |
+| Chain | retry only | wait 3 s and retry the same engine on a network error, up to 10 times | change engine by itself (never, v14) |
 | History | the second tab | Re-transcribe with any engine and language, accuracy % beside each | |
 | Marko | tester | the voice test, the hands | |
 
@@ -40,4 +40,7 @@ Marko, 10.11.2026: "upgrade my local app, my voice-to-text app, to have the same
 - Accuracy percentages shipped are TTT's benchmark of 9.11.2026 (circular for Groq large-v3); a measured one replaces them.
 
 ## HISTORY
+- 10.11.2026, v14: no automatic engine change; retry 3 s x 10 on network errors; testNetFail default for the test.
 - 10.11.2026, v13: the thirteen engines, numbered rings, import by shape, engine panel, Croatian correction off, History picker with accuracy. Android on-device became Whisper on this Mac.
+
+- **Pressable controls highlight** on hover/press, nothing else does: MANTRA_MANIFEST modules/workflow-interface.md, "Pressable controls highlight" (Marko 10.11.2026).

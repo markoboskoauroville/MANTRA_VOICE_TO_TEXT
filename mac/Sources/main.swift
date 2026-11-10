@@ -454,6 +454,7 @@ final class Stripe: NSObject {
             let t0 = Date()
             Ring.lastMove = nil
             Hear.used = nil
+            Chain.onStatus = { s in DispatchQueue.main.async { guard mine == self.take, !self.cancelled else { return }; self.say(s, Ink.amber) } }
             // v21: a take started or sent by voice has "listen" / "send" cut from its text (Whisper hears them too)
             let heard = byVoice ? Hear.run(hear, wav: wav).map(VoiceWords.strip) : Hear.run(hear, wav: wav)
             let tHear = Date().timeIntervalSince(t0)

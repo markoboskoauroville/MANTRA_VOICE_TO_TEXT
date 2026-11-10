@@ -1,4 +1,4 @@
-// THE CHAIN (ported from TTT's FallbackRunner / EngineChain, 10.11.2026): the engine picked for the language goes first; when
+// (v14: no chain of engines any more, see run; the file name stays) THE CHAIN (ported from TTT's FallbackRunner / EngineChain, 10.11.2026): the engine picked for the language goes first; when
 // every key of it fails (the ring has already tried them all, wrapping to key 1), the walk goes on through TTT's order for
 // that language: free engines only, with a key, with free quota left in their window; paid ones (Soniox, ElevenLabs) only
 // when picked. Whisper Turbo on this Mac is the last of the free ones. The status line says every step.
@@ -9,35 +9,41 @@ enum Chain {
         guard let pcm = Audio.pcm16k(source), pcm.count > 8000 else { return .failure(EngineError("nothing recorded")) }
         let seconds = Double(pcm.count) / 16000
         let wav = Ears.wav16(pcm)
-        var ids = [h.id]
-        for id in Catalog.order(h.lang) where !ids.contains(id) { ids.append(id) }
-        var steps: [String] = [], lastError = "no engine could run"
-        for id in ids {
-            guard let spec = Catalog.byId(id) else { continue }
-            let picked = id == h.id
-            if !picked {
-                if spec.paid || !Catalog.available(spec) || !Quota.canAfford(spec, seconds: seconds) { continue }
-            }
+        // v14 (Marko, 10.11.2026: "If key is exhausted, go in the next key of the same provider. Change models automatically never
+        // do that."): only the engine picked runs. Its keys rotate inside Ring (same provider only); a network error or timeout
+        // waits 3 s and tries the same engine again, up to 10 times, the status shown; then the take stops and stays in History.
+        guard let spec = Catalog.byId(h.id) else { return .failure(EngineError("unknown engine \(h.id)")) }
+        var tries = 0
+        var test = UserDefaults.standard.integer(forKey: "testNetFail")     // test mode: the first N attempts fail as if offline
+        while true {
+            tries += 1
             let t0 = Date()
-            let r = once(spec, source: source, wav: wav, lang: h.lang, seconds: seconds)
+            let r: Result<String, EngineError>
+            if test > 0 { test -= 1; r = .failure(EngineError("The Internet connection appears to be offline. (test)")) }
+            else { r = once(spec, source: source, wav: wav, lang: h.lang, seconds: seconds) }
             switch r {
-            case .success(let text):
+            case .success:
                 Quota.add(spec, seconds: seconds)
                 Hear.used = spec.short + " " + h.lang.uppercased()
-                appendLog(String(format: "engine %@ (%@) %.1f s", spec.id, h.lang, Date().timeIntervalSince(t0)))
-                if !steps.isEmpty {
-                    let said = steps.joined(separator: " → ") + " → \(spec.short)"
-                    Ring.lastMove = [Ring.lastMove, said].compactMap { $0 }.joined(separator: "; ")
-                }
-                return .success(text)
+                appendLog(String(format: "engine %@ (%@) %.1f s, attempt %d", spec.id, h.lang, Date().timeIntervalSince(t0), tries))
+                return r
             case .failure(let e):
-                lastError = e.message
-                appendLog("engine \(spec.id) failed: \(e.message)")
-                if e.message == "nothing recorded" { return r }
-                steps.append("\(spec.short) failed")
+                appendLog("engine \(spec.id) attempt \(tries) failed: \(e.message)")
+                if !isNetwork(e.message) { return r }
+                if tries >= maxTries { return .failure(EngineError("\(spec.short): no answer after \(maxTries) tries, 3 s apart; the take is kept in History")) }
+                let said = "\(spec.short): no connection, trying again in 3 s (\(tries) of \(maxTries))"
+                Ring.lastMove = said
+                onStatus?(said)
+                Thread.sleep(forTimeInterval: 3)
             }
         }
-        return .failure(EngineError("every engine failed, the last: " + lastError))
+    }
+
+    static let maxTries = 10
+    static var onStatus: ((String) -> Void)?
+    static func isNetwork(_ m: String) -> Bool {
+        let l = m.lowercased()
+        return ["internet", "network", "timed out", "offline", "no answer", "could not connect", "connection", "keys tried for"].contains { l.contains($0) }
     }
 
     static func once(_ s: EngineSpec, source: URL, wav: Data, lang: String, seconds: Double) -> Result<String, EngineError> {

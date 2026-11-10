@@ -129,3 +129,9 @@ Please fix my voice to text up. When it's styling, it adds between paragraph one
 > Please upgrade my local app, my voice-to-text app, to have the same features as my TTT app for voice transcription with all these models and everything. Same copy.
 
 **Status:** saved first.
+
+## 10.11.2026, rule for TTT that applies here too (Marko, word for word, relayed by the master, task 87)
+
+> If it doesn't pass after some time make a break of three seconds and try again ... If key is exhausted, go in the next key of the same provider. Change models automatically never do that.
+
+**Status:** saved first. v14: no fallback to other engines; network error or timeout: wait 3 s, retry the same engine up to 10 times with the status shown, then stop with the take kept in History; quota or refused key: next key of the same provider only.
