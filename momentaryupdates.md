@@ -140,3 +140,7 @@ Please fix my voice to text up. When it's styling, it adds between paragraph one
 Marko: "please use star menu item for this. I have my blog for transcribing my own voice, and there are many different algorithms and APIs and use that, and I want to see this thing open up and it's working"
 **Status:** saved first (read as: Voice to Text (Mantra) gets "Transcribe a file…" (open + drop, video or audio, any length: split into pieces, engine chosen from its rings, progress on screen, timestamped segments saved next to the file) and a local API, so the MPA Lessons Analyzer and Queen can ask it; the 46-minute class of 12.11.2026 is its first file. The voice API :8837 timed out on it.)
 **Status (13.11.2026):** v15 built by GitHub Actions (run 43396564171, green), release v15 Latest, asset app.zip; API on 127.0.0.1:8865, flag --transcribe-file. Not installed yet, not yet run on the 46 minute class.
+
+## 13.11.2026: default engine Groq large-v3, three free accounts
+Marko: "for transcribing anything now, its default engine is Grok, a large model of Whisper. I think it's v3. Over 3 accounts, not a paid one, by rotating the API keys of 3 accounts" / "3 eq freee"
+**Status:** saved first (read as: the selected engine by default = groq_v3; its ring = the keys of his 3 free Groq accounts, rotated forward on quota; also the default of "Transcribe a file".)
