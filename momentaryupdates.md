@@ -135,3 +135,7 @@ Please fix my voice to text up. When it's styling, it adds between paragraph one
 > If it doesn't pass after some time make a break of three seconds and try again ... If key is exhausted, go in the next key of the same provider. Change models automatically never do that.
 
 **Status:** saved first. v14: no fallback to other engines; network error or timeout: wait 3 s, retry the same engine up to 10 times with the status shown, then stop with the take kept in History; quota or refused key: next key of the same provider only.
+
+## 13.11.2026: transcribe a file, seen working (from the MPA Lessons Analyzer, MPA request 256)
+Marko: "please use star menu item for this. I have my blog for transcribing my own voice, and there are many different algorithms and APIs and use that, and I want to see this thing open up and it's working"
+**Status:** saved first (read as: Voice to Text (Mantra) gets "Transcribe a file…" (open + drop, video or audio, any length: split into pieces, engine chosen from its rings, progress on screen, timestamped segments saved next to the file) and a local API, so the MPA Lessons Analyzer and Queen can ask it; the 46-minute class of 12.11.2026 is its first file. The voice API :8837 timed out on it.)
