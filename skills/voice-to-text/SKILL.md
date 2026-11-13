@@ -46,3 +46,12 @@ Marko, 10.11.2026: "upgrade my local app, my voice-to-text app, to have the same
 - **Pressable controls highlight** on hover/press, nothing else does: MANTRA_MANIFEST modules/workflow-interface.md, "Pressable controls highlight" (Marko 10.11.2026).
 
 **Copyright footer (10.11.2026):** at the very bottom of the app's Settings, one muted centred line "© 2026 Mantra Productions" (MANTRA_MANIFEST modules/copyright-footer.md).
+
+## TRANSCRIBE A FILE and the local API (v15, 13.11.2026)
+Marko, for the MPA Lessons Analyzer: "I want to see this thing open up and it's working". Audio or video of any length, seen working in the window.
+- **Window:** History tab, "Transcribe a file…" or drop a file on the window; engine and language pickers beside it (selected engine, AUTO). Table of FILE, PIECE n / N, ENGINE, ELAPSED, TIME LEFT, DONE, a hairline, the words as the pieces come in, STOP.
+- **Result** next to the source: `<name>.transcript.json` {"source","engine","language","duration","segments":[{"start","end","text"}],"complete"} and `<name>.transcript.md` (`mm:ss text` per segment); also a History entry.
+- **API on 127.0.0.1:8865** (app running): `GET /status`, `GET /engines`, `POST /transcribe {"path","engine"?,"language"?}` (opens the window, returns {"id"}), `GET /job/<id>` (progress, segments so far, output paths). CLI: `"<app>/Contents/MacOS/Voice to Text (Mantra)" --transcribe-file <path> [engine] [lang]` (running app, else headless).
+- **Pieces:** ffmpeg mono 16 kHz, 300 s (Cloudflare 60, Google 55, local 180). v14 retry rule unchanged: same engine, next key of the same provider, never another engine by itself.
+- **Timestamps from:** Groq (both), Deepgram, AssemblyAI, Speechmatics, ElevenLabs, Soniox. One segment per piece: Gemini, Google v1, Chirp 3, Parakeet, Whisper (this Mac), Cloudflare unless it returns segments.
+- Test without touching the window: `curl -s -X POST 127.0.0.1:8865/transcribe -d '{"path":"/full/path.m4a","engine":"groq_turbo"}'`, then `curl -s 127.0.0.1:8865/job/<id>`. A paid engine (Soniox, ElevenLabs) only when picked; a long file on a free engine costs its daily quota (`spend ask`).

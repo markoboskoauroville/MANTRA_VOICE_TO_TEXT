@@ -798,6 +798,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     // finished launching, and again a moment later.
     func applicationDidFinishLaunching(_ n: Notification) {
         TakeMark.set(false)          // v26: a mark left by a crash never holds the voice
+        FileAPI.start()              // v15: the local API for Transcribe a file, 127.0.0.1:8865 only
         DispatchQueue.global().async { KeyImporter.loadFamous() }
         Duck.up()                    // v3: speakers left at 6 % by a crash go back to their level
         for delay in [0.3, 2.0, 5.0] {
@@ -854,6 +855,9 @@ if CommandLine.arguments.contains("--keys") {
     for p in Provider.allCases { print("\(p.title): \(Keys.entries(p).count)") }
     exit(0)
 }
+
+// --transcribe-file <path> [engine] [lang]: a file of any length, asked of the running app (it shows the window) or done here
+if CommandLine.arguments.contains("--transcribe-file") { exit(FileJobs.cli(CommandLine.arguments)) }
 
 // --hear <engine id> <audio> [en|hr|auto]: one engine alone through its key ring, the time it took (tests, no stripe);
 // with `defaults write com.mantra.voicetotext testDropKeys -int N` the first N keys of each job fail, to see the rotation

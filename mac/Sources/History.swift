@@ -84,6 +84,7 @@ final class HistoryPane: NSObject, NSTableViewDataSource, NSTableViewDelegate, N
     let style = NSPopUpButton()
     let retranscribe = NSButton(title: "Transcribe again", target: nil, action: nil)
     let status = NSTextField(labelWithString: "")
+    let files = FilePanel()                    // v15: Transcribe a file…
     var everything: [Entry] = []
     var entries: [Entry] = []                  // what the search lets through
     let typeText: (String) -> Void
@@ -93,6 +94,7 @@ final class HistoryPane: NSObject, NSTableViewDataSource, NSTableViewDelegate, N
         self.typeText = typeText
         self.stepAside = stepAside
         super.init()
+        files.onDone = { [weak self] in self?.reload() }
 
         search.placeholderString = "Search the transcriptions"
         search.delegate = self
@@ -164,7 +166,7 @@ final class HistoryPane: NSObject, NSTableViewDataSource, NSTableViewDelegate, N
         tableScroll.heightAnchor.constraint(equalTo: split.heightAnchor).isActive = true
         right.heightAnchor.constraint(equalTo: split.heightAnchor).isActive = true
 
-        let page = NSStackView(views: [top, split])
+        let page = NSStackView(views: [top, files.view, split])
         page.orientation = .vertical
         page.alignment = .leading
         page.spacing = 10
@@ -177,6 +179,7 @@ final class HistoryPane: NSObject, NSTableViewDataSource, NSTableViewDelegate, N
             page.leadingAnchor.constraint(equalTo: view.leadingAnchor), page.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             page.topAnchor.constraint(equalTo: view.topAnchor), page.bottomAnchor.constraint(equalTo: view.bottomAnchor),
             top.widthAnchor.constraint(equalTo: page.widthAnchor, constant: -24),
+            files.view.widthAnchor.constraint(equalTo: page.widthAnchor, constant: -24),
             split.widthAnchor.constraint(equalTo: page.widthAnchor, constant: -24),
         ])
     }

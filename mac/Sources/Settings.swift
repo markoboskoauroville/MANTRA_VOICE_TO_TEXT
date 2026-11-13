@@ -257,7 +257,8 @@ final class SettingsWindow: NSObject, NSTextViewDelegate, NSTextFieldDelegate {
         // in every application."): the pill is full (never two buttons in one place), so the first row lives here, above
         // the tabs: ON OFF at the left, the name in the centre, TOP and the ✕ at the right (MANTRA_MANIFEST swift-apps.md,
         // "The first row of every app"). OFF quits, refused while a take is open; TOP keeps this window above the others.
-        let box = NSView()
+        let box = DropBox()          // v15: a file dropped on the window is transcribed (History tab)
+        box.onDrop = { [weak self] url in self?.tabs.selectTabViewItem(at: 1); self?.history.files.start(url) }
         tabs.translatesAutoresizingMaskIntoConstraints = false
         box.addSubview(tabs)
         let x = closeX(self, #selector(closeWindow), tip: "Close; Voice to Text (Mantra) stays on")

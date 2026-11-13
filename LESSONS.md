@@ -1,5 +1,13 @@
 # Lessons
 
+## v15 (13.11.2026)
+
+- Transcribing a file is the same adapters with their own timestamped answers, not a second program: `Stamped.swift` repeats the calls of `Adapters.swift` with `verbose_json`, `utterances=true`, AssemblyAI's `/sentences`, Speechmatics `json-v2`, so a change to a request has to be made in both files.
+- The pieces are cut by length, not at silence, and not overlapped: a word that falls on a cut can be split between two pieces. If that shows in a real lesson, cut at the quietest second near the boundary (ffmpeg silencedetect) instead of adding overlap.
+- Local engines (Parakeet, Whisper on this Mac) read a file, not bytes: their pieces are written to a temp WAV; the 46 minute MPA class timed out the voice API in one piece, so those pieces are 180 s.
+- The window is a drag destination through its content view (`DropBox`), not through the table or the text views: a text view takes the file path as text.
+- The API answers only a Host of 127.0.0.1 or localhost (a web page must not be able to start a job through DNS rebinding) and binds the loopback address only.
+
 ## v13 (10.11.2026)
 
 - A closure with explicit arguments cannot use `$0` inside a nested closure (the build said "anonymous closure arguments cannot be used"): write the loop out. The Mac is never compiled here, so every such slip costs a GitHub run; read the code twice before the push.
