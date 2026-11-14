@@ -144,3 +144,8 @@ Marko: "please use star menu item for this. I have my blog for transcribing my o
 ## 13.11.2026: default engine Groq large-v3, three free accounts
 Marko: "for transcribing anything now, its default engine is Grok, a large model of Whisper. I think it's v3. Over 3 accounts, not a paid one, by rotating the API keys of 3 accounts" / "3 eq freee"
 **Status:** saved first (read as: the selected engine by default = groq_v3; its ring = the keys of his 3 free Groq accounts, rotated forward on quota; also the default of "Transcribe a file".)
+
+## 14.11.2026: Speechify and Voice to Text exclude each other (via the master session)
+> fix my opposite engine, which is voice to text. I have two engines. I'm using Speechify, which is from Speechify, or my own thing. They're both supposed to register F1 as a transcription key, and after transcription, they disappear. But if I catch it with the mouse, they don't disappear, because I want to change the settings. The idea is that one replaces the other. If I open my own engine, voice to text, then it closes Speechify automatically. If I open Speechify manually, my own engine disappears. So they are mutually exclusive.
+
+**Status:** saved first.
