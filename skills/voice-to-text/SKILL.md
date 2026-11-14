@@ -55,3 +55,11 @@ Marko, for the MPA Lessons Analyzer: "I want to see this thing open up and it's 
 - **Pieces:** ffmpeg mono 16 kHz, 300 s (Cloudflare 60, Google 55, local 180). v14 retry rule unchanged: same engine, next key of the same provider, never another engine by itself.
 - **Timestamps from:** Groq (both), Deepgram, AssemblyAI, Speechmatics, ElevenLabs, Soniox. One segment per piece: Gemini, Google v1, Chirp 3, Parakeet, Whisper (this Mac), Cloudflare unless it returns segments.
 - Test without touching the window: `curl -s -X POST 127.0.0.1:8865/transcribe -d '{"path":"/full/path.m4a","engine":"groq_turbo"}'`, then `curl -s 127.0.0.1:8865/job/<id>`. A paid engine (Soniox, ElevenLabs) only when picked; a long file on a free engine costs its daily quota (`spend ask`).
+
+## v16-v19 (14.11.2026) and what it taught
+- v16: exclusive with Speechify (com.cliffweitzman.speechifymacagent), each closes the other with no loop; the blob stays while the mouse is on it or Settings is open; F1 released at quit; checkAtStart updater.
+- v17/v18: accuracy benchmark (12 English sentences via :8837/render; `--bench`, "Benchmark engines" button); two-column Settings, Croatian H and English E, radio per language, % in parentheses. English: Deepgram 88, Groq large-v3 87, AssemblyAI 87. Croatian still TTT's 9.11.2026 figures (no Croatian clips yet). Scoring has no number normalisation ("23" vs "twenty three"), so all % are a little low.
+- v19: no-key cards readable. The status strip flips below the pill when the blob is in the upper half.
+- Traps: `--settings-shot` offscreen renders show false white areas, check the real window with `screencapture -l`. Swift refuses `var a = "", b = "" { didSet }` (cost a build). A version number once pushed is never reused. Open test windows on the MacBook screen, not the BenQ.
+- The site mantravoicetotext.pages.dev is deployed from the Mac with `site/deploy.sh` after copying the release's app.zip to mac/dist/VoiceToTextMantra-v<N>-mac.zip (no compile). Done for v19 on 14.11.2026 (it showed 6).
+- Run log: 14.11.2026, v16-v19 built by GitHub, installed, Marko confirmed; site deployed v19.
