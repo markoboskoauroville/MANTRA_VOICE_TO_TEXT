@@ -1065,7 +1065,7 @@ if CommandLine.arguments.contains("--download-model") {
 if let i = CommandLine.arguments.firstIndex(of: "--settings-shot"), i + 1 < CommandLine.arguments.count {
     _ = NSApplication.shared
     let w = SettingsWindow(onChange: {}, typeText: { _ in })
-    w.window.setFrameOrigin(NSPoint(x: -10000, y: -10000)); w.window.appearance = NSAppearance(named: .aqua)
+    w.window.setFrameOrigin(NSPoint(x: -10000, y: -10000)); w.window.appearance = NSAppearance(named: .darkAqua)
     w.window.layoutIfNeeded()
     if let v = w.window.contentView, let rep = v.bitmapImageRepForCachingDisplay(in: v.bounds) {
         v.cacheDisplay(in: v.bounds, to: rep)

@@ -47,7 +47,8 @@ final class EngineCard: NSView {
     override func draw(_ r: NSRect) {
         let box = bounds.insetBy(dx: 1, dy: 1)
         let p = NSBezierPath(roundedRect: box, xRadius: 12, yRadius: 12)
-        (chosen ? Host.red.withAlphaComponent(0.12) : hovering ? Host.lit : Host.key).setFill(); p.fill()
+        (hovering ? Host.lit : Host.key).setFill(); p.fill()
+        if chosen { Host.red.withAlphaComponent(0.14).setFill(); p.fill() }
         (chosen ? Host.red : NSColor(white: 1, alpha: 0.10)).setStroke(); p.lineWidth = chosen ? 2 : 1; p.stroke()
         let cy = bounds.midY
         let ring = NSBezierPath(ovalIn: NSRect(x: 14, y: cy - 9, width: 18, height: 18).insetBy(dx: 1, dy: 1))

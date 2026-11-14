@@ -163,3 +163,4 @@ Marko, 14.11.2026, added (word for word):
 > It's same as we have in TTT in settings, voice to text, mantra. Make two columns. Radio buttons to select the actual engine for each language plus look at TTT and get its design here. I want the same menu design as in TTT to have it here in my voice to text mantra. This is a new modern design we have.
 
 **Status:** saved first (read as: the engine panel in Settings gets two columns, one per language, a radio button per engine picks the engine used for that language, in TTT's modern look).
+**Status (14.11.2026):** DONE in v17 (run 43605113038, green) and v18: benchmark, two-column cards, flipping strip; see TAKEOVER.

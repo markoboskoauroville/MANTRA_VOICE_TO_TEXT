@@ -112,3 +112,7 @@
 A test loop `for run in "whisperHR hr-test" …; do set -- $run` passed the whole string as $1 under zsh (no word splitting
 of unquoted variables): the app got `.wav` and an unknown `hear`, and answered "nothing recorded" four times. It looked
 like an app failure and was mine. Pass the two values as separate arguments to a function.
+
+## 14.11.2026: Swift refuses `var a = "", b = "" { didSet }`
+
+A stored property with an observer must be a declaration of its own: "var declarations with multiple variables cannot have explicit getters/setters". It cost a GitHub run (the Mac may not compile). A tint drawn with alpha over "nothing" looks right only on the colour behind it: paint the card colour first, then the tint. A benchmark with spoken numbers is scored without number normalisation (TTT's way): "23" for "twenty three" counts as wrong, so everyone's % is a little low.
