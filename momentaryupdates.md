@@ -150,3 +150,11 @@ Marko: "for transcribing anything now, its default engine is Grok, a large model
 
 **Status:** saved first.
 **Status (14.11.2026):** v16 built by GitHub Actions (run 43591642705, green, first try), release v16 Latest; installed, signed Mantra Apps. Opening ours closed Speechify; opening Speechify closed ours, no loop. Hover hold and F1 dictation wait for Marko.
+
+## 14.11.2026: accuracy benchmark of the engines, and the status strip that flips (via the master session)
+Marko, word for word:
+> Now please test the engine as we already do on my phone for accuracy. Invent 12 sentences and then see how accurate this engine is doing the work and then next to each engine in parentheses put the percentage of correctness.
+
+> for voice to text, this display at the top, when I'm dragging the icon, when I pass the half screen up, this display going to the bottom. When I pass down, it's at the top as it is now. So when I push it off the screen, I can only see this status part.
+
+**Status:** saved first.
