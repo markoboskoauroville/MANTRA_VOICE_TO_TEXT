@@ -11,9 +11,10 @@ final class SettingsWindow: NSObject, NSTextViewDelegate, NSTextFieldDelegate {
     let hotkey = NSPopUpButton()
     let extra = NSTextView()
     // v13: the engine panel (TTT's): one row per engine, its radio, its free/paid label and minutes, its numbered key
-    var engineRadios: [String: NSButton] = [:]
-    var engineFree: [String: NSTextField] = [:]
-    var engineKey: [String: NSTextField] = [:]
+    var cards: [String: [String: EngineCard]] = [:]          // language -> engine id -> card (v17, TTT's two columns)
+    var heads: [String: ColumnHead] = [:]
+    let benchButton = NSButton(title: "Benchmark engines", target: nil, action: nil)
+    let benchNote = NSTextField(wrappingLabelWithString: "")
     let anthropicLabel = NSTextField(labelWithString: "")
     let croatianTick = NSButton(checkboxWithTitle: "Auto correct Croatian takes too (off: Croatian goes in as the engine heard it)", target: nil, action: nil)
     let importResult = NSTextField(wrappingLabelWithString: "")
@@ -56,6 +57,8 @@ final class SettingsWindow: NSObject, NSTextViewDelegate, NSTextFieldDelegate {
         window.title = "Voice to Text (Mantra) v\(appVersion)"
         window.isReleasedWhenClosed = false
         window.minSize = NSSize(width: 800, height: 600)
+        window.appearance = NSAppearance(named: .darkAqua)      // v17: TTT's host look
+        window.backgroundColor = Host.bg
         super.init()
         history = HistoryPane(typeText: typeText) { [weak self] in self?.window.orderOut(nil); NSApp.hide(nil) }
 
@@ -95,19 +98,31 @@ final class SettingsWindow: NSObject, NSTextViewDelegate, NSTextFieldDelegate {
 
         // THE ENGINE PANEL (v13, TTT's long-press panel): all 13, one click selects; the accuracy of the language chosen beside
         // the name, free or paid and the minutes, and the numbered key in use ("Groq 2/3 in use")
-        var engineRows: [NSView] = []
-        for s in Catalog.all {
-            let b = NSButton(radioButtonWithTitle: s.name, target: self, action: #selector(enginePicked(_:)))
-            b.identifier = .init(s.id); b.setAccessibilityIdentifier("engine-" + s.id)
-            let free = label(s.label); free.textColor = .secondaryLabelColor
-            let key = label("")
-            b.widthAnchor.constraint(equalToConstant: 280).isActive = true
-            free.widthAnchor.constraint(equalToConstant: 190).isActive = true
-            key.widthAnchor.constraint(equalToConstant: 220).isActive = true
-            for t in [free, key] { t.lineBreakMode = .byTruncatingTail }
-            engineRadios[s.id] = b; engineFree[s.id] = free; engineKey[s.id] = key
-            engineRows.append(row([b, free, key]))
+        // v17: TTT's Voice transcription buttons: two columns (Croatian H, English E), a radio card per engine
+        func column(_ lang: String, _ letter: String, _ title: String) -> NSStackView {
+            let head = ColumnHead(frame: .zero); head.letter = letter; heads[lang] = head
+            let t = label(title, bold: true); t.textColor = Host.muted
+            var views: [NSView] = [t, head]
+            cards[lang] = [:]
+            for id in Catalog.order(lang) {
+                guard Catalog.byId(id) != nil else { continue }
+                let c = EngineCard(id: id, lang: lang); c.onPick = { [weak self] l, i in self?.cardPicked(l, i) }
+                cards[lang]![id] = c; views.append(c)
+            }
+            let col = NSStackView(views: views); col.orientation = .vertical; col.alignment = .leading; col.spacing = 6
+            col.setCustomSpacing(10, after: head)
+            for v in views.dropFirst() { v.widthAnchor.constraint(equalTo: col.widthAnchor).isActive = true }
+            return col
         }
+        let twoColumns = NSStackView(views: [column("hr", "H", "Croatian"), column("en", "E", "English")])
+        twoColumns.orientation = .horizontal; twoColumns.distribution = .fillEqually; twoColumns.spacing = 16; twoColumns.alignment = .top
+        twoColumns.widthAnchor.constraint(equalToConstant: 840).isActive = true
+        let engineRows: [NSView] = [twoColumns]
+        benchButton.target = self; benchButton.action = #selector(benchPressed)
+        benchButton.setAccessibilityIdentifier("benchmark")
+        benchNote.font = .systemFont(ofSize: 11); benchNote.textColor = Host.muted
+        benchNote.preferredMaxLayoutWidth = 700; benchNote.maximumNumberOfLines = 3
+        benchNote.stringValue = Settings_benchSummary()
 
         // THE MODELS (v12): recognition first, then the correction
         func radios<T>(_ items: [(T, String)], _ sel: Selector, into: (T, NSButton) -> Void) -> NSStackView {
@@ -123,7 +138,7 @@ final class SettingsWindow: NSObject, NSTextViewDelegate, NSTextFieldDelegate {
         let styleButtonRow = radios(StyleButtonEngine.choices.map { ($0, $0.menuTitle) }, #selector(styleButtonPicked(_:))) { e, b in
             b.identifier = .init(e.rawValue); b.setAccessibilityIdentifier("stylebutton-" + e.rawValue); styleButtonRadios[e] = b }
         whisperRow = row([modelButton, modelBar, modelLabel])
-        paintChoices()
+        paintChoices(); showKeys()
 
         let scroll = NSScrollView()
         scroll.hasVerticalScroller = true
@@ -210,9 +225,10 @@ final class SettingsWindow: NSObject, NSTextViewDelegate, NSTextFieldDelegate {
         croatianTick.setAccessibilityIdentifier("correctCroatian")
         var views: [NSView] = []
         views.append(label("1 · The key that starts and stops listening", bold: true)); views.append(hotkey)
-        views.append(label("2 · Recognition engine: who writes down what you say (13, the same as TTT; the % is the accuracy in this language)", bold: true))
-        views.append(row([label("Language"), langRow]))
+        views.append(label("2 · Recognition engine for each language: the round button picks who writes down what you say (% = accuracy)", bold: true))
+        views.append(row([label("Listening in"), langRow]))
         views.append(contentsOf: engineRows)
+        views.append(row([benchButton, benchNote]))
         views.append(whisperRow)
         views.append(label("3 · Correction model: who cleans the text after each take (Anthropic)", bold: true)); views.append(styleRow)
         views.append(row([label("The STYLE button"), styleButtonRow])); views.append(croatianTick); views.append(anthropicLabel)
@@ -356,12 +372,31 @@ final class SettingsWindow: NSObject, NSTextViewDelegate, NSTextFieldDelegate {
         appendLog("auto correct Croatian: \(Prefs.correctCroatian ? "on" : "off")")
     }
 
-    @objc func enginePicked(_ b: NSButton) {
-        guard let id = b.identifier?.rawValue, Catalog.byId(id) != nil else { return }
-        HearEngine.setEngine(id)
-        appendLog("recognition engine: \(HearEngine.current.title)")
+    /// a card clicked: THAT language's engine (engine_<lang>); a take in that language uses it (HearEngine.current)
+    func cardPicked(_ lang: String, _ id: String) {
+        guard Catalog.byId(id) != nil else { return }
+        UserDefaults.standard.set(id, forKey: "engine_" + lang)
+        appendLog("recognition engine for \(lang.uppercased()): \(Catalog.byId(id)!.short)")
         if id == "parakeet" || id == "whisper" { Ears.warm() }
-        paintChoices(); onChange()
+        paintChoices(); showKeys(); onChange()
+    }
+
+    func Settings_benchSummary() -> String {
+        guard let d = Bench.stored() else { return "No measurement yet: English % are TTT's of 9.11.2026. The button speaks 12 sentences with the voice and writes each engine's % here." }
+        let n = (d["results"] as? [String: Any])?.count ?? 0, bad = (d["failed"] as? [String: Any])?.count ?? 0
+        return "English % measured \(d["date"] as? String ?? "") with 12 sentences (\(n) engines" + (bad > 0 ? ", \(bad) failed" : "") + "). Croatian % are TTT's of 9.11.2026."
+    }
+    @objc func benchPressed() {
+        guard !Bench.running else { return }
+        benchButton.isEnabled = false
+        DispatchQueue.global().async {
+            let r = Bench.run { t in DispatchQueue.main.async { self.benchNote.stringValue = t + "…" } }
+            DispatchQueue.main.async {
+                self.benchButton.isEnabled = true
+                self.benchNote.stringValue = r.hasPrefix("FAILED") ? r : Settings_benchSummaryAfter(self)
+                self.paintChoices(); self.showKeys()
+            }
+        }
     }
 
     @objc func closeWindow() { window.performClose(nil) }
@@ -369,9 +404,10 @@ final class SettingsWindow: NSObject, NSTextViewDelegate, NSTextFieldDelegate {
     // v12: the round buttons
     func paintChoices() {
         let h = HearEngine.current
-        for (id, b) in engineRadios {
-            b.state = id == h.id ? .on : .off
-            if let sp = Catalog.byId(id) { b.title = Catalog.shown(sp, lang: h.lang) }
+        for (l, byId) in cards {
+            let chosen = UserDefaults.standard.string(forKey: "engine_" + l) ?? "assemblyai"
+            for (id, c) in byId { c.chosen = id == chosen }
+            if let sp = Catalog.byId(chosen) { heads[l]?.engine = sp.short; heads[l]?.pct = Scores.get(chosen, l).map { "(\($0)%)" } ?? ""; heads[l]?.needsDisplay = true }
         }
         for (l, b) in langRadios { b.state = l == h.lang ? .on : .off }
         for (e, b) in styleRadios { b.state = e == StyleEngine.current ? .on : .off }
@@ -461,20 +497,20 @@ final class SettingsWindow: NSObject, NSTextViewDelegate, NSTextFieldDelegate {
     }
 
     func showKeys() {
-        let lang = HearEngine.current.lang
-        for s in Catalog.all {
-            let ok = Catalog.available(s)
-            engineRadios[s.id]?.isEnabled = ok
-            engineRadios[s.id]?.title = Catalog.shown(s, lang: lang)
-            let t = s.ring.map(keyText) ?? (ok ? "on this Mac" : "not on this Mac")
-            engineKey[s.id]?.stringValue = t
-            engineKey[s.id]?.textColor = ok ? .labelColor : .secondaryLabelColor
-            if let p = s.ring {
-                let m = Ring.memory(p)
-                engineKey[s.id]?.toolTip = Keys.entries(p).enumerated().map { i, k in
-                    let st = m.states[Ring.fingerprint(k.key)]
-                    return "\(i + 1). \(k.title): " + (st.map { "\(KeyTest.word($0.verdict)) (\($0.detail))" } ?? "not asked yet")
-                }.joined(separator: "\n")
+        for (l, byId) in cards {
+            for (id, c) in byId {
+                guard let s = Catalog.byId(id) else { continue }
+                let ok = Catalog.available(s)
+                c.usable = ok; c.name = s.short; c.pct = Scores.get(id, l).map { "(\($0)%)" } ?? ""
+                let keys = s.ring.map(keyText) ?? (ok ? "on this Mac" : "not on this Mac")
+                c.sub = s.label + " · " + keys
+                c.toolTip = s.ring.map { p in
+                    let m = Ring.memory(p)
+                    return Keys.entries(p).enumerated().map { i, k in
+                        let st = m.states[Ring.fingerprint(k.key)]
+                        return "\(i + 1). \(k.title): " + (st.map { "\(KeyTest.word($0.verdict)) (\($0.detail))" } ?? "not asked yet")
+                    }.joined(separator: "\n")
+                }
             }
         }
         anthropicLabel.stringValue = "Anthropic (the correction): " + keyText(.anthropic)
@@ -572,3 +608,5 @@ final class SettingsWindow: NSObject, NSTextViewDelegate, NSTextFieldDelegate {
 
 // a scroll view's document that sits at the top
 final class FlippedView: NSView { override var isFlipped: Bool { true } }
+
+func Settings_benchSummaryAfter(_ w: SettingsWindow) -> String { w.Settings_benchSummary() }

@@ -102,8 +102,30 @@ func typingScreen() -> NSScreen? {
     return NSScreen.screens.first { $0.frame.contains(point) } ?? NSScreen.screens.first { $0.frame.contains(NSEvent.mouseLocation) }
 }
 
+// v17 (Marko, 14.11.2026): the blob may be pushed partly off the screen; macOS must not pull it back. What always stays on a
+// display is the status strip: at the bottom of the panel while the blob is in the upper half (it can leave over the top),
+// at the top of the panel while it is in the lower half (it can leave over the bottom).
+final class BlobPanel: NSPanel {
+    static func screen(for f: NSRect) -> NSScreen? {
+        let c = NSPoint(x: f.midX, y: f.midY)
+        return NSScreen.screens.first { $0.frame.contains(c) } ?? NSScreen.screens.min { a, b in
+            func d(_ s: NSScreen) -> CGFloat { hypot(max(s.frame.minX - c.x, 0, c.x - s.frame.maxX), max(s.frame.minY - c.y, 0, c.y - s.frame.maxY)) }
+            return d(a) < d(b) }
+    }
+    /// is this frame in the upper half of its screen: the strip goes below the pill
+    static func upperHalf(_ f: NSRect) -> Bool { (screen(for: f)?.frame.midY).map { f.midY > $0 } ?? false }
+    override func constrainFrameRect(_ r: NSRect, to s: NSScreen?) -> NSRect {
+        var f = r
+        guard let sc = BlobPanel.screen(for: r) else { return f }
+        let v = sc.frame
+        if BlobPanel.upperHalf(r) { f.origin.y = min(f.origin.y, v.maxY - LINE_H) } else { f.origin.y = max(f.origin.y, v.minY - (f.height - LINE_H)) }
+        f.origin.x = min(max(f.origin.x, v.minX - f.width + 80), v.maxX - 80)
+        return f
+    }
+}
+
 final class Stripe: NSObject {
-    let panel: NSPanel
+    let panel: BlobPanel
     // v12, THE TALK BLOB (Pill.swift): the pill; its ⚙ holds the two choices, the history and the settings
     var face: PillFace!
     let dot = Dot()                            // the state's colour (green ready, red listening or failed, amber busy)
@@ -130,7 +152,7 @@ final class Stripe: NSObject {
     var voiceTake = false                      // the take was started or sent by voice: its command words are cut
 
     override init() {
-        panel = NSPanel(contentRect: NSRect(x: 0, y: 0, width: PANEL_W, height: PILL_H + LINE_H),
+        panel = BlobPanel(contentRect: NSRect(x: 0, y: 0, width: PANEL_W, height: PILL_H + LINE_H),
                         styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
         super.init()
         panel.level = .statusBar
@@ -159,8 +181,12 @@ final class Stripe: NSObject {
         if !Place.restore(panel), let s = NSScreen.main {
             panel.setFrameOrigin(NSPoint(x: s.visibleFrame.midX - panel.frame.width / 2, y: s.visibleFrame.minY + 60))
         }
+        Prefs.lineBelow = BlobPanel.upperHalf(panel.frame); face.placeLine(below: Prefs.lineBelow)     // v17: the strip as the half says
         NotificationCenter.default.addObserver(forName: NSWindow.didMoveNotification, object: panel, queue: .main) { [weak self] _ in
             guard let self, self.minimizedFrame == nil else { return }
+            let c = self.panel.constrainFrameRect(self.panel.frame, to: nil)
+            if c.origin != self.panel.frame.origin { self.panel.setFrameOrigin(c.origin) }      // v17: only the strip is kept on a display
+            self.flipStrip()
             Place.save(self.panel)
         }
         for n in [NSApplication.didBecomeActiveNotification, NSApplication.didUnhideNotification] {
@@ -226,6 +252,15 @@ final class Stripe: NSObject {
             NSApp.terminate(nil)
         }
         // v22: what a short click on the status line does (tests)
+        // v17 test hook: the blob placed by a fraction of the screen's height from the bottom (1.0 top edge, 0 bottom edge; above 1
+        // and below 0 push it off), on the display with this index; the strip flips by itself as when he drags
+        DistributedNotificationCenter.default().addObserver(forName: Notification.Name(prefix + ".place"), object: nil, queue: .main) { [weak self] n in
+            guard let self, let u = n.userInfo, let fy = (u["y"] as? NSNumber)?.doubleValue else { return }
+            let screens = NSScreen.screens; let sc = screens[min((u["screen"] as? NSNumber)?.intValue ?? 0, screens.count - 1)]
+            let o = NSPoint(x: sc.frame.midX - self.panel.frame.width / 2, y: sc.frame.minY + CGFloat(fy) * sc.frame.height - self.panel.frame.height / 2)
+            self.panel.setFrame(self.panel.constrainFrameRect(NSRect(origin: o, size: self.panel.frame.size), to: sc), display: true)
+            self.flipStrip()
+        }
         DistributedNotificationCenter.default().addObserver(forName: Notification.Name(prefix + ".flipline"), object: nil, queue: .main) { [weak self] _ in self?.statusClicked() }
         DistributedNotificationCenter.default().addObserver(forName: Notification.Name(prefix + ".history"), object: nil, queue: .main) { [weak self] _ in self?.openHistory() }
         DistributedNotificationCenter.default().addObserver(forName: Notification.Name(prefix + ".settings"), object: nil, queue: .main) { [weak self] _ in self?.openSettingsTab() }
@@ -748,6 +783,14 @@ final class Stripe: NSObject {
     // v22 (Marko, 31.10.2026: "Only function of the clicking is to push this line at the bottom of blob or at the top"):
     // a short click on the line flips it, nothing else (COPY copies, ⚙ → History opens the history). The pill stays where
     // it is on screen: the panel moves by the line's height the other way.
+    // v17: the strip follows the half of the screen the blob is in: upper half, strip below the pill; lower half, above
+    func flipStrip() {
+        let below = BlobPanel.upperHalf(panel.frame)
+        guard below != Prefs.lineBelow else { return }
+        Prefs.lineBelow = below
+        face.placeLine(below: below, animated: true)
+    }
+
     @objc func statusClicked() {
         Prefs.lineBelow.toggle()
         face.placeLine(below: Prefs.lineBelow)
@@ -856,6 +899,12 @@ if let i = CommandLine.arguments.firstIndex(of: "--parse"), i + 1 < CommandLine.
         for c in KeyScan.scan(url.lastPathComponent, text) { kinds[c.kinds.joined(separator: "/"), default: 0] += 1 }
         print("\(url.lastPathComponent): " + (kinds.isEmpty ? "no key" : kinds.sorted { $0.key < $1.key }.map { "\($0.key) \($0.value)" }.joined(separator: ", ")))
     }
+    exit(0)
+}
+
+// --bench: the accuracy benchmark (Bench.swift): twelve sentences, every free engine with a key, benchmark.json, a table
+if CommandLine.arguments.contains("--bench") {
+    print(Bench.run { FileHandle.standardError.write(Data(($0 + "\n").utf8)) })
     exit(0)
 }
 

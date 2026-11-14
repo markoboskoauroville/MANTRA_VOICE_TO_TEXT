@@ -356,14 +356,15 @@ final class PillFace: NSView {
 
     // v22 (Marko, 31.10.2026: "Only function of the clicking is to push this line at the bottom of blob or at the top"):
     // the line above the pill or below it, the panel the same size
-    func placeLine(below: Bool) {
-        if below {
-            line.frame = NSRect(x: 0, y: 0, width: PANEL_W, height: LINE_H - 2)
-            pill.frame.origin.y = LINE_H
-        } else {
-            pill.frame.origin.y = 0
-            line.frame = NSRect(x: 0, y: PILL_H + 2, width: PANEL_W, height: LINE_H - 2)
-        }
+    func placeLine(below: Bool, animated: Bool = false) {
+        let lineF = below ? NSRect(x: 0, y: 0, width: PANEL_W, height: LINE_H - 2) : NSRect(x: 0, y: PILL_H + 2, width: PANEL_W, height: LINE_H - 2)
+        let pillY: CGFloat = below ? LINE_H : 0
+        if animated && window?.isVisible == true {
+            NSAnimationContext.runAnimationGroup { c in
+                c.duration = 0.28; c.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+                line.animator().frame = lineF; pill.animator().frame = NSRect(x: pill.frame.origin.x, y: pillY, width: pill.frame.width, height: pill.frame.height)
+            }
+        } else { line.frame = lineF; pill.frame.origin.y = pillY }
         needsDisplay = true
     }
 

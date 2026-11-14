@@ -92,6 +92,7 @@ enum Scores {
     }
     static func get(_ id: String, _ lang: String) -> Int? {
         let l = lang == "en" ? "en" : "hr"
+        if l == "en", let m = Bench.pct(id) { return m }          // v17: measured here, by Bench (benchmark.json)
         return stored()[l]?[id] ?? shipped[l]?[id]
     }
     static func record(_ id: String, _ lang: String, pct: Int) {
@@ -188,13 +189,14 @@ struct HearEngine: Equatable {
                 for l in langs { d.set(id, forKey: "engine_" + l) }
             }
             let lang = d.string(forKey: "hearLang") ?? "auto"
-            var id = d.string(forKey: "engine_" + lang) ?? "assemblyai"
+            // v17: AUTO (Croatian and English) uses the Croatian column's engine; EN and HR each their own
+            var id = d.string(forKey: "engine_" + (lang == "auto" ? "hr" : lang)) ?? "assemblyai"
             if Catalog.byId(id) == nil || (id == "parakeet" && !Ears.serverHere) { id = "assemblyai" }
             return HearEngine(id: id, lang: lang)
         }
         set {
             UserDefaults.standard.set(newValue.lang, forKey: "hearLang")
-            UserDefaults.standard.set(newValue.id, forKey: "engine_" + newValue.lang)
+            UserDefaults.standard.set(newValue.id, forKey: "engine_" + (newValue.lang == "auto" ? "hr" : newValue.lang))
         }
     }
 
