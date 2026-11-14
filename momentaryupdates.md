@@ -158,3 +158,8 @@ Marko, word for word:
 > for voice to text, this display at the top, when I'm dragging the icon, when I pass the half screen up, this display going to the bottom. When I pass down, it's at the top as it is now. So when I push it off the screen, I can only see this status part.
 
 **Status:** saved first.
+
+Marko, 14.11.2026, added (word for word):
+> It's same as we have in TTT in settings, voice to text, mantra. Make two columns. Radio buttons to select the actual engine for each language plus look at TTT and get its design here. I want the same menu design as in TTT to have it here in my voice to text mantra. This is a new modern design we have.
+
+**Status:** saved first (read as: the engine panel in Settings gets two columns, one per language, a radio button per engine picks the engine used for that language, in TTT's modern look).
