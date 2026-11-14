@@ -181,3 +181,5 @@ VM build branches of publish.sh have not been exercised).
 
 **v18** (same day): the chosen card gets its tint over the card colour (v17 drew the tint over nothing: pink on a light window), and `--settings-shot` draws in dark. Build run for v17: 43605113038 (first run 43604971945 failed on a Swift rule: `var a = "", b = "" { didSet }`).
 **Not tried by hand:** the real drag with the mouse; the Croatian % are still TTT's.
+
+**v19 (14.11.2026):** a card without a key is dimmed to 72 % (was 45 %) so its text stays readable. The real Settings window (screencapture -l of the open window) was checked: dark, titled, every control labelled; the white areas of `--settings-shot` are an artefact of that offscreen render (its cacheDisplay has no window backing), not of the app.

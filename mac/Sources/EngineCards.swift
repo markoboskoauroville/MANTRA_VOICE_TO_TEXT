@@ -23,7 +23,7 @@ final class EngineCard: NSView {
     let id: String, lang: String
     var onPick: ((String, String) -> Void)?
     var chosen = false { didSet { needsDisplay = true } }
-    var usable = true { didSet { needsDisplay = true; alphaValue = usable ? 1 : 0.45 } }
+    var usable = true { didSet { needsDisplay = true; alphaValue = usable ? 1 : 0.72 } }
     var hovering = false { didSet { needsDisplay = true } }
     var name = "" { didSet { needsDisplay = true } }
     var pct = "" { didSet { needsDisplay = true } }
