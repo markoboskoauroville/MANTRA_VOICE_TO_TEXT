@@ -1,5 +1,11 @@
 # Lessons
 
+## v16 (14.11.2026)
+
+- Two apps that want the same key must be told apart by who starts: ours closes Speechify only at its own start and remembers those pids; the launch watcher ignores them, so the two rules never chase each other. Speechify's own app is the agent com.cliffweitzman.speechifymacagent; the splash closer (community.auroville.speechifysplashcloser) is ours and must not match, so the match is the prefix com.cliffweitzman.speechify.
+- Release the hotkey explicitly before terminating; do not rely on process death when the quit is a hand-over.
+- An auto-hide that only looks at a timer hides under his mouse; check NSEvent.mouseLocation against the blob's frame (and the settings window) when the timer fires and look again 1.5 s later.
+
 ## v15 (13.11.2026)
 
 - Transcribing a file is the same adapters with their own timestamped answers, not a second program: `Stamped.swift` repeats the calls of `Adapters.swift` with `verbose_json`, `utterances=true`, AssemblyAI's `/sentences`, Speechmatics `json-v2`, so a change to a request has to be made in both files.

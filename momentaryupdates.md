@@ -149,3 +149,4 @@ Marko: "for transcribing anything now, its default engine is Grok, a large model
 > fix my opposite engine, which is voice to text. I have two engines. I'm using Speechify, which is from Speechify, or my own thing. They're both supposed to register F1 as a transcription key, and after transcription, they disappear. But if I catch it with the mouse, they don't disappear, because I want to change the settings. The idea is that one replaces the other. If I open my own engine, voice to text, then it closes Speechify automatically. If I open Speechify manually, my own engine disappears. So they are mutually exclusive.
 
 **Status:** saved first.
+**Status (14.11.2026):** v16 built by GitHub Actions (run 43591642705, green, first try), release v16 Latest; installed, signed Mantra Apps. Opening ours closed Speechify; opening Speechify closed ours, no loop. Hover hold and F1 dictation wait for Marko.
