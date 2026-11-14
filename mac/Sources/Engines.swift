@@ -8,7 +8,9 @@
 // does each is a choice on the stripe, remembered.
 import Foundation
 
-let appVersion = 15
+let appVersion = 16
+let VERSION = appVersion              // the Updater kit reads these two
+let APP_NAME = "Voice to Text (Mantra)"
 
 // MARK: the choices
 

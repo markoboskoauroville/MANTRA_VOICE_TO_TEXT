@@ -290,6 +290,9 @@ final class Stripe: NSObject {
 
     // MARK: the hotkey
 
+    /// v16: F1 (and Esc) go back to the system, at quit and when Speechify takes over
+    func releaseKeys() { hotkey = nil; escape = nil; appendLog("F1 released") }
+
     func bindHotkey() {
         hotkey = nil
         let code = HotKey.keys.first { $0.0 == HotKey.chosen }?.1 ?? UInt32(kVK_F1)
@@ -599,6 +602,11 @@ final class Stripe: NSObject {
         let token = hideToken
         DispatchQueue.main.asyncAfter(deadline: .now() + secs) { [weak self] in
             guard let self, Prefs.autoHide, !VoiceWords.enabled, token == self.hideToken, !self.busy, !self.recorder.recording, !self.pinned, self.minimizedFrame == nil else { return }
+            // v16: he has the mouse on the blob (hover, grab, click) or ⚙ is open: it stays, and goes 1.5 s after he lets go
+            let m = NSEvent.mouseLocation
+            if self.panel.frame.insetBy(dx: -8, dy: -8).contains(m) || self.settings?.window.isVisible == true {
+                self.hideSoon(after: 1.5); return
+            }
             self.unlanded = false
             self.refresh()
             self.minimizeStripe()
@@ -798,9 +806,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     // finished launching, and again a moment later.
     func applicationDidFinishLaunching(_ n: Notification) {
         TakeMark.set(false)          // v26: a mark left by a crash never holds the voice
+        Exclusive.start()            // v16: Speechify closed at start; closes this app when Speechify opens
         FileAPI.start()              // v15: the local API for Transcribe a file, 127.0.0.1:8865 only
         DispatchQueue.global().async { KeyImporter.loadFamous() }
         Duck.up()                    // v3: speakers left at 6 % by a crash go back to their level
+        Updater.checkAtStart()       // v16: asks "Do you want to update?" when a newer release is Latest
         for delay in [0.3, 2.0, 5.0] {
             DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
                 guard NSApp.isHidden, stripe.minimizedFrame == nil else { return }
@@ -811,7 +821,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     // closing a window leaves the app ON; the star's open (a reopen) brings the stripe back (Marko, 19.10.2026)
-    func applicationWillTerminate(_ n: Notification) { Duck.up(); TakeMark.set(false) }
+    func applicationWillTerminate(_ n: Notification) { stripe.releaseKeys(); Duck.up(); TakeMark.set(false) }
     func applicationShouldTerminateAfterLastWindowClosed(_ s: NSApplication) -> Bool { false }
     func applicationShouldHandleReopen(_ s: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
         if stripe.minimizedFrame != nil { stripe.showQuietly() } else { stripe.panel.orderFrontRegardless() }
