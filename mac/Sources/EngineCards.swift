@@ -25,7 +25,9 @@ final class EngineCard: NSView {
     var chosen = false { didSet { needsDisplay = true } }
     var usable = true { didSet { needsDisplay = true; alphaValue = usable ? 1 : 0.45 } }
     var hovering = false { didSet { needsDisplay = true } }
-    var name = "", pct = "", sub = "" { didSet { needsDisplay = true } }
+    var name = "" { didSet { needsDisplay = true } }
+    var pct = "" { didSet { needsDisplay = true } }
+    var sub = "" { didSet { needsDisplay = true } }
     init(id: String, lang: String) {
         self.id = id; self.lang = lang
         super.init(frame: NSRect(x: 0, y: 0, width: 300, height: 52))
