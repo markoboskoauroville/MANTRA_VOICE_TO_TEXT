@@ -1082,6 +1082,48 @@ if let i = CommandLine.arguments.firstIndex(of: "--test-style-focused"), i + 1 <
     exit(0)
 }
 
+// v28 --probe-box <App name> [text in the box]: the test matrix without taking his focus. In that app (it may be behind),
+// the first text box (holding that text, if given) is found the way TextTarget finds one; then: can its text be read, does
+// it take Accessibility writing (a probe inserted and read back, then the old text put back). A box that takes no
+// Accessibility writing is one Vox pastes into (its app brought to the front), or COPY when that is not possible.
+if let i = CommandLine.arguments.firstIndex(of: "--probe-box"), i + 1 < CommandLine.arguments.count {
+    let a = CommandLine.arguments
+    guard AXIsProcessTrusted() else { print("FAILED: no Accessibility for this process"); exit(1) }
+    guard let app = NSWorkspace.shared.runningApplications.first(where: { $0.localizedName == a[i + 1] }) else { print("FAILED: \(a[i + 1]) is not running"); exit(1) }
+    let want = i + 2 < a.count ? a[i + 2] : nil
+    TextTarget.wakeAccessibility(app.processIdentifier)
+    usleep(600_000)                                   // Chrome builds its tree when asked
+    let ax = AXUIElementCreateApplication(app.processIdentifier)
+    AXUIElementSetMessagingTimeout(ax, 2)
+    var found: AXUIElement?
+    func walk(_ el: AXUIElement, _ depth: Int) {
+        if found != nil || depth > 30 { return }
+        AXUIElementSetMessagingTimeout(el, 1)
+        let r = TextTarget.role(el)
+        if TextTarget.isEditable(el, role: r), want == nil || (Writer.value(el) ?? "").contains(want!) { found = el; return }
+        for k in (TextTarget.attr(el, kAXChildrenAttribute) as? [AXUIElement]) ?? [] { walk(k, depth + 1) }
+    }
+    if let f = TextTarget.element(TextTarget.attr(ax, kAXFocusedUIElementAttribute)), let e = TextTarget.editable(f),
+       want == nil || (Writer.value(e) ?? "").contains(want!) { found = e }
+    for w in (TextTarget.attr(ax, kAXWindowsAttribute) as? [AXUIElement]) ?? [] where found == nil { walk(w, 0) }
+    guard let box = found else { print("\(a[i + 1]): no text box found"); exit(2) }
+    let before = Writer.value(box)
+    print("\(a[i + 1]): box \(TextTarget.role(box)), text readable: \(before != nil ? "yes" : "no"), selected text settable: \(TextTarget.settable(box, kAXSelectedTextAttribute) ? "yes" : "no"), value settable: \(TextTarget.settable(box, kAXValueAttribute) ? "yes" : "no"), terminal: \(Writer.isTerminal(box))")
+    let probe = "[vox-probe]"
+    var wrote = false
+    if TextTarget.settable(box, kAXSelectedTextAttribute),
+       AXUIElementSetAttributeValue(box, kAXSelectedTextAttribute as CFString, probe as CFTypeRef) == .success {
+        usleep(250_000)
+        wrote = Writer.value(box)?.contains(probe) ?? false
+    }
+    print("Accessibility writing: \(wrote ? "YES (typed by AX)" : "no (Vox pastes: app to the front, ⌘V)")")
+    if wrote, let b = before {
+        let back = AXUIElementSetAttributeValue(box, kAXValueAttribute as CFString, b as CFTypeRef) == .success && Writer.value(box) == b
+        print("old text put back: \(back ? "yes" : "NO, the probe is still in the box")")
+    }
+    exit(0)
+}
+
 // --test-voice-commands <audio>: the voice commands' recognizer on a file (Voice.swift)
 if let i = CommandLine.arguments.firstIndex(of: "--test-voice-commands"), i + 1 < CommandLine.arguments.count {
     VoiceCommands.testFile(URL(fileURLWithPath: CommandLine.arguments[i + 1]))

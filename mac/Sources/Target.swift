@@ -212,6 +212,12 @@ final class TextTarget {
 // MARK: writing into a box (off the main thread)
 
 enum Writer {
+    /// a terminal's text box is its whole screen: STYLE never selects all of it and pastes over it (typing a take there is fine)
+    static let terminals: Set<String> = ["com.googlecode.iterm2", "com.apple.Terminal", "dev.warp.Warp-Stable", "net.kovidgoyal.kitty",
+                                         "com.github.wez.wezterm", "io.alacritty", "com.mitchellh.ghostty"]
+    static func isTerminal(_ el: AXUIElement) -> Bool {
+        terminals.contains(NSRunningApplication(processIdentifier: TextTarget.pid(el))?.bundleIdentifier ?? "")
+    }
     static func value(_ el: AXUIElement) -> String? { TextTarget.attr(el, kAXValueAttribute) as? String }
 
     /// the box's app in front and the box focused, so keys (⌘V, ⌘A, ⌘C) go there; false when that could not be made sure
@@ -297,7 +303,7 @@ enum Writer {
 
     /// STYLE in a box that does not let its text be read: ⌘A ⌘C in it, his clipboard put back
     static func copyOut(_ el: AXUIElement) -> String? {
-        guard Prefs.pasteFallback, focus(el) else { return nil }
+        guard Prefs.pasteFallback, !isTerminal(el), focus(el) else { return nil }
         let pb = NSPasteboard.general
         return withClipboard(nil) { () -> String? in
             let before = pb.changeCount

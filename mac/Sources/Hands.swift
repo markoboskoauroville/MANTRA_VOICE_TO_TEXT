@@ -336,7 +336,7 @@ enum Restyle {
             return .believed
         }
         let r = writeAX(new, to: t)
-        if r != .failed { return r }
+        if r != .failed || Writer.isTerminal(t.field) { return r }
         // v28: the box ignores Accessibility writing (Chrome, Electron): its app in front, the text pasted
         let before = Typer.value(t.field)
         var expected: String? = nil
