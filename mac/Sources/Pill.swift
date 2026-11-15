@@ -301,7 +301,6 @@ final class BandField: NSTextField {
     override func isAccessibilityElement() -> Bool { true }
     override func accessibilityRole() -> NSAccessibility.Role? { .staticText }
     override func accessibilityLabel() -> String? { "Voice to Text display" }
-    override func accessibilityValue() -> Any? { stringValue }
     override func accessibilityCustomActions() -> [NSAccessibilityCustomAction]? { Magnet.axActions() }
     override func mouseDown(with e: NSEvent) {
         downAt = Date(); downMouse = NSEvent.mouseLocation; lastMouse = downMouse; dragged = false; Magnet.shared.didDrag = false
