@@ -187,3 +187,9 @@ Marko, 15.11.2026, word for word (said about Talk Mode (Mantra)):
 > So, talk mode is there. It needs to use my engine basically, voice to text, the same one I'm using for transcription, and of course voice engine for talking.
 
 **Status:** saved first. v23: the local API (127.0.0.1:8865) gets `POST /hear?lang=en|hr|auto` with a WAV body: the engine picked for that language, the same route as F1 (Frankfurt, key ring, retries), the corrections, no styling, nothing typed. Talk Mode (Mantra) v4 sends every utterance there.
+
+## 15.11.2026: how good and how fast each engine is, in the engine name (via the master session)
+Marko, 15.11.2026, word for word:
+> Please now update how good is each engine and how fast is each engine in the engine name everywhere.
+
+**Status:** saved first. Voice to Text v24 keeps per-engine median time (last 20 takes, per language) and a quality score (WER against a reference phrase in TEST mode, or Marko's rating) and shows "Deepgram · 1.0 s · ★★★★☆" wherever an engine name appears; Talk Mode v5 reads it from /engines.
