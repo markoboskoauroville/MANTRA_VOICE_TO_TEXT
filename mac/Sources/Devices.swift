@@ -54,7 +54,7 @@ enum OutputDevice {
     /// a Vox sound to the chosen speaker (one that is no longer plugged in: the system default)
     static func apply(_ s: NSSound?) {
         guard let s, let uid = chosenUID, all().contains(where: { $0.0 == uid }) else { return }
-        s.playbackDeviceIdentifier = NSSound.PlaybackDeviceIdentifier(rawValue: uid)
+        s.playbackDeviceIdentifier = uid          // a plain String typealias
     }
 
     /// devices plugged in or out: `changed` on the main thread

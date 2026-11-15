@@ -1,5 +1,13 @@
 # Lessons
 
+## v28-v31 (15.11.2026)
+
+- The front app's focused element is the wrong question once Vox has been clicked or its Settings is in front: remember the last box from the focus observer and the clicks of other apps (a global monitor never sees clicks on Vox itself, which is exactly right).
+- A paste fallback is only as safe as the box it trusts: a terminal's AXTextArea is its whole screen, so STYLE must never ⌘A ⌘V there. Keys go only while the box's own app is frontmost (checked right before each key).
+- Marko uses the app while it is being tested: a test that activates TextEdit took his focus in the middle of his take (13:20, 15.11.2026). Tests that need the front app wait for him; `--probe-box` answers "AX or paste" without the front.
+- Additions arriving while a run is green cost one version number each; batch them before the push when possible.
+- `TextMode.none` would read as Optional.none in comparisons: name the case `plain` with rawValue "none".
+
 ## v27 (15.11.2026)
 
 - A drag that records the window origin at mouse-down breaks when the press itself moves or re-parents things (the long press detaches the display mid-press). Drag by increments (origin plus the mouse delta since the last event) and any part can change under the finger.
