@@ -181,3 +181,9 @@ Marko, 15.11.2026, word for word:
 > How will I know that my voice to text is now going through Frankfurt? How will I know that? I don't see anywhere the indication.
 
 **Status:** saved first. v22: FRA / DIR badge beside VT in the menu bar, a 2 s toast after each take with the route, and the Settings window header showing "Route: FRANKFURT ✓ (relay v2 answers)".
+
+## 15.11.2026: Talk Mode uses this app's engines (via the master session)
+Marko, 15.11.2026, word for word (said about Talk Mode (Mantra)):
+> So, talk mode is there. It needs to use my engine basically, voice to text, the same one I'm using for transcription, and of course voice engine for talking.
+
+**Status:** saved first. v23: the local API (127.0.0.1:8865) gets `POST /hear?lang=en|hr|auto` with a WAV body: the engine picked for that language, the same route as F1 (Frankfurt, key ring, retries), the corrections, no styling, nothing typed. Talk Mode (Mantra) v4 sends every utterance there.

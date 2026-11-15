@@ -411,7 +411,7 @@ enum FileAPI {
                 let len = contentLength(head)
                 if body.count >= len || done { respond(c, head: head, body: body.prefix(len)); return }
             }
-            if buf.count > 1_000_000 || done { c.cancel(); return }
+            if buf.count > 16_000_000 || done { c.cancel(); return }      // v23: /hear takes a WAV body (16 MB = 8 min)
             pull(c, buf)
         }
     }
@@ -435,7 +435,8 @@ enum FileAPI {
         // DNS-rebinding guard: only a request meant for this loopback address is answered
         let host = lines.first { $0.lowercased().hasPrefix("host:") }.map { $0.dropFirst(5).trimmingCharacters(in: .whitespaces).lowercased() } ?? ""
         let hostOK = host.hasPrefix("127.0.0.1") || host.hasPrefix("localhost")
-        let (code, obj) = hostOK ? route(method, target.components(separatedBy: "?")[0], body) : (403, ["error": "forbidden host"] as [String: Any])
+        let query = target.components(separatedBy: "?").dropFirst().first ?? ""
+        let (code, obj) = hostOK ? route(method, target.components(separatedBy: "?")[0], body, query: query) : (403, ["error": "forbidden host"] as [String: Any])
         let out = (try? JSONSerialization.data(withJSONObject: obj, options: [.sortedKeys])) ?? Data("{}".utf8)
         let status = code == 200 ? "200 OK" : code == 404 ? "404 Not Found" : code == 400 ? "400 Bad Request" : code == 403 ? "403 Forbidden" : "\(code) Error"
         var resp = Data("HTTP/1.1 \(status)\r\nContent-Type: application/json\r\nContent-Length: \(out.count)\r\nConnection: close\r\n\r\n".utf8)
@@ -443,7 +444,8 @@ enum FileAPI {
         c.send(content: resp, completion: .contentProcessed { _ in c.cancel() })
     }
 
-    static func route(_ method: String, _ path: String, _ body: Data) -> (Int, [String: Any]) {
+    static func route(_ method: String, _ path: String, _ body: Data, query: String = "") -> (Int, [String: Any]) {
+        if method == "POST", path == "/hear" { return hearNow(body, query: query) }
         if method == "GET", path == "/status" {
             return (200, ["app": "Voice to Text (Mantra)", "version": appVersion, "api": 1, "port": Int(port), "busy": FileJobs.busy,
                           "jobs": FileJobs.order.count, "engine": HearEngine.current.id])
@@ -476,6 +478,38 @@ enum FileAPI {
             FileJobs.present(j)
             return (200, ["id": j.id, "status": "started"])
         }
-        return (404, ["error": "GET /status, GET /engines, POST /transcribe, GET /job/<id>"])
+        return (404, ["error": "GET /status, GET /engines, POST /transcribe, GET /job/<id>, POST /hear?lang=en|hr|auto"])
+    }
+
+    /// v23 (Marko, 15.11.2026, for Talk Mode (Mantra): "It needs to use my engine basically, voice to text, the same one I'm
+    /// using for transcription"): POST /hear?lang=en|hr|auto with a short WAV as the body. Written down by the engine picked
+    /// for that language on the stripe, through the same route as F1 (Frankfurt first, the key ring, the retries), and the
+    /// same corrections; no styling, nothing typed, nothing in History. One at a time.
+    static let hearLock = NSLock()
+    static func hearNow(_ body: Data, query: String) -> (Int, [String: Any]) {
+        var lang = "en"
+        for kv in query.split(separator: "&") {
+            let p = kv.split(separator: "=", maxSplits: 1).map(String.init)
+            if p.count == 2, p[0] == "lang" { lang = p[1] }
+        }
+        guard HearEngine.langs.contains(lang) else { return (400, ["error": "lang is en, hr or auto"]) }
+        guard body.count > 44 else { return (400, ["error": "send the audio (WAV) as the body"]) }
+        var id = UserDefaults.standard.string(forKey: "engine_" + (lang == "auto" ? "hr" : lang)) ?? HearEngine.current.id
+        if Catalog.byId(id) == nil || (id == "parakeet" && !Ears.serverHere) { id = "assemblyai" }
+        let e = HearEngine(id: id, lang: lang)
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("api-hear-\(UUID().uuidString).wav")
+        do { try body.write(to: url) } catch { return (500, ["error": "cannot write the audio: \(error.localizedDescription)"]) }
+        defer { try? FileManager.default.removeItem(at: url) }
+        hearLock.lock(); defer { hearLock.unlock() }
+        let t0 = Date()
+        let r = Hear.run(e, wav: url)
+        var out: [String: Any] = ["engine": Hear.used ?? e.title, "engine_id": id, "route": Hear.route ?? "",
+                                  "lang": Hear.lastLang ?? lang, "secs": (Date().timeIntervalSince(t0) * 100).rounded() / 100]
+        switch r {
+        case .success(let t): out["ok"] = true; out["text"] = corrected(t)
+        case .failure(let err): out["ok"] = false; out["text"] = ""; out["error"] = err.message
+        }
+        appendLog("api /hear \(e.title): \(out["ok"] as? Bool == true ? "ok" : "failed") via \(out["route"] ?? "")")
+        return (200, out)
     }
 }
