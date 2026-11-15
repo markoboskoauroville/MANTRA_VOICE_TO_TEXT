@@ -199,3 +199,9 @@ Marko, 15.11.2026, word for word (his message was cut off at the end):
 > I want to have luxurious changing of engines, it's basically will be remote control for our VOX application, audio to text, but in this app, talk mode, I want to have this option, it means I have the stars ratings, timing and everything, and the credits and…
 
 **Status:** saved first. v26: `GET /engines` also says `selected_en`, `selected_hr` and `credit` (keys in the ring, free audio of the window, used here, left, price per hour, Frankfurt), from this Mac's own records; `POST /engines/select {"id","lang"}` sets engine_en / engine_hr exactly as a card in Settings, and Settings repaints. Talk Mode (Mantra) v8 has the ENGINES panel.
+
+## 15.11.2026: Magnetic detach of the display and the body (v27)
+Marko, 15.11.2026, word for word:
+> can we please do our updating of this application, I call it Vox Voice to Text. and idea is because voice to text has two parts, there is a small display at the top and the body I want to be able to long press the small display or the body, whatever long pressing and then they detach imagine like a magnet which gets deactivated and then I can move each piece separately and when I bring them together they again attach as two magnets because I want to have this small display around the screen available in front of my eyes and a big one somewhere on the side. So can we make this magnetic thing trick now please?
+
+**Status:** saved first (15.11.2026).
