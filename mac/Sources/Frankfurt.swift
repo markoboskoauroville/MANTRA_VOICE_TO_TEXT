@@ -37,6 +37,7 @@ enum Frankfurt {
         if !force && age < (alive ? 20 : 5) { return alive }
         let r = call(Adapters.request(base + "/health", method: "GET"), timeout: 4)
         alive = r.status == 200 && (json(r.data)["ok"] as? Bool) == true
+        if !alive { appendLog("frankfurt: /health HTTP \(r.status) \(r.error ?? "")") }
         version = (json(r.data)["version"] as? Int) ?? 0
         checked = Date()
         return alive
@@ -90,6 +91,7 @@ enum Frankfurt {
         if !n.isEmpty { h["X-TTT-Names"] = Adapters.jsonBody2(n).base64EncodedString() }
         let post = call(Adapters.request(base + "/jobs?engine=\(spec.id)&lang=\(lang)", headers: h, body: wav), timeout: 60)
         guard post.status == 200, let id = json(post.data)["id"] as? String else {
+            appendLog("frankfurt: job post HTTP \(post.status) \(post.error ?? "")")
             if post.status == 0 || post.status >= 500 { forget(); return nil }
             return .failure(EngineError("Frankfurt: " + ((json(post.data)["error"] as? String) ?? "refused (HTTP \(post.status))")))
         }
