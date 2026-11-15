@@ -66,7 +66,7 @@ final class MenuBar: NSObject {
             b.attributedTitle = out
             b.toolTip = paused ? "Voice to Text: paused" : "Voice to Text: recording"
         case .idle, .processing:
-            let colour: NSColor = s == .processing ? MenuBar.yellow : .tertiaryLabelColor
+            let colour: NSColor = s == .processing ? MenuBar.yellow : MenuBar.red
             b.attributedTitle = NSAttributedString(string: "VT", attributes: [
                 .font: NSFont.systemFont(ofSize: 13, weight: .heavy), .foregroundColor: colour, .kern: 0.5])
             b.toolTip = s == .processing ? "Voice to Text: writing it down" : "Voice to Text: ready (F1)"

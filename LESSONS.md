@@ -116,3 +116,8 @@ like an app failure and was mine. Pass the two values as separate arguments to a
 ## 14.11.2026: Swift refuses `var a = "", b = "" { didSet }`
 
 A stored property with an observer must be a declaration of its own: "var declarations with multiple variables cannot have explicit getters/setters". It cost a GitHub run (the Mac may not compile). A tint drawn with alpha over "nothing" looks right only on the colour behind it: paint the card colour first, then the tint. A benchmark with spoken numbers is scored without number normalisation (TTT's way): "23" for "twenty three" counts as wrong, so everyone's % is a little low.
+
+## 15.11.2026, v20: Frankfurt
+- One relay, two clients: ttt_relay.py serves TTT and this app, so a change for one (AUTO for the Mac) is additive for the other (lang en/hr unchanged, VERSION 2); the phone's key order is never replaced by the Mac (`replace:false`, whole credentials only when the relay has none).
+- "Direct as fallback" is only for a relay that does not answer; a relay "failed" is the engine's verdict (TTT rule 11: never another engine/route by itself after the relay has rotated and retried).
+- Hear.used must stay "Engine LANG" (History matches it); the route has its own field Hear.route.

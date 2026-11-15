@@ -15,6 +15,9 @@ final class SettingsWindow: NSObject, NSTextViewDelegate, NSTextFieldDelegate {
     var heads: [String: ColumnHead] = [:]
     let benchButton = NSButton(title: "Benchmark engines", target: nil, action: nil)
     let benchNote = NSTextField(wrappingLabelWithString: "")
+    // v20: the FRANKFURT switch (the relay on chromium-vm calls the cloud engines; direct stays as the fallback)
+    let frankfurtTick = NSButton(checkboxWithTitle: "FRANKFURT: send the audio to the relay in Frankfurt, which calls the engines (each engine's direct path is the fallback)", target: nil, action: nil)
+    let frankfurtNote = NSTextField(wrappingLabelWithString: "")
     let anthropicLabel = NSTextField(labelWithString: "")
     let croatianTick = NSButton(checkboxWithTitle: "Auto correct Croatian takes too (off: Croatian goes in as the engine heard it)", target: nil, action: nil)
     let importResult = NSTextField(wrappingLabelWithString: "")
@@ -118,6 +121,11 @@ final class SettingsWindow: NSObject, NSTextViewDelegate, NSTextFieldDelegate {
         twoColumns.orientation = .horizontal; twoColumns.distribution = .fillEqually; twoColumns.spacing = 16; twoColumns.alignment = .top
         twoColumns.widthAnchor.constraint(equalToConstant: 840).isActive = true
         let engineRows: [NSView] = [twoColumns]
+        frankfurtTick.target = self; frankfurtTick.action = #selector(frankfurtChanged)
+        frankfurtTick.setAccessibilityIdentifier("frankfurt"); frankfurtTick.state = Frankfurt.on ? .on : .off
+        frankfurtNote.font = .systemFont(ofSize: 11); frankfurtNote.textColor = Host.muted
+        frankfurtNote.preferredMaxLayoutWidth = 780; frankfurtNote.maximumNumberOfLines = 3
+        frankfurtNote.stringValue = "Parakeet and Whisper on this Mac run here; the other eleven engines run in Frankfurt while the relay answers."
         benchButton.target = self; benchButton.action = #selector(benchPressed)
         benchButton.setAccessibilityIdentifier("benchmark")
         benchNote.font = .systemFont(ofSize: 11); benchNote.textColor = Host.muted
@@ -227,6 +235,7 @@ final class SettingsWindow: NSObject, NSTextViewDelegate, NSTextFieldDelegate {
         views.append(label("1 · The key that starts and stops listening", bold: true)); views.append(hotkey)
         views.append(label("2 · Recognition engine for each language: the round button picks who writes down what you say (% = accuracy)", bold: true))
         views.append(row([label("Listening in"), langRow]))
+        views.append(frankfurtTick); views.append(frankfurtNote)
         views.append(contentsOf: engineRows)
         views.append(row([benchButton, benchNote]))
         views.append(whisperRow)
@@ -386,6 +395,21 @@ final class SettingsWindow: NSObject, NSTextViewDelegate, NSTextFieldDelegate {
         let n = (d["results"] as? [String: Any])?.count ?? 0, bad = (d["failed"] as? [String: Any])?.count ?? 0
         return "English % measured \(d["date"] as? String ?? "") with 12 sentences (\(n) engines" + (bad > 0 ? ", \(bad) failed" : "") + "). Croatian % are TTT's of 9.11.2026."
     }
+    @objc func frankfurtChanged() {
+        Frankfurt.on = frankfurtTick.state == .on
+        frankfurtNote.stringValue = "checking the relay…"
+        DispatchQueue.global().async {
+            if Frankfurt.on { Frankfurt.syncKeys() }
+            let t = Frankfurt.on ? Frankfurt.summary() : "off: every engine runs direct"
+            DispatchQueue.main.async { self.frankfurtNote.stringValue = "Parakeet and Whisper on this Mac run here; the other eleven run in Frankfurt while the relay answers. " + t }
+        }
+    }
+    func refreshFrankfurt() {
+        DispatchQueue.global().async {
+            let t = Frankfurt.on ? Frankfurt.summary() : "off: every engine runs direct"
+            DispatchQueue.main.async { self.frankfurtNote.stringValue = "Parakeet and Whisper on this Mac run here; the other eleven run in Frankfurt while the relay answers. " + t }
+        }
+    }
     @objc func benchPressed() {
         guard !Bench.running else { return }
         benchButton.isEnabled = false
@@ -465,7 +489,8 @@ final class SettingsWindow: NSObject, NSTextViewDelegate, NSTextFieldDelegate {
     // tab 0 Settings, 1 Transcription history
     func show(tab: Int = 0) {
         fillDevices()
-        DispatchQueue.global().async { let r = KeyImporter.loadFamous(); if !r.isEmpty { DispatchQueue.main.async { self.showKeys() } } }   // keys new in ~/Downloads/API come in by themselves
+        DispatchQueue.global().async { let r = KeyImporter.loadFamous(); if !r.isEmpty { DispatchQueue.main.async { self.showKeys() } }; Frankfurt.syncKeys() }
+        refreshFrankfurt()   // keys new in ~/Downloads/API come in by themselves
         paintChoices()
         showKeys()
         history.reload()

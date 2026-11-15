@@ -1,3 +1,4 @@
+// v20 (15.11.2026, Marko: "let the voice to text be red icon and let the engine be green icon"): red_1024.png is six_1024.png with the tile recoloured red (once, by python); six_1024.png stays as the original.
 // make_icon.swift: the icon is six letters over one picture (Marko 4.11.2026: "I want 6 letters in this icon and one
 // symbolic background, and that's all"). It is made once, for every star app, by STAR_SWIFT/icons6/six_icon.swift and
 // kept beside this file as six_1024.png; this script only hands it to the build, in the form the build asks for:
@@ -7,7 +8,7 @@
 // No version is drawn any more: the six letters are the whole icon.
 import AppKit
 let me = URL(fileURLWithPath: CommandLine.arguments[0]).deletingLastPathComponent()
-let src = me.appendingPathComponent("six_1024.png").path
+let src = me.appendingPathComponent("red_1024.png").path
 let fm = FileManager.default
 func put(_ to: String) { try? fm.removeItem(atPath: to); try! fm.copyItem(atPath: src, toPath: to) }
 func sized(_ px: Int, _ to: String) {

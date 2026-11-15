@@ -528,6 +528,7 @@ final class Stripe: NSObject {
             }
             let tStyle = Date().timeIntervalSince(t1)
             let moved = Ring.lastMove
+            let route = Hear.route.map { " · " + $0 } ?? ""
             DispatchQueue.main.async {
                 guard mine == self.take, !self.cancelled else { appendLog("cancelled (Esc), not typed: \(final)"); return }
                 self.escape = nil
@@ -543,7 +544,7 @@ final class Stripe: NSObject {
                 // com.mantra.markotranscribe testNoTyping -bool true` keeps the words out of the app in front; history and log only
                 if UserDefaults.standard.bool(forKey: "testNoTyping") {
                     self.dot.color = Ink.green
-                    self.say(String(format: "test: %d words, not typed · %.1f + %.1f s", n, tHear, tStyle) + (moved.map { " · key moved: \($0)" } ?? ""), Ink.green)
+                    self.say(String(format: "test: %d words, not typed · %.1f + %.1f s", n, tHear, tStyle) + route + (moved.map { " · key moved: \($0)" } ?? ""), Ink.green)
                     appendLog("test, not typed: \(final)")
                     self.settleIdle()
                     return
@@ -556,15 +557,15 @@ final class Stripe: NSObject {
                         self.say("\(how): \(warning)", Ink.amber)
                     } else if let moved {
                         self.dot.color = Ink.amber                   // the ring moved: said once (quota-and-fallback.md rule 5)
-                        self.say(String(format: "%@ %d words · %.1f + %.1f s · key moved: %@", how, n, tHear, tStyle, moved), Ink.amber)
+                        self.say(String(format: "%@ %d words · %.1f + %.1f s", how, n, tHear, tStyle) + route + " · key moved: " + moved, Ink.amber)
                     } else {
                         self.dot.color = Ink.green
-                        self.say(String(format: "%@ %d words · %.1f + %.1f s", how, n, tHear, tStyle), Ink.green)
+                        self.say(String(format: "%@ %d words · %.1f + %.1f s", how, n, tHear, tStyle) + route, Ink.green)
                     }
                     self.hideSoon()
                     self.settleIdle()
                 }
-                appendLog("heard (\(hear.title), \(String(format: "%.1f", tHear)) s): \(words)\n  styled (\(style.title), \(String(format: "%.1f", tStyle)) s): \(final)")
+                appendLog("heard (\(hear.title), route \(Hear.route ?? "-"), \(String(format: "%.1f", tHear)) s): \(words)\n  styled (\(style.title), \(String(format: "%.1f", tStyle)) s): \(final)")
             }
         }
     }
@@ -851,7 +852,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         TakeMark.set(false)          // v26: a mark left by a crash never holds the voice
         Exclusive.start()            // v16: Speechify closed at start; closes this app when Speechify opens
         FileAPI.start()              // v15: the local API for Transcribe a file, 127.0.0.1:8865 only
-        DispatchQueue.global().async { KeyImporter.loadFamous() }
+        DispatchQueue.global().async { KeyImporter.loadFamous(); Frankfurt.syncKeys() }     // v20: the keys go to the relay, write only
         Duck.up()                    // v3: speakers left at 6 % by a crash go back to their level
         Updater.checkAtStart()       // v16: asks "Do you want to update?" when a newer release is Latest
         for delay in [0.3, 2.0, 5.0] {
@@ -936,6 +937,7 @@ if let i = CommandLine.arguments.firstIndex(of: "--hear"), i + 2 < CommandLine.a
     case .failure(let err): print("FAILED:", err.message)
     }
     if let m = Ring.lastMove { print("ring:", m) }
+    print("route:", Hear.route ?? "-")
     exit(0)
 }
 if let i = CommandLine.arguments.firstIndex(of: "--style"), i + 3 < CommandLine.arguments.count,

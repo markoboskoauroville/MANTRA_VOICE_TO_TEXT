@@ -8,7 +8,7 @@
 // does each is a choice on the stripe, remembered.
 import Foundation
 
-let appVersion = 19
+let appVersion = 20
 let VERSION = appVersion              // the Updater kit reads these two
 let APP_NAME = "Voice to Text (Mantra)"
 
@@ -165,6 +165,8 @@ enum Hear {
     static var lastLang: String?
     /// the engine that really wrote the last take down (the one picked, or the one the fallback walk reached)
     static var used: String?
+    /// v20: the route of the last take: "Frankfurt · Groq 2/8 · 1.1 s there", "direct", "direct (Frankfurt did not answer)", "this Mac"
+    static var route: String?
 
     static func run(_ engine: HearEngine, wav: URL) -> Result<String, EngineError> {
         let r = heard(engine, wav: wav)
@@ -175,7 +177,7 @@ enum Hear {
     }
 
     static func heard(_ engine: HearEngine, wav source: URL) -> Result<String, EngineError> {
-        lastLang = nil; used = nil
+        lastLang = nil; used = nil; route = nil
         let r = Chain.run(engine, source: source)
         if case .success(let t) = r, engine.lang == "auto", lastLang == nil {
             lastLang = t.range(of: "[čćšžđČĆŠŽĐ]", options: .regularExpression) != nil ? "hr" : nil
