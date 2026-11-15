@@ -17,6 +17,7 @@ final class SettingsWindow: NSObject, NSTextViewDelegate, NSTextFieldDelegate {
     let benchNote = NSTextField(wrappingLabelWithString: "")
     // v20: the FRANKFURT switch (the relay on chromium-vm calls the cloud engines; direct stays as the fallback)
     let frankfurtTick = NSButton(checkboxWithTitle: "FRANKFURT: send the audio to the relay in Frankfurt, which calls the engines (each engine's direct path is the fallback)", target: nil, action: nil)
+    let routeHeader = NSTextField(labelWithString: "Route: checking…")
     let frankfurtNote = NSTextField(wrappingLabelWithString: "")
     let anthropicLabel = NSTextField(labelWithString: "")
     let croatianTick = NSButton(checkboxWithTitle: "Auto correct Croatian takes too (off: Croatian goes in as the engine heard it)", target: nil, action: nil)
@@ -231,7 +232,10 @@ final class SettingsWindow: NSObject, NSTextViewDelegate, NSTextFieldDelegate {
         croatianTick.state = Prefs.correctCroatian ? .on : .off
         croatianTick.target = self; croatianTick.action = #selector(croatianChanged)
         croatianTick.setAccessibilityIdentifier("correctCroatian")
+        routeHeader.font = .systemFont(ofSize: 17, weight: .bold); routeHeader.textColor = Host.muted
+        routeHeader.setAccessibilityIdentifier("routeHeader"); routeHeader.setAccessibilityLabel("Route")
         var views: [NSView] = []
+        views.append(routeHeader)
         views.append(label("1 · The key that starts and stops listening", bold: true)); views.append(hotkey)
         views.append(label("2 · Recognition engine for each language: the round button picks who writes down what you say (% = accuracy)", bold: true))
         views.append(row([label("Listening in"), langRow]))
@@ -397,6 +401,7 @@ final class SettingsWindow: NSObject, NSTextViewDelegate, NSTextFieldDelegate {
     }
     @objc func frankfurtChanged() {
         Frankfurt.on = frankfurtTick.state == .on
+        paintRoute()
         frankfurtNote.stringValue = "checking the relay…"
         DispatchQueue.global().async {
             if Frankfurt.on { Frankfurt.syncKeys() }
@@ -404,7 +409,14 @@ final class SettingsWindow: NSObject, NSTextViewDelegate, NSTextFieldDelegate {
             DispatchQueue.main.async { self.frankfurtNote.stringValue = "Parakeet and Whisper on this Mac run here; the other eleven run in Frankfurt while the relay answers. " + t }
         }
     }
+    func paintRoute() {
+        DispatchQueue.global().async {
+            let h = Frankfurt.headline()
+            DispatchQueue.main.async { self.routeHeader.stringValue = h.text; self.routeHeader.textColor = h.good ? Host.green : Host.gold; self.routeHeader.setAccessibilityValue(h.text) }
+        }
+    }
     func refreshFrankfurt() {
+        paintRoute()
         DispatchQueue.global().async {
             let t = Frankfurt.on ? Frankfurt.summary() : "off: every engine runs direct"
             DispatchQueue.main.async { self.frankfurtNote.stringValue = "Parakeet and Whisper on this Mac run here; the other eleven run in Frankfurt while the relay answers. " + t }

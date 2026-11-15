@@ -16,6 +16,8 @@ final class MenuBar: NSObject {
 
     let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
     private var state: State?
+    private var shownBadge = ""
+    private var checkTimer: Timer?
     private var timer: Timer?
 
     static let red = NSColor(red: 0.93, green: 0.22, blue: 0.20, alpha: 1)
@@ -38,6 +40,13 @@ final class MenuBar: NSObject {
         let t = Timer(timeInterval: 0.1, repeats: true) { [weak self] _ in self?.follow() }
         RunLoop.main.add(t, forMode: .common)            // it changes colour while a menu is open too
         timer = t
+        // v22: the Frankfurt badge (FRA / DIR) next to VT; the relay is asked every 20 s, off the main thread
+        let c = Timer(timeInterval: 20, repeats: true) { _ in DispatchQueue.global().async { _ = Frankfurt.reachable(force: true) } }
+        RunLoop.main.add(c, forMode: .common); checkTimer = c
+        DispatchQueue.global().async { _ = Frankfurt.reachable(force: true) }
+        DistributedNotificationCenter.default().addObserver(forName: .init("com.mantra.voicetotext.toast"), object: nil, queue: .main) { n in
+            if let t = n.object as? String { Toast.show(t, good: !t.hasPrefix("Direct")) }      // test hook: --hear ... --toast
+        }
     }
 
     func follow() {
@@ -47,8 +56,9 @@ final class MenuBar: NSObject {
     }
 
     func show(_ s: State) {
-        guard s != state, let b = item.button else { return }
-        state = s
+        let badge = Frankfurt.badge
+        guard s != state || badge != shownBadge, let b = item.button else { return }
+        state = s; shownBadge = badge
         switch s {
         case .recording(let t), .paused(let t):
             let paused: Bool = { if case .paused = s { return true }; return false }()
@@ -67,9 +77,13 @@ final class MenuBar: NSObject {
             b.toolTip = paused ? "Voice to Text: paused" : "Voice to Text: recording"
         case .idle, .processing:
             let colour: NSColor = s == .processing ? MenuBar.yellow : MenuBar.red
-            b.attributedTitle = NSAttributedString(string: "VT", attributes: [
+            let t = NSMutableAttributedString(string: "VT", attributes: [
                 .font: NSFont.systemFont(ofSize: 13, weight: .heavy), .foregroundColor: colour, .kern: 0.5])
-            b.toolTip = s == .processing ? "Voice to Text: writing it down" : "Voice to Text: ready (F1)"
+            t.append(NSAttributedString(string: " " + badge, attributes: [
+                .font: NSFont.systemFont(ofSize: 9, weight: .bold), .foregroundColor: badge == "FRA" ? Host.green : Host.gold, .baselineOffset: 1]))
+            b.attributedTitle = t
+            b.setAccessibilityLabel("Voice to Text (Mantra), route " + (badge == "FRA" ? "Frankfurt" : "direct"))
+            b.toolTip = (s == .processing ? "Voice to Text: writing it down" : "Voice to Text: ready (F1)") + (badge == "FRA" ? " · route: Frankfurt" : " · route: direct")
         }
     }
 

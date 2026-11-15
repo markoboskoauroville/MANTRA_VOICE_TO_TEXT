@@ -533,6 +533,7 @@ final class Stripe: NSObject {
                 guard mine == self.take, !self.cancelled else { appendLog("cancelled (Esc), not typed: \(final)"); return }
                 self.escape = nil
                 self.sending(false)
+                Toast.show(Toast.line(hear, seconds: tHear), good: Toast.good)       // v22: the route, 2 s
                 self.lastText = final
                 self.lastLang = lang
                 self.busy = false
@@ -938,6 +939,9 @@ if let i = CommandLine.arguments.firstIndex(of: "--hear"), i + 2 < CommandLine.a
     }
     if let m = Ring.lastMove { print("ring:", m) }
     print("route:", Hear.route ?? "-")
+    if CommandLine.arguments.contains("--toast") {        // test: the running app shows the toast
+        DistributedNotificationCenter.default().postNotificationName(.init("com.mantra.voicetotext.toast"), object: Toast.line(e, seconds: Date().timeIntervalSince(t0)), userInfo: nil, deliverImmediately: true)
+    }
     exit(0)
 }
 if let i = CommandLine.arguments.firstIndex(of: "--style"), i + 3 < CommandLine.arguments.count,

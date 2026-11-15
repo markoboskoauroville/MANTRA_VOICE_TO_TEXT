@@ -44,6 +44,14 @@ enum Frankfurt {
     }
 
     static var relayVersion: Int { version }
+    /// the menu bar's badge: FRA while the switch is on and the relay answered last time, else DIR
+    static var badge: String { on && alive ? "FRA" : "DIR" }
+    /// the line at the top of ⚙ (asks the relay: call off the main thread)
+    static func headline() -> (text: String, good: Bool) {
+        if !on { return ("Route: DIRECT (the FRANKFURT switch is off)", false) }
+        if reachable(force: true) { return ("Route: FRANKFURT ✓ (relay v\(version) answers)", true) }
+        return ("Route: DIRECT (the Frankfurt relay does not answer)", false)
+    }
 
     /// one line for ⚙: what the relay is and how many keys it holds
     static func summary() -> String {
