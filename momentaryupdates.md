@@ -241,3 +241,9 @@ Marko, 15.11.2026, word for word (via the master session):
 > Under that, two drop-down menus, input and output. Input is which microphone, output is which speaker.
 
 **Status:** saved first (15.11.2026). Under the quick switches: INPUT (the microphone Vox records from, saved) and OUTPUT (the speaker for Vox's own sounds: start/stop, the magnet's pop, History playback; the system's default output is never changed), both following devices plugged in or out.
+
+## 15.11.2026: the display's meter at the bottom (v32)
+Marko, 15.11.2026, word for word (via the master session):
+> please also, correct my voice to text the [VU meter] on a small blob should be down not up
+
+**Status:** v32. The hairline meter (v28) was drawn at the TOP of the small display: an NSTextField is flipped, so y: 1 meant the top. It now follows isFlipped and sits on the bottom edge, attached and detached. Also "Anthropic Anthropic 1/2 in use" in the quick row detail line is now "Anthropic 1/2 in use".

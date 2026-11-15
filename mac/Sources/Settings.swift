@@ -591,7 +591,7 @@ final class SettingsWindow: NSObject, NSTextViewDelegate, NSTextFieldDelegate {
         let anth = keyText(.anthropic)
         qDetail.stringValue = "Correction: " + (corr == .off ? "off" : SettingsWindow.modelLine(corr)) +
             "   ·   Styling: " + (Prefs.styleButtonOn ? SettingsWindow.modelLine(StyleButtonEngine.current) : "off") +
-            "   ·   Anthropic " + anth + "   ·   text mode " + TextMode.current.title
+            "   ·   " + anth + "   ·   text mode " + TextMode.current.title
         qDetail.setAccessibilityValue(qDetail.stringValue)
     }
 
@@ -819,7 +819,7 @@ final class SettingsWindow: NSObject, NSTextViewDelegate, NSTextFieldDelegate {
                 }
             }
         }
-        anthropicLabel.stringValue = "Anthropic (the correction): " + keyText(.anthropic)
+        anthropicLabel.stringValue = "The correction key: " + keyText(.anthropic)
     }
 
     @objc func hotkeyChanged() {

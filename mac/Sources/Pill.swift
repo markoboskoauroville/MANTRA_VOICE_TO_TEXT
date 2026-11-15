@@ -328,6 +328,7 @@ final class BandField: NSTextField {
     // TTT's hairline meter (MaRecordMeter.kt): a rounded track at 18 %, green, orange above -12 dB, red above -3 dB, floor
     // -54 dB, a peak hold that falls back slowly. One bar (the microphone is mono: MANTRA_MANIFEST vu-meter-mono-stereo.md).
     // nil = no take recording: the track alone.
+    // v31 (Marko, 15.11.2026: "the VU meter on a small blob should be down not up"): an NSTextField is flipped (origin top left), so y: 1 drew at the TOP; the track now follows isFlipped and sits on the bottom edge.
     static let meterFloor: Float = -54
     var meterDB: Float? {
         didSet {
@@ -341,7 +342,7 @@ final class BandField: NSTextField {
         return track.minX + f * track.width
     }
     private func drawMeter(in band: NSRect) {
-        let track = NSRect(x: band.minX + 7, y: 1, width: max(0, band.width - 14), height: 2)
+        let track = NSRect(x: band.minX + 7, y: isFlipped ? band.maxY - 3 : band.minY + 1, width: max(0, band.width - 14), height: 2)
         guard track.width > 4 else { return }
         NSColor(white: 1, alpha: 0.18).setFill()
         NSBezierPath(roundedRect: track, xRadius: 1, yRadius: 1).fill()
