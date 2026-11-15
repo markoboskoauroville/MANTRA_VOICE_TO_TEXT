@@ -121,3 +121,5 @@ A stored property with an observer must be a declaration of its own: "var declar
 - One relay, two clients: ttt_relay.py serves TTT and this app, so a change for one (AUTO for the Mac) is additive for the other (lang en/hr unchanged, VERSION 2); the phone's key order is never replaced by the Mac (`replace:false`, whole credentials only when the relay has none).
 - "Direct as fallback" is only for a relay that does not answer; a relay "failed" is the engine's verdict (TTT rule 11: never another engine/route by itself after the relay has rotated and retried).
 - Hear.used must stay "Engine LANG" (History matches it); the route has its own field Hear.route.
+- ATS applies to IP addresses since macOS 11: a plain http://100.x relay needs an Info.plist exception, else URLSession fails silently and the direct fallback hides it. Test the route, not only the build; the harmless fallback must say why (v21).
+- A pushed version number is never reused: a diagnostic commit under v20 built but made no release.
