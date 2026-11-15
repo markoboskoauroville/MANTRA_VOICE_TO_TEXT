@@ -446,6 +446,7 @@ enum FileAPI {
 
     static func route(_ method: String, _ path: String, _ body: Data, query: String = "") -> (Int, [String: Any]) {
         if method == "POST", path == "/hear" { return hearNow(body, query: query) }
+        if method == "POST", path == "/engines/select" { return select(body) }
         if method == "GET", path == "/status" {
             return (200, ["app": "Voice to Text (Mantra)", "version": appVersion, "api": 1, "port": Int(port), "busy": FileJobs.busy,
                           "jobs": FileJobs.order.count, "engine": HearEngine.current.id])
@@ -463,7 +464,12 @@ enum FileAPI {
                 ["id": s.id, "name": Stats.name(s, "en", long: true), "label": Stats.name(s, "en"), "label_hr": Stats.name(s, "hr"),
                  "stats_en": Stats.json(s.id, "en"), "stats_hr": Stats.json(s.id, "hr"), "available": Catalog.available(s), "local": s.local, "paid": s.paid,
                  "selected": s.id == cur, "timestamps": FileJobs.timestamps(s.id) ? "segments" : "piece",
-                 "piece_seconds": Int(FileJobs.pieceSeconds(s))]
+                 "piece_seconds": Int(FileJobs.pieceSeconds(s)),
+                 // v26 (for Talk Mode's engine panel): which language uses it, and what is known about its credit,
+                 // all from this Mac's own records (no provider is asked)
+                 "selected_en": (UserDefaults.standard.string(forKey: "engine_en") ?? "assemblyai") == s.id,
+                 "selected_hr": (UserDefaults.standard.string(forKey: "engine_hr") ?? "assemblyai") == s.id,
+                 "credit": credit(s)]
             }
             return (200, ["engines": list, "languages": HearEngine.langs, "test": ["on": Stats.testOn, "reference": Stats.reference]])
         }
@@ -493,6 +499,35 @@ enum FileAPI {
     /// using for transcription"): POST /hear?lang=en|hr|auto with a short WAV as the body. Written down by the engine picked
     /// for that language on the stripe, through the same route as F1 (Frankfurt first, the key ring, the retries), and the
     /// same corrections; no styling, nothing typed, nothing in History. One at a time.
+    /// v26: what this Mac knows of an engine's credit: keys in its ring, the free audio of its window (Catalog), what this
+    /// Mac used of it (Quota), the price per hour after that, and whether it goes through Frankfurt. Nothing is asked online.
+    static func credit(_ s: EngineSpec) -> [String: Any] {
+        var c: [String: Any] = ["price_per_hour": s.pricePerHour, "reset": s.reset.rawValue, "frankfurt": Frankfurt.runsThere(s.id)]
+        if let p = s.ring { c["keys"] = Keys.entries(p).count }
+        if s.freeSeconds.isFinite && s.freeSeconds > 0 {
+            let used = Quota.used(s)
+            c["free_seconds"] = Int(s.freeSeconds); c["used_seconds"] = Int(used); c["left_seconds"] = Int(max(0, s.freeSeconds - used))
+        }
+        c["kind"] = s.local ? "this Mac, free" : s.paid ? "paid per use" : s.reset == .oneOff ? "free trial credit" : "free tier (\(s.reset.rawValue))"
+        return c
+    }
+
+    /// v26 (Marko, 15.11.2026: Talk Mode is "basically ... remote control for our VOX application"): POST /engines/select
+    /// {"id", "lang": en|hr} sets the engine of that language, exactly as a card clicked in Settings does (engine_<lang>).
+    static func select(_ body: Data) -> (Int, [String: Any]) {
+        guard let b = (try? JSONSerialization.jsonObject(with: body)) as? [String: Any], let id = b["id"] as? String,
+              let s = Catalog.byId(id) else { return (400, ["error": "send {\"id\": engine id, \"lang\": \"en\"|\"hr\"}: GET /engines"]) }
+        var lang = (b["lang"] as? String) ?? "en"
+        if lang == "auto" { lang = "hr" }
+        guard lang == "en" || lang == "hr" else { return (400, ["error": "lang is en or hr"]) }
+        guard Catalog.available(s) else { return (400, ["error": "\(s.short) has no key or is not installed on this Mac"]) }
+        UserDefaults.standard.set(id, forKey: "engine_" + lang)
+        appendLog("recognition engine for \(lang.uppercased()): \(s.short) (set from the local API)")
+        if id == "parakeet" || id == "whisper" { DispatchQueue.main.async { Ears.warm() } }
+        DistributedNotificationCenter.default().postNotificationName(.init("com.mantra.voicetotext.engineChanged"), object: lang, userInfo: nil, deliverImmediately: true)
+        return (200, ["ok": true, "id": id, "lang": lang, "label": Stats.name(s, lang)])
+    }
+
     static let hearLock = NSLock()
     static func hearNow(_ body: Data, query: String) -> (Int, [String: Any]) {
         var lang = "en"

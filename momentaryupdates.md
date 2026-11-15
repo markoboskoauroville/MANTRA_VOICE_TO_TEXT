@@ -193,3 +193,9 @@ Marko, 15.11.2026, word for word:
 > Please now update how good is each engine and how fast is each engine in the engine name everywhere.
 
 **Status:** saved first. Voice to Text v24 keeps per-engine median time (last 20 takes, per language) and a quality score (WER against a reference phrase in TEST mode, or Marko's rating) and shows "Deepgram · 1.0 s · ★★★★☆" wherever an engine name appears; Talk Mode v5 reads it from /engines.
+
+## 15.11.2026: Talk Mode as the remote control of the engines (via the master session)
+Marko, 15.11.2026, word for word (his message was cut off at the end):
+> I want to have luxurious changing of engines, it's basically will be remote control for our VOX application, audio to text, but in this app, talk mode, I want to have this option, it means I have the stars ratings, timing and everything, and the credits and…
+
+**Status:** saved first. v26: `GET /engines` also says `selected_en`, `selected_hr` and `credit` (keys in the ring, free audio of the window, used here, left, price per hour, Frankfurt), from this Mac's own records; `POST /engines/select {"id","lang"}` sets engine_en / engine_hr exactly as a card in Settings, and Settings repaints. Talk Mode (Mantra) v8 has the ENGINES panel.

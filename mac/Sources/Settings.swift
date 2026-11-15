@@ -66,6 +66,10 @@ final class SettingsWindow: NSObject, NSTextViewDelegate, NSTextFieldDelegate {
         window.appearance = NSAppearance(named: .darkAqua)      // v17: TTT's host look
         window.backgroundColor = Host.bg
         super.init()
+        // v26: an engine picked from outside (Talk Mode's panel, POST /engines/select) shows on the cards at once
+        DistributedNotificationCenter.default().addObserver(forName: .init("com.mantra.voicetotext.engineChanged"), object: nil, queue: .main) { [weak self] _ in
+            self?.paintChoices(); self?.onChange()
+        }
         history = HistoryPane(typeText: typeText) { [weak self] in self?.window.orderOut(nil); NSApp.hide(nil) }
 
         func label(_ s: String, bold: Bool = false) -> NSTextField {
