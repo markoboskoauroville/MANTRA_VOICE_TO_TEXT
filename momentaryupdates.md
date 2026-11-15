@@ -170,3 +170,8 @@ Marko, 15.11.2026, word for word:
 > Please update my voice to text application so it also goes to Frankfurt and it needs to have all the engines it has it very good
 
 **Status:** saved first. Read as: the audio goes to the ttt-relay on chromium-vm (Tailscale 100.102.86.30:8897), which calls the engines from Frankfurt; every engine the app has that can run in the cloud works through it, the direct path stays as the fallback; a FRANKFURT switch in the engine panel; the route shown per take.
+
+Marko, 15.11.2026, added (word for word):
+> Also I have two application, one is voice to text and another is voice engine. And they both have same icon so I am confused. Let the voice to text be red icon and let the engine be green icon.
+
+**Status:** saved first. Read as: Voice to Text (Mantra) gets a red icon in v20 (Dock, Finder, menu bar consistent); the Voice Engine gets green separately.
