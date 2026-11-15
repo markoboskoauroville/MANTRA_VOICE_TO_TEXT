@@ -307,15 +307,16 @@ final class Stripe: NSObject {
         // v17 (Marko, 31.10.2026: "tile should be always available, grayed out. When I press it, while it's working, it's
         // becoming green"): STYLE always there and pressable, grey at rest, green while it works
         face.style.live = true
-        face.light(autoCorrect: StyleEngine.current != .off, styling: false, unlanded: unlanded, copying: copying, flash: styleFlash)
+        face.light(autoCorrect: StyleEngine.current != .off && TextMode.current != .plain, styling: false, unlanded: unlanded, copying: copying, flash: styleFlash)
         if !recorder.recording && !busy { face.send.symbol = "mic.fill" }
     }
 
     // who hears and who cleans, in the small letters above the pill (as the Claude blob names its voice engine)
     var engines: String {
         "\(HearEngine.current.title.uppercased())\(Stats.tag(HearEngine.current.id, HearEngine.current.lang)) · " +
-            (StyleEngine.current == .off ? "NO AUTO CORRECT · STYLE: \(TextMode.current.title.uppercased())"
-                                         : "\(TextMode.current.title.uppercased()): \(StyleEngine.current.title.uppercased())")
+            (TextMode.current == .plain ? "NO STYLING OR CORRECTION"
+             : StyleEngine.current == .off ? "NO AUTO CORRECT · STYLE: \(TextMode.current.title.uppercased())"
+             : "\(TextMode.current.title.uppercased()): \(StyleEngine.current.title.uppercased())")
     }
 
     func say(_ text: String, _ color: NSColor, tip: String? = nil) {
@@ -549,7 +550,7 @@ final class Stripe: NSObject {
             let lang = hear.lang == "auto" ? (Hear.lastLang.flatMap { ["en", "hr"].contains($0) ? $0 : nil } ?? "auto") : hear.lang
             // v13 (TTT: "AI correction off for Croatian dictation"): Croatian goes in as the engine heard it, unless ⚙ asks for the
             // correction there too; the STYLE button is not touched by this
-            let style: StyleEngine = (lang == "hr" && !Prefs.correctCroatian) ? .off : styleChosen
+            let style: StyleEngine = (lang == "hr" && !Prefs.correctCroatian) || textMode == .plain ? .off : styleChosen
             let usedTitle = Hear.used ?? hear.title
             if style != .off { DispatchQueue.main.async { self.say("auto correct (\(style.title))…", Ink.amber) } }
             let t1 = Date()
@@ -745,6 +746,12 @@ final class Stripe: NSObject {
         if styling { return }
         if recorder.recording { say("STYLE works on text already written: send this take first", Ink.amber); return }
         if busy { say("still writing the last take down: STYLE after it", Ink.amber); return }
+        if !Prefs.styleButtonOn {               // v28: the STYLING quick switch in Settings
+            styleDone(false, "STYLING is switched off (Settings, at the top)"); return
+        }
+        if TextMode.current == .plain {           // v28: ——— means nothing is changed, STYLE included
+            styleDone(false, "text mode ———: nothing is changed; pick COR, STY or S+C beside the language"); return
+        }
         guard AXIsProcessTrusted() else {
             // MANTRA_MANIFEST swift-apps.md, PERMISSIONS: the system's own request once, then straight to the page
             _ = AXIsProcessTrustedWithOptions([kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary)

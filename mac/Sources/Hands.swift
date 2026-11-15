@@ -427,6 +427,7 @@ enum Chime {
     static func play(start: Bool, position: Float? = nil, then: (() -> Void)? = nil) {
         let s = sound(start: start)
         s?.volume = gain(position ?? (start ? Prefs.startVolume : Prefs.stopVolume))      // v15: the levels in ⚙
+        OutputDevice.apply(s)                                                        // v28: OUTPUT in Settings
         playing = s
         finished.then = then
         s?.delegate = finished

@@ -62,6 +62,12 @@ final class SettingsWindow: NSObject, NSTextViewDelegate, NSTextFieldDelegate {
     let pasteTick = NSButton(checkboxWithTitle: "When a box ignores Accessibility writing, bring its app to the front and paste (your clipboard is put back)", target: nil, action: nil)
     let clickTick = NSButton(checkboxWithTitle: "When the box cannot be focused, click into it (only if the click lands on that same box)", target: nil, action: nil)
     var targetTimer: Timer?
+    // v28 (Marko, 15.11.2026: "quick switches at the top, MAC switches ... telling me for correction and styling which model
+    // are used"): above the tabs, always in sight
+    let qCorrect = NSSwitch(), qStyle = NSSwitch(), qFrankfurt = NSSwitch(), qTest = NSSwitch()
+    let qCorrectModel = NSPopUpButton(), qStyleModel = NSPopUpButton()
+    let qDetail = NSTextField(labelWithString: "")
+    let output = NSPopUpButton()                 // v28: OUTPUT, the speaker of Vox's own sounds
     // v28: the engine columns and their family headings, laid out by arrange()
     var columns: [String: NSStackView] = [:]
     var familyLabels: [String: [String: NSTextField]] = [:]
@@ -69,7 +75,7 @@ final class SettingsWindow: NSObject, NSTextViewDelegate, NSTextFieldDelegate {
 
     init(onChange: @escaping () -> Void, typeText: @escaping (String) -> Void) {
         self.onChange = onChange
-        window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 900, height: 860), styleMask: [.titled, .closable, .resizable],
+        window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 900, height: 900), styleMask: [.titled, .closable, .resizable],
                           backing: .buffered, defer: false)
         window.title = "Voice to Text (Mantra) v\(appVersion)"
         window.isReleasedWhenClosed = false
@@ -305,7 +311,7 @@ final class SettingsWindow: NSObject, NSTextViewDelegate, NSTextFieldDelegate {
         let keysTab: [NSView] = [label("API keys: read by themselves from ~/Downloads/API; no key is ever shown, only its number", bold: true),
                                  row([importButton, retestButton]), importResult, anthropicLabel,
                                  label("Route", bold: true), frankfurtTick, frankfurtNote]
-        var soundTab: [NSView] = [label("Recording device", bold: true), device, duckTick]
+        var soundTab: [NSView] = [label("While listening", bold: true), duckTick]
         soundTab.append(contentsOf: soundRows)
         let testTab: [NSView] = [label("Benchmark", bold: true), row([benchButton, benchNote]),
                                  label("TEST mode", bold: true), testTick, testField]
@@ -330,6 +336,9 @@ final class SettingsWindow: NSObject, NSTextViewDelegate, NSTextFieldDelegate {
         box.onDrop = { [weak self] url in self?.tabs.selectTabViewItem(at: SettingsWindow.historyTab); self?.history.files.start(url) }
         tabs.translatesAutoresizingMaskIntoConstraints = false
         box.addSubview(tabs)
+        let quick = quickRow()
+        quick.translatesAutoresizingMaskIntoConstraints = false
+        box.addSubview(quick)
         let x = closeX(self, #selector(closeWindow), tip: "Close; Voice to Text (Mantra) stays on")
         x.setAccessibilityIdentifier("close"); x.setAccessibilityLabel("Close window")
         let on = rowWord("ON", Ink.green, id: "on", label: "On", #selector(nothing))
@@ -350,7 +359,9 @@ final class SettingsWindow: NSObject, NSTextViewDelegate, NSTextFieldDelegate {
             topWord.trailingAnchor.constraint(equalTo: x.leadingAnchor, constant: -10), topWord.centerYAnchor.constraint(equalTo: x.centerYAnchor),
             x.trailingAnchor.constraint(equalTo: box.trailingAnchor, constant: -6), x.topAnchor.constraint(equalTo: box.topAnchor, constant: 2),
             tabs.leadingAnchor.constraint(equalTo: box.leadingAnchor), tabs.trailingAnchor.constraint(equalTo: box.trailingAnchor),
-            tabs.topAnchor.constraint(equalTo: box.topAnchor, constant: 32), tabs.bottomAnchor.constraint(equalTo: box.bottomAnchor),
+            quick.topAnchor.constraint(equalTo: box.topAnchor, constant: 34), quick.leadingAnchor.constraint(equalTo: box.leadingAnchor, constant: 16),
+            quick.trailingAnchor.constraint(lessThanOrEqualTo: box.trailingAnchor, constant: -16),
+            tabs.topAnchor.constraint(equalTo: quick.bottomAnchor, constant: 4), tabs.bottomAnchor.constraint(equalTo: box.bottomAnchor),
         ])
         window.contentView = box
         showKeys()
@@ -495,6 +506,116 @@ final class SettingsWindow: NSObject, NSTextViewDelegate, NSTextFieldDelegate {
         ("OTHERS", ["deepgram", "assemblyai", "speechmatics", "soniox", "elevenlabs"]),
     ]
 
+    // MARK: v28 the quick row
+
+    func quickRow() -> NSStackView {
+        func word(_ t: String) -> NSTextField {
+            let l = NSTextField(labelWithString: t); l.font = .monospacedSystemFont(ofSize: 11, weight: .bold); l.textColor = Host.ink; return l
+        }
+        for (p, id) in [(qCorrectModel, "quickCorrectionModel"), (qStyleModel, "quickStylingModel")] {
+            for e in StyleButtonEngine.choices { p.addItem(withTitle: e.title); p.lastItem?.representedObject = e.rawValue }
+            p.target = self; p.action = #selector(quickChanged(_:)); p.setAccessibilityIdentifier(id)
+            p.controlSize = .small; p.font = .systemFont(ofSize: 11)
+        }
+        qCorrectModel.setAccessibilityLabel("Correction model"); qStyleModel.setAccessibilityLabel("Styling model")
+        for (sw, id, label) in [(qCorrect, "quickCorrection", "Correction after each take"), (qStyle, "quickStyling", "Styling (the STYLE button)"),
+                                (qFrankfurt, "quickFrankfurt", "Frankfurt route"), (qTest, "quickTest", "TEST mode")] {
+            sw.target = self; sw.action = #selector(quickChanged(_:)); sw.controlSize = .small
+            sw.setAccessibilityIdentifier(id); sw.setAccessibilityLabel(label)
+        }
+        qCorrect.toolTip = "Auto correct after each take, by this Claude (Anthropic), as the TEXT mode on the blob says"
+        qStyle.toolTip = "The STYLE button on the blob, by this Claude (Anthropic)"
+        qFrankfurt.toolTip = "The cloud engines are called from the relay in Frankfurt (direct is the fallback)"
+        qTest.toolTip = "Score each take against the reference sentence (Test tab)"
+        qDetail.font = .systemFont(ofSize: 11); qDetail.textColor = Host.muted; qDetail.lineBreakMode = .byTruncatingTail
+        qDetail.setAccessibilityIdentifier("quickModels")
+        let r1 = NSStackView(views: [word("CORRECTION"), qCorrect, qCorrectModel, word("   STYLING"), qStyle, qStyleModel,
+                                     word("   FRANKFURT"), qFrankfurt, word("   TEST"), qTest])
+        r1.orientation = .horizontal; r1.spacing = 6; r1.alignment = .centerY
+        device.setAccessibilityIdentifier("input"); device.setAccessibilityLabel("Input: the microphone Vox records from")
+        output.setAccessibilityIdentifier("output"); output.setAccessibilityLabel("Output: the speaker of Vox's sounds")
+        output.target = self; output.action = #selector(outputChanged)
+        device.toolTip = "The microphone a take is recorded from (and voice activation listens on)"
+        output.toolTip = "The speaker of Vox's own sounds (start, stop, the magnet's pop); the Mac's default output is not changed"
+        for p in [device, output] { p.controlSize = .small; p.font = .systemFont(ofSize: 11) }
+        device.widthAnchor.constraint(lessThanOrEqualToConstant: 330).isActive = true
+        output.widthAnchor.constraint(lessThanOrEqualToConstant: 330).isActive = true
+        fillOutputs()
+        // plugged in or out: both menus follow (and again each time one opens)
+        OutputDevice.watch { [weak self] in self?.fillDevices(); self?.fillOutputs() }
+        for p in [device, output] {
+            NotificationCenter.default.addObserver(forName: NSPopUpButton.willPopUpNotification, object: p, queue: .main) { [weak self] _ in
+                self?.fillDevices(); self?.fillOutputs()
+            }
+        }
+        let r2 = NSStackView(views: [word("INPUT"), device, word("   OUTPUT"), output])
+        r2.orientation = .horizontal; r2.spacing = 6; r2.alignment = .centerY
+        let col = NSStackView(views: [r1, r2, qDetail]); col.orientation = .vertical; col.alignment = .leading; col.spacing = 4
+        paintQuick()
+        return col
+    }
+
+    func fillOutputs() {
+        output.removeAllItems()
+        output.addItem(withTitle: "System default (\(OutputDevice.defaultName()))")
+        output.lastItem?.representedObject = nil
+        for (uid, name) in OutputDevice.all() { output.addItem(withTitle: name); output.lastItem?.representedObject = uid }
+        if let uid = OutputDevice.chosenUID, let i = output.itemArray.firstIndex(where: { $0.representedObject as? String == uid }) {
+            output.selectItem(at: i)
+        } else { output.selectItem(at: 0) }
+    }
+    @objc func outputChanged() {
+        OutputDevice.chosenUID = output.selectedItem?.representedObject as? String
+        appendLog("output: \(output.titleOfSelectedItem ?? "")")
+        Chime.play(start: true)                  // heard on the speaker just chosen
+    }
+
+    /// the models really called (the newest of the family, as Anthropic lists it) and how long their last answer took
+    static func modelLine(_ e: StyleEngine) -> String {
+        let id = UserDefaults.standard.string(forKey: e.rawValue + "Model") ?? "\(e.rawValue), newest"
+        let secs = UserDefaults.standard.object(forKey: "styleSecs_" + e.rawValue) as? Double
+        return id + (secs.map { String(format: " · last %.1f s", $0) } ?? "")
+    }
+
+    func paintQuick() {
+        let corr = StyleEngine.current
+        qCorrect.state = corr == .off ? .off : .on
+        let shown = corr == .off ? (StyleEngine(rawValue: UserDefaults.standard.string(forKey: "styleLastOn") ?? "") ?? .haiku) : corr
+        qCorrectModel.selectItem(at: StyleButtonEngine.choices.firstIndex(of: shown) ?? 0)
+        qCorrectModel.isEnabled = corr != .off
+        qStyle.state = Prefs.styleButtonOn ? .on : .off
+        qStyleModel.selectItem(at: StyleButtonEngine.choices.firstIndex(of: StyleButtonEngine.current) ?? 0)
+        qStyleModel.isEnabled = Prefs.styleButtonOn
+        qFrankfurt.state = Frankfurt.on ? .on : .off
+        qTest.state = Stats.testOn ? .on : .off
+        let anth = keyText(.anthropic)
+        qDetail.stringValue = "Correction: " + (corr == .off ? "off" : SettingsWindow.modelLine(corr)) +
+            "   ·   Styling: " + (Prefs.styleButtonOn ? SettingsWindow.modelLine(StyleButtonEngine.current) : "off") +
+            "   ·   Anthropic " + anth + "   ·   text mode " + TextMode.current.title
+        qDetail.setAccessibilityValue(qDetail.stringValue)
+    }
+
+    @objc func quickChanged(_ sender: Any) {
+        func engine(_ p: NSPopUpButton) -> StyleEngine { StyleEngine(rawValue: p.selectedItem?.representedObject as? String ?? "") ?? .haiku }
+        if let sw = sender as? NSSwitch {
+            if sw === qCorrect {
+                StyleEngine.current = sw.state == .on ? engine(qCorrectModel) : .off
+                appendLog("quick: correction \(StyleEngine.current.title)")
+            } else if sw === qStyle {
+                Prefs.styleButtonOn = sw.state == .on
+                appendLog("quick: styling \(Prefs.styleButtonOn ? "on" : "off")")
+            } else if sw === qFrankfurt {
+                frankfurtTick.state = sw.state; frankfurtChanged()
+            } else if sw === qTest {
+                testTick.state = sw.state; testChanged()
+            }
+        } else if let p = sender as? NSPopUpButton {
+            if p === qCorrectModel { StyleEngine.current = engine(p); appendLog("quick: correction \(StyleEngine.current.title)") }
+            if p === qStyleModel { StyleButtonEngine.current = engine(p); appendLog("quick: styling \(StyleButtonEngine.current.title)") }
+        }
+        paintChoices(); onChange()
+    }
+
     static var byFamily: Bool {
         get { UserDefaults.standard.bool(forKey: "enginesByFamily") }
         set { UserDefaults.standard.set(newValue, forKey: "enginesByFamily") }
@@ -589,6 +710,7 @@ final class SettingsWindow: NSObject, NSTextViewDelegate, NSTextFieldDelegate {
         for (e, b) in styleRadios { b.state = e == StyleEngine.current ? .on : .off }
         for (e, b) in styleButtonRadios { b.state = e == StyleButtonEngine.current ? .on : .off }
         for (m, b) in modeRadios { b.state = m == TextMode.current ? .on : .off }
+        paintQuick()
         whisperRow?.isHidden = Ears.current == .server
     }
     @objc func langPicked(_ b: NSButton) {

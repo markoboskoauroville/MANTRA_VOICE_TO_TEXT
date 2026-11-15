@@ -217,7 +217,7 @@ final class Magnet: NSObject {
     /// the seam glows for a moment, and a soft click
     func cue() {
         applyGlow(true)
-        if stripe?.recorder.recording != true, let snd = NSSound(named: NSSound.Name("Pop")) { snd.volume = 0.35; snd.play() }
+        if stripe?.recorder.recording != true, let snd = NSSound(named: NSSound.Name("Pop")) { snd.volume = 0.35; OutputDevice.apply(snd); snd.play() }
         cueing = true
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { [weak self] in
             guard let self else { return }

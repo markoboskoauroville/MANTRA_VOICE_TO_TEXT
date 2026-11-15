@@ -458,14 +458,14 @@ enum FileAPI {
         if method == "GET", path == "/target" {          // v28: the last text box clicked or focused (never Vox's own)
             return (200, ["target": TextTarget.shared.last?.json ?? [:]])
         }
-        if method == "POST", path == "/mode" {           // v28: {"language"?: en|hr|auto, "text"?: style|style_correct|correct}
+        if method == "POST", path == "/mode" {           // v28: {"language"?: en|hr|auto, "text"?: none|correct|style|style_correct}
             let b = ((try? JSONSerialization.jsonObject(with: body)) as? [String: Any]) ?? [:]
             if let l = b["language"] as? String {
                 guard HearEngine.langs.contains(l) else { return (400, ["error": "language is en, hr or auto"]) }
                 HearEngine.setLang(l)
             }
             if let m = b["text"] as? String {
-                guard let tm = TextMode(rawValue: m) else { return (400, ["error": "text is style, style_correct or correct"]) }
+                guard let tm = TextMode(rawValue: m) else { return (400, ["error": "text is none, correct, style or style_correct"]) }
                 TextMode.current = tm
             }
             DispatchQueue.main.async { stripe.refresh(); stripe.ready(); stripe.settings?.paintChoices() }
