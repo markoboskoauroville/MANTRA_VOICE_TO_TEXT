@@ -235,3 +235,9 @@ Marko, 15.11.2026, word for word (via the master session):
 > In the settings, I need to have quick switches at the top, MAC switches. And these switches are basically telling me for correction and styling which model are used.
 
 **Status:** saved first (15.11.2026). Above the tabs, always in sight: CORRECTION (auto correct after each take) and STYLING (the STYLE button), each a macOS switch with its Claude model picker, the model id really called and its last time; FRANKFURT and TEST as switches too.
+
+## 15.11.2026: INPUT and OUTPUT under the quick switches (with v28)
+Marko, 15.11.2026, word for word (via the master session):
+> Under that, two drop-down menus, input and output. Input is which microphone, output is which speaker.
+
+**Status:** saved first (15.11.2026). Under the quick switches: INPUT (the microphone Vox records from, saved) and OUTPUT (the speaker for Vox's own sounds: start/stop, the magnet's pop, History playback; the system's default output is never changed), both following devices plugged in or out.
