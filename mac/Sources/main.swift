@@ -193,6 +193,7 @@ final class Stripe: NSObject {
             NotificationCenter.default.addObserver(forName: n, object: nil, queue: .main) { [weak self] _ in self?.restoreStripe() }
         }
         panel.orderFrontRegardless()
+        Magnet.shared.setup(self)         // v27: the display and the body may be detached; the state of the last run comes back
 
         // Typing into other apps needs Accessibility; macOS asks him once.
         _ = AXIsProcessTrustedWithOptions([kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary)
@@ -641,7 +642,8 @@ final class Stripe: NSObject {
             guard let self, Prefs.autoHide, !VoiceWords.enabled, token == self.hideToken, !self.busy, !self.recorder.recording, !self.pinned, self.minimizedFrame == nil else { return }
             // v16: he has the mouse on the blob (hover, grab, click) or ⚙ is open: it stays, and goes 1.5 s after he lets go
             let m = NSEvent.mouseLocation
-            if self.panel.frame.insetBy(dx: -8, dy: -8).contains(m) || self.settings?.window.isVisible == true {
+            if self.panel.frame.insetBy(dx: -8, dy: -8).contains(m) || self.settings?.window.isVisible == true
+                || Magnet.shared.display?.frame.insetBy(dx: -8, dy: -8).contains(m) == true {
                 self.hideSoon(after: 1.5); return
             }
             self.unlanded = false
@@ -794,6 +796,7 @@ final class Stripe: NSObject {
     }
 
     @objc func statusClicked() {
+        if Magnet.shared.detached { return }          // v27: the flip belongs to the attached strip
         Prefs.lineBelow.toggle()
         face.placeLine(below: Prefs.lineBelow)
         var o = panel.frame.origin

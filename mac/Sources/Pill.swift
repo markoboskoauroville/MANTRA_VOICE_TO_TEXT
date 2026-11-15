@@ -46,8 +46,25 @@ final class BlobButton: NSView {
     override func accessibilityLabel() -> String? { text ?? toolTip }
     override func accessibilityPerformPress() -> Bool { guard live else { return false }; action(); return true }
     override func isAccessibilityEnabled() -> Bool { live }
-    override func mouseDown(with e: NSEvent) {}
-    override func mouseUp(with e: NSEvent) { if live, bounds.contains(convert(e.locationInWindow, from: nil)) { action() } }
+    // v27: held still for 0.6 s the button's part detaches (the magnet); the press then drags that part and does not act
+    private let hold = LongPress()
+    private var longFired = false, lastMouse = NSPoint.zero, downMouse = NSPoint.zero
+    override func mouseDown(with e: NSEvent) {
+        longFired = false; lastMouse = NSEvent.mouseLocation; downMouse = lastMouse; Magnet.shared.didDrag = false
+        hold.begin { [weak self] in self?.longFired = true; Magnet.shared.longPressed() }
+    }
+    override func mouseDragged(with e: NSEvent) {
+        let m = NSEvent.mouseLocation
+        if !longFired { if hypot(m.x - downMouse.x, m.y - downMouse.y) > 4 { hold.cancel() }; return }
+        guard let w = window else { return }
+        w.setFrameOrigin(NSPoint(x: w.frame.origin.x + m.x - lastMouse.x, y: w.frame.origin.y + m.y - lastMouse.y))
+        lastMouse = m; Magnet.shared.didDrag = true
+    }
+    override func mouseUp(with e: NSEvent) {
+        hold.cancel()
+        if longFired { longFired = false; Magnet.shared.released(); return }
+        if live, bounds.contains(convert(e.locationInWindow, from: nil)) { action() }
+    }
     override func viewDidChangeBackingProperties() { cache = nil }
     override func draw(_ r: NSRect) {
         if cache == nil { cache = render() }
@@ -226,21 +243,35 @@ final class WaveView: NSView {
 }
 
 // The dark pill, dragged by its body anywhere; the panel's move is kept by Place (main.swift).
+// v27: held still for 0.6 s it lets go of the display (Magnet.swift); it glows when the display is near its slot.
 final class PillView: NSView {
-    var start: NSPoint?; var origin = NSPoint.zero
+    var last: NSPoint?, down = NSPoint.zero
+    private let hold = LongPress()
+    var glow = false { didSet { if glow != oldValue { needsDisplay = true } } }
     override func acceptsFirstMouse(for e: NSEvent?) -> Bool { true }
     override func draw(_ r: NSRect) {
         let p = NSBezierPath(roundedRect: bounds.insetBy(dx: 0.5, dy: 0.5), xRadius: bounds.height / 2, yRadius: bounds.height / 2)
         NSColor(calibratedRed: 0.11, green: 0.11, blue: 0.12, alpha: 0.97).setFill(); p.fill()
-        NSColor(white: 1, alpha: 0.10).setStroke(); p.lineWidth = 1; p.stroke()
+        if glow { BLUE.setStroke(); p.lineWidth = 2.5 } else { NSColor(white: 1, alpha: 0.10).setStroke(); p.lineWidth = 1 }
+        p.stroke()
     }
-    override func mouseDown(with e: NSEvent) { start = NSEvent.mouseLocation; origin = window?.frame.origin ?? .zero }
+    // v27 (MANTRA_MANIFEST accessibility): the body is a group in the AX tree with Detach / Attach
+    override func isAccessibilityElement() -> Bool { true }
+    override func accessibilityRole() -> NSAccessibility.Role? { .group }
+    override func accessibilityLabel() -> String? { "Voice to Text body" }
+    override func accessibilityCustomActions() -> [NSAccessibilityCustomAction]? { Magnet.axActions() }
+    override func mouseDown(with e: NSEvent) {
+        last = NSEvent.mouseLocation; down = last ?? .zero; Magnet.shared.didDrag = false
+        hold.begin { Magnet.shared.longPressed() }
+    }
     override func mouseDragged(with e: NSEvent) {
-        guard let s = start, let w = window else { return }
+        guard let l = last, let w = window else { return }
         let m = NSEvent.mouseLocation
-        w.setFrameOrigin(NSPoint(x: origin.x + m.x - s.x, y: origin.y + m.y - s.y))
+        if hypot(m.x - down.x, m.y - down.y) > 4 { hold.cancel() }
+        w.setFrameOrigin(NSPoint(x: w.frame.origin.x + m.x - l.x, y: w.frame.origin.y + m.y - l.y))
+        last = m; Magnet.shared.didDrag = true
     }
-    override func mouseUp(with e: NSEvent) { start = nil }
+    override func mouseUp(with e: NSEvent) { hold.cancel(); last = nil; Magnet.shared.released() }
 }
 
 // v15 (Marko, 31.10.2026: "put half transparent black background below the text above the Blob because it is not
@@ -250,23 +281,44 @@ final class BandField: NSTextField {
     // interface. If I click shortly, then I am changing the position of status line"): a short click (under 0.3 s, under
     // 4 pt of movement) calls `clicked`; holding or dragging moves the panel (its place is saved by the stripe's move
     // observer), and a drag never ends in a click
+    // v27 (the magnet): held still for 0.6 s it lets go of the body; as its own panel it drags alone; a short click then
+    // does nothing (the flip is for the attached strip); only its band takes the mouse, the rest of its panel is clear
     var clicked: (() -> Void)?
-    private var downAt: Date?, downMouse = NSPoint.zero, downOrigin = NSPoint.zero, dragged = false
+    var restrictHit = false
+    var glow = false { didSet { if glow != oldValue { needsDisplay = true } } }
+    private let hold = LongPress()
+    private var downAt: Date?, downMouse = NSPoint.zero, lastMouse = NSPoint.zero, dragged = false
+    private var band: NSRect {
+        let w = min(bounds.width, ceil(attributedStringValue.size().width) + 16)
+        return NSRect(x: (bounds.width - w) / 2, y: 0, width: w, height: bounds.height)
+    }
     override func acceptsFirstMouse(for e: NSEvent?) -> Bool { true }
-    override func hitTest(_ p: NSPoint) -> NSView? { frame.contains(p) ? self : nil }
+    override func hitTest(_ p: NSPoint) -> NSView? {
+        guard frame.contains(p) else { return nil }
+        if restrictHit { return band.contains(convert(p, from: superview)) ? self : nil }
+        return self
+    }
+    override func isAccessibilityElement() -> Bool { true }
+    override func accessibilityRole() -> NSAccessibility.Role? { .staticText }
+    override func accessibilityLabel() -> String? { "Voice to Text display" }
+    override func accessibilityValue() -> Any? { stringValue }
+    override func accessibilityCustomActions() -> [NSAccessibilityCustomAction]? { Magnet.axActions() }
     override func mouseDown(with e: NSEvent) {
-        downAt = Date(); downMouse = NSEvent.mouseLocation; downOrigin = window?.frame.origin ?? .zero; dragged = false
+        downAt = Date(); downMouse = NSEvent.mouseLocation; lastMouse = downMouse; dragged = false; Magnet.shared.didDrag = false
+        hold.begin { Magnet.shared.longPressed() }
     }
     override func mouseDragged(with e: NSEvent) {
         guard let w = window, downAt != nil else { return }
         let m = NSEvent.mouseLocation
         if !dragged && hypot(m.x - downMouse.x, m.y - downMouse.y) < 4 { return }
-        dragged = true
-        w.setFrameOrigin(NSPoint(x: downOrigin.x + m.x - downMouse.x, y: downOrigin.y + m.y - downMouse.y))
+        dragged = true; hold.cancel()
+        w.setFrameOrigin(NSPoint(x: w.frame.origin.x + m.x - lastMouse.x, y: w.frame.origin.y + m.y - lastMouse.y))
+        lastMouse = m; Magnet.shared.didDrag = true
     }
     override func mouseUp(with e: NSEvent) {
-        defer { downAt = nil }
-        guard let t = downAt, !dragged, Date().timeIntervalSince(t) < 0.3 else { return }
+        hold.cancel()
+        defer { downAt = nil; Magnet.shared.released() }
+        guard let t = downAt, !dragged, Date().timeIntervalSince(t) < 0.3, !restrictHit else { return }
         let m = NSEvent.mouseLocation
         if hypot(m.x - downMouse.x, m.y - downMouse.y) < 4 { clicked?() }
     }
@@ -274,7 +326,9 @@ final class BandField: NSTextField {
         if !stringValue.isEmpty {
             let w = min(bounds.width, ceil(attributedStringValue.size().width) + 16)
             NSColor(white: 0, alpha: 0.55).setFill()
-            NSBezierPath(roundedRect: NSRect(x: (bounds.width - w) / 2, y: 0, width: w, height: bounds.height), xRadius: 6, yRadius: 6).fill()
+            let band = NSBezierPath(roundedRect: NSRect(x: (bounds.width - w) / 2, y: 0, width: w, height: bounds.height), xRadius: 6, yRadius: 6)
+            band.fill()
+            if glow { BLUE.setStroke(); band.lineWidth = 2; band.stroke() }
         }
         super.draw(r)
     }
@@ -290,15 +344,21 @@ final class PillFace: NSView {
 
     // v23 (Marko, 31.10.2026: "it's also anywhere where there is no button in upper part of the user interface. I can
     // drag it around"): any part of the blob that is not a button drags it (the status line keeps its short click)
-    private var dragStart: NSPoint?, dragOrigin = NSPoint.zero
+    private var dragLast: NSPoint?, dragDown = NSPoint.zero
+    private let hold = LongPress()
     override func acceptsFirstMouse(for e: NSEvent?) -> Bool { true }
-    override func mouseDown(with e: NSEvent) { dragStart = NSEvent.mouseLocation; dragOrigin = window?.frame.origin ?? .zero }
-    override func mouseDragged(with e: NSEvent) {
-        guard let s = dragStart, let w = window else { return }
-        let m = NSEvent.mouseLocation
-        w.setFrameOrigin(NSPoint(x: dragOrigin.x + m.x - s.x, y: dragOrigin.y + m.y - s.y))
+    override func mouseDown(with e: NSEvent) {
+        dragLast = NSEvent.mouseLocation; dragDown = dragLast ?? .zero; Magnet.shared.didDrag = false
+        hold.begin { Magnet.shared.longPressed() }
     }
-    override func mouseUp(with e: NSEvent) { dragStart = nil }
+    override func mouseDragged(with e: NSEvent) {
+        guard let l = dragLast, let w = window else { return }
+        let m = NSEvent.mouseLocation
+        if hypot(m.x - dragDown.x, m.y - dragDown.y) > 4 { hold.cancel() }
+        w.setFrameOrigin(NSPoint(x: w.frame.origin.x + m.x - l.x, y: w.frame.origin.y + m.y - l.y))
+        dragLast = m; Magnet.shared.didDrag = true
+    }
+    override func mouseUp(with e: NSEvent) { hold.cancel(); dragLast = nil; Magnet.shared.released() }
     // the empty parts must reach this view: a clear pixel lets the click through to the app below, so the panel's empty
     // area gets a fill the eye does not see (1 %), not a shape and no shadow
     override func draw(_ r: NSRect) { NSColor(white: 0, alpha: 0.01).setFill(); bounds.fill() }
@@ -359,6 +419,9 @@ final class PillFace: NSView {
     func placeLine(below: Bool, animated: Bool = false) {
         let lineF = below ? NSRect(x: 0, y: 0, width: PANEL_W, height: LINE_H - 2) : NSRect(x: 0, y: PILL_H + 2, width: PANEL_W, height: LINE_H - 2)
         let pillY: CGFloat = below ? LINE_H : 0
+        if line.superview !== self {      // v27: the display is detached (Magnet.swift): only the pill takes its place
+            pill.frame.origin.y = pillY; needsDisplay = true; return
+        }
         if animated && window?.isVisible == true {
             NSAnimationContext.runAnimationGroup { c in
                 c.duration = 0.28; c.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
