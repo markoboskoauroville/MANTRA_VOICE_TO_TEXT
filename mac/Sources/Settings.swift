@@ -55,14 +55,21 @@ final class SettingsWindow: NSObject, NSTextViewDelegate, NSTextFieldDelegate {
     var styleButtonRadios: [StyleEngine: NSButton] = [:]
     var whisperRow: NSStackView!
     var history: HistoryPane!
+    // v28: the TEXT selector, the typing target and its two ticks
+    static let historyTab = 6
+    var modeRadios: [TextMode: NSButton] = [:]
+    let targetLabel = NSTextField(labelWithString: "none yet: click into a text box")
+    let pasteTick = NSButton(checkboxWithTitle: "When a box ignores Accessibility writing, bring its app to the front and paste (your clipboard is put back)", target: nil, action: nil)
+    let clickTick = NSButton(checkboxWithTitle: "When the box cannot be focused, click into it (only if the click lands on that same box)", target: nil, action: nil)
+    var targetTimer: Timer?
 
     init(onChange: @escaping () -> Void, typeText: @escaping (String) -> Void) {
         self.onChange = onChange
-        window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 900, height: 940), styleMask: [.titled, .closable, .resizable],
+        window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 900, height: 860), styleMask: [.titled, .closable, .resizable],
                           backing: .buffered, defer: false)
         window.title = "Voice to Text (Mantra) v\(appVersion)"
         window.isReleasedWhenClosed = false
-        window.minSize = NSSize(width: 800, height: 600)
+        window.minSize = NSSize(width: 900, height: 560)
         window.appearance = NSAppearance(named: .darkAqua)      // v17: TTT's host look
         window.backgroundColor = Host.bg
         super.init()
@@ -104,7 +111,6 @@ final class SettingsWindow: NSObject, NSTextViewDelegate, NSTextFieldDelegate {
         importButton.setAccessibilityIdentifier("importKeys")
         let retestButton = NSButton(title: "Re-test keys", target: self, action: #selector(retestKeys))
         retestButton.setAccessibilityIdentifier("retestKeys")
-        let keyRows: [NSView] = [row([importButton, retestButton]), importResult]
 
         // THE ENGINE PANEL (v13, TTT's long-press panel): all 13, one click selects; the accuracy of the language chosen beside
         // the name, free or paid and the minutes, and the numbered key in use ("Groq 2/3 in use")
@@ -114,20 +120,31 @@ final class SettingsWindow: NSObject, NSTextViewDelegate, NSTextFieldDelegate {
             let t = label(title, bold: true); t.textColor = Host.muted
             var views: [NSView] = [t, head]
             cards[lang] = [:]
-            for id in Catalog.order(lang) {
-                guard Catalog.byId(id) != nil else { continue }
+            let order = Catalog.order(lang).filter { Catalog.byId($0) != nil }
+            var placed = Set<String>()
+            for (family, ids) in SettingsWindow.families {
+                let inFamily = order.filter { ids.contains($0) }
+                if inFamily.isEmpty { continue }
+                let g = NSTextField(labelWithString: family)
+                g.font = .systemFont(ofSize: 10.5, weight: .bold); g.textColor = Host.gold
+                views.append(g)
+                for id in inFamily {
+                    let c = EngineCard(id: id, lang: lang); c.onPick = { [weak self] l, i in self?.cardPicked(l, i) }
+                    cards[lang]![id] = c; views.append(c); placed.insert(id)
+                }
+            }
+            for id in order where !placed.contains(id) {
                 let c = EngineCard(id: id, lang: lang); c.onPick = { [weak self] l, i in self?.cardPicked(l, i) }
                 cards[lang]![id] = c; views.append(c)
             }
-            let col = NSStackView(views: views); col.orientation = .vertical; col.alignment = .leading; col.spacing = 6
-            col.setCustomSpacing(10, after: head)
+            let col = NSStackView(views: views); col.orientation = .vertical; col.alignment = .leading; col.spacing = 4
+            col.setCustomSpacing(8, after: head)
             for v in views.dropFirst() { v.widthAnchor.constraint(equalTo: col.widthAnchor).isActive = true }
             return col
         }
         let twoColumns = NSStackView(views: [column("hr", "H", "Croatian"), column("en", "E", "English")])
         twoColumns.orientation = .horizontal; twoColumns.distribution = .fillEqually; twoColumns.spacing = 16; twoColumns.alignment = .top
         twoColumns.widthAnchor.constraint(equalToConstant: 840).isActive = true
-        let engineRows: [NSView] = [twoColumns]
         frankfurtTick.target = self; frankfurtTick.action = #selector(frankfurtChanged)
         frankfurtTick.setAccessibilityIdentifier("frankfurt"); frankfurtTick.state = Frankfurt.on ? .on : .off
         frankfurtNote.font = .systemFont(ofSize: 11); frankfurtNote.textColor = Host.muted
@@ -246,53 +263,58 @@ final class SettingsWindow: NSObject, NSTextViewDelegate, NSTextFieldDelegate {
         croatianTick.setAccessibilityIdentifier("correctCroatian")
         routeHeader.font = .systemFont(ofSize: 17, weight: .bold); routeHeader.textColor = Host.muted
         routeHeader.setAccessibilityIdentifier("routeHeader"); routeHeader.setAccessibilityLabel("Route")
-        var views: [NSView] = []
-        views.append(routeHeader)
-        views.append(label("1 · The key that starts and stops listening", bold: true)); views.append(hotkey)
-        views.append(label("2 · Recognition engine for each language: the round button picks who writes down what you say (time · stars)", bold: true))
-        views.append(row([label("Listening in"), langRow]))
-        views.append(frankfurtTick); views.append(frankfurtNote)
-        views.append(contentsOf: engineRows)
-        views.append(row([benchButton, benchNote]))
-        views.append(testTick); views.append(testField)
-        views.append(whisperRow)
-        views.append(label("3 · Correction model: who cleans the text after each take (Anthropic)", bold: true)); views.append(styleRow)
-        views.append(row([label("The STYLE button"), styleButtonRow])); views.append(croatianTick); views.append(anthropicLabel)
-        views.append(label("4 · API keys: read by themselves from ~/Downloads/API; no key is ever shown, only its number", bold: true))
-        views.append(contentsOf: keyRows)
-        views.append(label("Recording device", bold: true)); views.append(device)
-        views.append(label("After hide · while listening", bold: true)); views.append(autoHide); views.append(duckTick)
-        views.append(label("Voice activation", bold: true)); views.append(row([voiceTick, voicePermissions])); views.append(voiceNote)
-        views.append(contentsOf: soundRows)
-        views.append(label("Your additions to auto correct and to STYLE", bold: true)); views.append(note)
-        views.append(row([label("Names"), namesField])); views.append(scroll)
-        let copyright = label("© 2026 Mantra Productions")
-        copyright.font = NSFont.systemFont(ofSize: 11); copyright.textColor = .secondaryLabelColor; copyright.alignment = .center
-        views.append(copyright)
-        let col = NSStackView(views: views)
-        col.orientation = .vertical
-        col.alignment = .leading
-        col.spacing = 10
-        col.edgeInsets = NSEdgeInsets(top: 20, left: 20, bottom: 20, right: 20)
-        // v13: the page scrolls (the engine panel made it taller than a screen): nothing is cut
-        let settingsPage = NSScrollView()
-        settingsPage.hasVerticalScroller = true
-        settingsPage.drawsBackground = false
-        let holder = FlippedView()
-        holder.translatesAutoresizingMaskIntoConstraints = false
-        col.translatesAutoresizingMaskIntoConstraints = false
-        holder.addSubview(col)
-        settingsPage.documentView = holder
-        NSLayoutConstraint.activate([col.leadingAnchor.constraint(equalTo: holder.leadingAnchor),
-                                     col.topAnchor.constraint(equalTo: holder.topAnchor),
-                                     col.bottomAnchor.constraint(equalTo: holder.bottomAnchor),
-                                     holder.widthAnchor.constraint(equalTo: settingsPage.contentView.widthAnchor)])
-        for (title, page) in [("Settings", settingsPage), ("Transcription history", history.view)] {
-            let item = NSTabViewItem(identifier: title)
-            item.label = title
-            item.view = page
-            tabs.addTabViewItem(item)
+        // v28 (Marko, 15.11.2026: "When I open my settings, it's a huge window with many things, and what is at the bottom is
+        // difficult to even access ... I think you need to go with tabs. Maybe the engines should also be grouped"): one tab
+        // per subject, each fitting the window; the engines grouped by family in each column
+        let modeCol = NSStackView(); modeCol.orientation = .vertical; modeCol.alignment = .leading; modeCol.spacing = 6
+        for m in TextMode.allCases {
+            let b = NSButton(radioButtonWithTitle: "\(m.title.uppercased()) (\(m.short)): \(m.explain)", target: self, action: #selector(modePicked(_:)))
+            b.identifier = .init(m.rawValue); b.setAccessibilityIdentifier("textmode-" + m.rawValue); modeRadios[m] = b
+            modeCol.addArrangedSubview(b)
         }
+        pasteTick.state = Prefs.pasteFallback ? .on : .off; pasteTick.target = self; pasteTick.action = #selector(typingTicks)
+        pasteTick.setAccessibilityIdentifier("pasteFallback")
+        clickTick.state = Prefs.clickToFocus ? .on : .off; clickTick.target = self; clickTick.action = #selector(typingTicks)
+        clickTick.setAccessibilityIdentifier("clickToFocus")
+        targetLabel.font = .monospacedSystemFont(ofSize: 12, weight: .regular); targetLabel.textColor = Host.sand
+        targetLabel.setAccessibilityIdentifier("target")
+        func para(_ t: String, _ w: CGFloat = 780) -> NSTextField {
+            let l = label(t); l.lineBreakMode = .byWordWrapping; l.maximumNumberOfLines = 4; l.preferredMaxLayoutWidth = w
+            l.textColor = Host.muted; return l
+        }
+        let enginesTab: [NSView] = [routeHeader,
+                                    row([label("Language", bold: true), langRow]),
+                                    label("Who writes down what you say, one engine per language (time · stars)", bold: true),
+                                    twoColumns, whisperRow!]
+        let textTab: [NSView] = [label("What auto correct and STYLE do (the second selector on the blob)", bold: true), modeCol,
+                                 label("Auto correct after each take (Anthropic)", bold: true), styleRow, croatianTick,
+                                 label("The STYLE button's Claude", bold: true), styleButtonRow, styleNote,
+                                 label("Your additions to auto correct and to STYLE", bold: true), note,
+                                 row([label("Names"), namesField]), scroll]
+        let typingNote = para("The text box you clicked into last, in any app: the words of a take are typed there, and STYLE restyles it (its selection, or all of it). Clicking the blob or STYLE never changes it. Accessibility first; if the box ignores that, its app comes to the front and the text is pasted (your clipboard is put back); COPY only when nothing else works.")
+        let typingTab: [NSView] = [label("The key that starts and stops listening", bold: true), hotkey,
+                                   label("Where the words go", bold: true), typingNote,
+                                   row([label("Last text box:"), targetLabel]), pasteTick, clickTick,
+                                   label("After hide", bold: true), autoHide,
+                                   label("Voice activation", bold: true), row([voiceTick, voicePermissions]), voiceNote]
+        let keysTab: [NSView] = [label("API keys: read by themselves from ~/Downloads/API; no key is ever shown, only its number", bold: true),
+                                 row([importButton, retestButton]), importResult, anthropicLabel,
+                                 label("Route", bold: true), frankfurtTick, frankfurtNote]
+        var soundTab: [NSView] = [label("Recording device", bold: true), device, duckTick]
+        soundTab.append(contentsOf: soundRows)
+        let testTab: [NSView] = [label("Benchmark", bold: true), row([benchButton, benchNote]),
+                                 label("TEST mode", bold: true), testTick, testField]
+        let tabsContent: [(String, [NSView])] = [("Engines", enginesTab), ("Text", textTab), ("Typing", typingTab),
+                                                 ("Keys", keysTab), ("Sound", soundTab), ("Test", testTab)]
+        for (title, views) in tabsContent { addTab(title, page(views)) }
+        addTab("History", history.view)
+        let about: [NSView] = [
+            label("Voice to Text (Mantra) · Vox · version \(appVersion)", bold: true),
+            para("F1 talks; the words are typed into the text box you clicked into last. Two selectors on the blob: the language (EN · HR · AUTO) and the text mode (STY · S+C · COR)."),
+            para("Local API on 127.0.0.1:8865: GET /status, GET /engines, POST /hear?lang=, POST /mode, GET /target, POST /transcribe, GET /job/<id>."),
+            para("Log: ~/Library/Logs/voice-to-text-mantra.log"),
+        ]
+        addTab("About", page(about))
         // the ✕ in the far upper-right corner closes this window (Marko, 19.10.2026: "There is X to close the dialog in
         // every dialog, same."); the tabs keep the rest.
         // v27 (Marko, 31.10.2026: "Each needs to have the same user interface elements. On, off and top. Please build it
@@ -300,7 +322,7 @@ final class SettingsWindow: NSObject, NSTextViewDelegate, NSTextFieldDelegate {
         // the tabs: ON OFF at the left, the name in the centre, TOP and the ✕ at the right (MANTRA_MANIFEST swift-apps.md,
         // "The first row of every app"). OFF quits, refused while a take is open; TOP keeps this window above the others.
         let box = DropBox()          // v15: a file dropped on the window is transcribed (History tab)
-        box.onDrop = { [weak self] url in self?.tabs.selectTabViewItem(at: 1); self?.history.files.start(url) }
+        box.onDrop = { [weak self] url in self?.tabs.selectTabViewItem(at: SettingsWindow.historyTab); self?.history.files.start(url) }
         tabs.translatesAutoresizingMaskIntoConstraints = false
         box.addSubview(tabs)
         let x = closeX(self, #selector(closeWindow), tip: "Close; Voice to Text (Mantra) stays on")
@@ -460,6 +482,58 @@ final class SettingsWindow: NSObject, NSTextViewDelegate, NSTextFieldDelegate {
 
     @objc func closeWindow() { window.performClose(nil) }
 
+    // v28: the engine families of the ENGINES tab (Marko: "grouped, by Whisper, because we have a few Whisper providers, then
+    // Google engines, and so on")
+    static let families: [(String, Set<String>)] = [
+        ("WHISPER · PARAKEET", ["parakeet", "whisper", "groq_turbo", "groq_v3", "cloudflare"]),
+        ("GOOGLE", ["gemini", "google_v1", "google_chirp"]),
+        ("OTHERS", ["deepgram", "assemblyai", "speechmatics", "soniox", "elevenlabs"]),
+    ]
+
+    func addTab(_ title: String, _ view: NSView) {
+        let item = NSTabViewItem(identifier: title)
+        item.label = title
+        item.view = view
+        tabs.addTabViewItem(item)
+    }
+
+    /// a tab's page: its rows from the top, the copyright line last; it scrolls only on a screen too small for it
+    func page(_ views: [NSView]) -> NSScrollView {
+        let copyright = NSTextField(labelWithString: "© 2026 Mantra Productions")
+        copyright.font = NSFont.systemFont(ofSize: 11); copyright.textColor = .secondaryLabelColor
+        let col = NSStackView(views: views + [copyright])
+        col.orientation = .vertical
+        col.alignment = .leading
+        col.spacing = 10
+        col.setCustomSpacing(18, after: views.last ?? copyright)
+        col.edgeInsets = NSEdgeInsets(top: 16, left: 20, bottom: 16, right: 20)
+        let sc = NSScrollView()
+        sc.hasVerticalScroller = true
+        sc.autohidesScrollers = true
+        sc.drawsBackground = false
+        let holder = FlippedView()
+        holder.translatesAutoresizingMaskIntoConstraints = false
+        col.translatesAutoresizingMaskIntoConstraints = false
+        holder.addSubview(col)
+        sc.documentView = holder
+        NSLayoutConstraint.activate([col.leadingAnchor.constraint(equalTo: holder.leadingAnchor),
+                                     col.topAnchor.constraint(equalTo: holder.topAnchor),
+                                     col.bottomAnchor.constraint(equalTo: holder.bottomAnchor),
+                                     holder.widthAnchor.constraint(equalTo: sc.contentView.widthAnchor)])
+        return sc
+    }
+
+    @objc func modePicked(_ b: NSButton) {
+        if let m = TextMode(rawValue: b.identifier?.rawValue ?? "") { TextMode.current = m; appendLog("text mode: \(m.title)") }
+        paintChoices(); onChange()
+    }
+    @objc func typingTicks() {
+        Prefs.pasteFallback = pasteTick.state == .on
+        Prefs.clickToFocus = clickTick.state == .on
+        appendLog("typing: paste \(Prefs.pasteFallback ? "on" : "off"), click to focus \(Prefs.clickToFocus ? "on" : "off")")
+    }
+    func paintTarget() { targetLabel.stringValue = TextTarget.shared.last?.describe ?? "none yet: click into a text box" }
+
     // v12: the round buttons
     func paintChoices() {
         let h = HearEngine.current
@@ -471,6 +545,7 @@ final class SettingsWindow: NSObject, NSTextViewDelegate, NSTextFieldDelegate {
         for (l, b) in langRadios { b.state = l == h.lang ? .on : .off }
         for (e, b) in styleRadios { b.state = e == StyleEngine.current ? .on : .off }
         for (e, b) in styleButtonRadios { b.state = e == StyleButtonEngine.current ? .on : .off }
+        for (m, b) in modeRadios { b.state = m == TextMode.current ? .on : .off }
         whisperRow?.isHidden = Ears.current == .server
     }
     @objc func langPicked(_ b: NSButton) {
@@ -537,7 +612,13 @@ final class SettingsWindow: NSObject, NSTextViewDelegate, NSTextFieldDelegate {
             self.showVoicePermissions()
             if was != self.voicePermissions.isHidden, self.voicePermissions.isHidden, VoiceWords.enabled { stripe.voiceChanged() }
         }
-        tabs.selectTabViewItem(at: tab)
+        paintTarget()
+        targetTimer?.invalidate()
+        targetTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] t in
+            guard let self, self.window.isVisible else { t.invalidate(); return }
+            self.paintTarget()
+        }
+        tabs.selectTabViewItem(at: min(max(tab, 0), tabs.numberOfTabViewItems - 1))
         paintTop()                                              // v27: TOP as remembered
         if !window.isVisible { window.center() }
         NSApp.activate(ignoringOtherApps: true)

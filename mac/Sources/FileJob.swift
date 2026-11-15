@@ -165,7 +165,7 @@ enum FileJobs {
     /// the window shows it (brought front, History tab)
     static func present(_ j: FileJob) {
         DispatchQueue.main.async {
-            stripe.openSettings(tab: 1)
+            stripe.openSettings(tab: SettingsWindow.historyTab)
             stripe.settings?.history.files.watch(j)
         }
     }
@@ -449,7 +449,27 @@ enum FileAPI {
         if method == "POST", path == "/engines/select" { return select(body) }
         if method == "GET", path == "/status" {
             return (200, ["app": "Voice to Text (Mantra)", "version": appVersion, "api": 1, "port": Int(port), "busy": FileJobs.busy,
-                          "jobs": FileJobs.order.count, "engine": HearEngine.current.id])
+                          "jobs": FileJobs.order.count, "engine": HearEngine.current.id,
+                          // v28: the two selectors and the text box Vox would write into
+                          "language": HearEngine.current.lang, "text_mode": TextMode.current.rawValue,
+                          "modes": ["language": HearEngine.langs, "text": TextMode.allCases.map(\.rawValue)],
+                          "target": TextTarget.shared.last?.json ?? [:]])
+        }
+        if method == "GET", path == "/target" {          // v28: the last text box clicked or focused (never Vox's own)
+            return (200, ["target": TextTarget.shared.last?.json ?? [:]])
+        }
+        if method == "POST", path == "/mode" {           // v28: {"language"?: en|hr|auto, "text"?: style|style_correct|correct}
+            let b = ((try? JSONSerialization.jsonObject(with: body)) as? [String: Any]) ?? [:]
+            if let l = b["language"] as? String {
+                guard HearEngine.langs.contains(l) else { return (400, ["error": "language is en, hr or auto"]) }
+                HearEngine.setLang(l)
+            }
+            if let m = b["text"] as? String {
+                guard let tm = TextMode(rawValue: m) else { return (400, ["error": "text is style, style_correct or correct"]) }
+                TextMode.current = tm
+            }
+            DispatchQueue.main.async { stripe.refresh(); stripe.ready(); stripe.settings?.paintChoices() }
+            return (200, ["language": HearEngine.current.lang, "text_mode": TextMode.current.rawValue])
         }
         if method == "POST", path == "/test" {          // v24: TEST mode {"on": bool, "reference"?: "sentence"}
             guard let b = (try? JSONSerialization.jsonObject(with: body)) as? [String: Any] else { return (400, ["error": "send {\"on\": true, \"reference\"?: \"the sentence\"}"]) }
@@ -492,7 +512,7 @@ enum FileAPI {
             FileJobs.present(j)
             return (200, ["id": j.id, "status": "started"])
         }
-        return (404, ["error": "GET /status, GET /engines, POST /transcribe, GET /job/<id>, POST /hear?lang=en|hr|auto, POST /test"])
+        return (404, ["error": "GET /status, GET /engines, POST /transcribe, GET /job/<id>, POST /hear?lang=en|hr|auto, POST /test, POST /mode, GET /target"])
     }
 
     /// v23 (Marko, 15.11.2026, for Talk Mode (Mantra): "It needs to use my engine basically, voice to text, the same one I'm
@@ -548,7 +568,8 @@ enum FileAPI {
         let r = Hear.run(e, wav: url)
         let usedTitle = Hear.used ?? e.title
         var out: [String: Any] = ["engine": Stats.decorate(hear: usedTitle), "engine_id": id, "route": Hear.route ?? "",
-                                  "lang": Hear.lastLang ?? lang, "secs": (Date().timeIntervalSince(t0) * 100).rounded() / 100]
+                                  "lang": Hear.lastLang ?? lang, "secs": (Date().timeIntervalSince(t0) * 100).rounded() / 100,
+                                  "text_mode": TextMode.current.rawValue]
         switch r {
         case .success(let t): out["ok"] = true; out["text"] = corrected(t)
         case .failure(let err): out["ok"] = false; out["text"] = ""; out["error"] = err.message

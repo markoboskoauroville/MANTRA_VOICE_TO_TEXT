@@ -203,30 +203,20 @@ enum Typer {
         return AXUIElementCopyAttributeValue(el, kAXValueAttribute as CFString, &v) == .success ? v as? String : nil
     }
 
+    /// v28: the box of TextTarget (the focused one, else the last one he clicked or focused, never Vox), off the main thread:
+    /// Accessibility, else pasted into it brought to the front, else nowhere (COPY). `done` on the main thread.
     static func insert(_ text: String, _ done: @escaping (Landing) -> Void) {
-        let system = AXUIElementCreateSystemWide()
-        var focused: AnyObject?
-        guard AXUIElementCopyAttributeValue(system, kAXFocusedUIElementAttribute as CFString, &focused) == .success,
-              let el = focused else { done(.nowhere); return }
-        let field = el as! AXUIElement
-        var roleRef: AnyObject?
-        AXUIElementCopyAttributeValue(field, kAXRoleAttribute as CFString, &roleRef)
-        let role = roleRef as? String ?? ""
-        var settable = DarwinBoolean(false)
-        AXUIElementIsAttributeSettable(field, kAXSelectedTextAttribute as CFString, &settable)
-        let before = value(field)
-        let snippet = String(text.prefix(20))
-        if settable.boolValue, AXUIElementSetAttributeValue(field, kAXSelectedTextAttribute as CFString, text as CFTypeRef) == .success,
-           let after = value(field), after != (before ?? ""), after.contains(snippet) {
-            lastField = field
-            done(.typed); return
-        }
-        // a focus that is no text field at all (a button, the desktop, a list): nothing would land, so nothing is pasted
-        if !textRoles.contains(role) && !settable.boolValue && role != "AXWebArea" { done(.nowhere); return }
-        paste(text)
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
-            if let after = value(field), after == (before ?? ""), !after.contains(snippet) { done(.nowhere) }
-            else { lastField = field; done(.pasted) }                       // read back, or a field that cannot be read (believed)
+        DispatchQueue.global(qos: .userInitiated).async {
+            guard let b = TextTarget.shared.resolve() else {
+                appendLog("typing: no text box (none focused, none clicked yet): COPY")
+                DispatchQueue.main.async { done(.nowhere) }
+                return
+            }
+            let l = Writer.insert(text, into: b)
+            DispatchQueue.main.async {
+                if l != .nowhere { lastField = b.element }
+                done(l)
+            }
         }
     }
 
@@ -266,6 +256,7 @@ enum Restyle {
         let range: CFRange?          // nil: the selection as it stands (its range could not be read)
         let text: String
         let what: String             // "the selection", "the words typed last", "the whole box"
+        var viaKeys = false          // v28: read with ⌘A ⌘C (a web box that does not let its text be read)
     }
 
     enum Found { case target(Target), noFocus, ownWindow, empty(String), unreadable(String) }
@@ -291,12 +282,16 @@ enum Restyle {
     }
 
     /// the focused field of the whole Mac and what in it is to be restyled
+    /// v28: the box of TextTarget (focused now, else the last one clicked or focused; never Vox's own windows). A box whose
+    /// text cannot be read by Accessibility is read with ⌘A ⌘C in it (his clipboard put back).
     static func find(lastTyped: String) -> Found {
-        guard let field = focusedElement() else { return .noFocus }
-        var pid: pid_t = 0
-        AXUIElementGetPid(field, &pid)
-        if pid == getpid() { return .ownWindow }       // our own windows: AX to ourselves on the main thread would hang
-        return find(in: field, lastTyped: lastTyped)
+        guard let b = TextTarget.shared.resolve() else { return .noFocus }
+        let f = find(in: b.element, lastTyped: lastTyped)
+        if case .unreadable = f, let text = Writer.copyOut(b.element) {
+            if text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { return .empty(b.role) }
+            return .target(Target(field: b.element, range: nil, text: text, what: "the whole box", viaKeys: true))
+        }
+        return f
     }
 
     static func find(in field: AXUIElement, lastTyped: String) -> Found {
@@ -330,6 +325,32 @@ enum Restyle {
     /// text AND the new one (Marko, 8.11.2026: "it echoes the text two times"). So the result is compared with exactly
     /// what the box should now hold; if it differs, the whole box is set to that, or all of it is selected and typed over.
     static func write(_ new: String, to t: Target) -> Written {
+        if t.viaKeys {               // read by keys: written by keys (the whole box is still selected)
+            guard Writer.paste(new, into: t.field, selectAll: true) else { return .failed }
+            appendLog("STYLE write: pasted over the whole box (\(role(t.field)))")
+            return .believed
+        }
+        let r = writeAX(new, to: t)
+        if r != .failed { return r }
+        // v28: the box ignores Accessibility writing (Chrome, Electron): its app in front, the text pasted
+        let before = Typer.value(t.field)
+        var expected: String? = nil
+        if let b = before, let rg = t.range, rg.location >= 0, rg.location + rg.length <= (b as NSString).length {
+            expected = (b as NSString).replacingCharacters(in: NSRange(location: rg.location, length: rg.length), with: new)
+        }
+        let ok: Bool
+        if t.what == "the selection" { ok = Writer.paste(new, into: t.field, selectAll: false) }      // his selection is still there
+        else if let exp = expected { ok = Writer.paste(exp, into: t.field, selectAll: true) }         // the whole box, the range replaced
+        else { ok = Writer.paste(new, into: t.field, selectAll: true) }
+        guard ok else { return .failed }
+        let after = Typer.value(t.field)
+        appendLog("STYLE write: pasted (\(role(t.field)))")
+        if after == nil { return .believed }
+        if after == before { return .failed }
+        return .replaced
+    }
+
+    static func writeAX(_ new: String, to t: Target) -> Written {
         let field = t.field
         let before = Typer.value(field)
         let probe = String(new.prefix(24))

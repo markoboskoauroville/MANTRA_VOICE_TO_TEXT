@@ -174,7 +174,8 @@ final class Stripe: NSObject {
                         style: { [weak self] in self?.stylePressed() },
                         copy: { [weak self] in self?.copyPressed() },
                         gear: { [weak self] in self?.openSettingsTab() },   // v12: the gear opens ⚙ itself, no menu
-                        send: { [weak self] in self?.sendPressed() })
+                        send: { [weak self] in self?.sendPressed() },
+                        mode: { [weak self] in self?.toggleMode() })
         face.line.clicked = { [weak self] in self?.statusClicked() }
         face.placeLine(below: Prefs.lineBelow)
         panel.contentView = face
@@ -194,6 +195,7 @@ final class Stripe: NSObject {
         }
         panel.orderFrontRegardless()
         Magnet.shared.setup(self)         // v27: the display and the body may be detached; the state of the last run comes back
+        TextTarget.shared.start()         // v28: the last text box he clicked or focused, for typing and for STYLE
 
         // Typing into other apps needs Accessibility; macOS asks him once.
         _ = AXIsProcessTrustedWithOptions([kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary)
@@ -262,6 +264,21 @@ final class Stripe: NSObject {
             self.panel.setFrame(self.panel.constrainFrameRect(NSRect(origin: o, size: self.panel.frame.size), to: sc), display: true)
             self.flipStrip()
         }
+        // v28 test hooks (no mouse, no voice): STYLE pressed; a text typed as a take's words would be; the two selectors set
+        DistributedNotificationCenter.default().addObserver(forName: Notification.Name(prefix + ".style"), object: nil, queue: .main) { [weak self] _ in self?.stylePressed() }
+        DistributedNotificationCenter.default().addObserver(forName: Notification.Name(prefix + ".typetext"), object: nil, queue: .main) { [weak self] n in
+            guard let self, let t = n.object as? String, !t.isEmpty else { return }
+            self.lastText = t
+            Typer.insert(t) { l in
+                appendLog("typetext test: \(l == .typed ? "typed" : l == .pasted ? "pasted" : "nowhere")")
+                if l == .nowhere { self.notLanded("did not land") } else { self.say(l == .typed ? "typed (test)" : "pasted (test)", Ink.green) }
+            }
+        }
+        DistributedNotificationCenter.default().addObserver(forName: Notification.Name(prefix + ".mode"), object: nil, queue: .main) { [weak self] n in
+            if let l = n.userInfo?["lang"] as? String, HearEngine.langs.contains(l) { HearEngine.setLang(l) }
+            if let m = n.userInfo?["text"] as? String, let tm = TextMode(rawValue: m) { TextMode.current = tm }
+            self?.refresh(); self?.ready(); self?.settings?.paintChoices()
+        }
         DistributedNotificationCenter.default().addObserver(forName: Notification.Name(prefix + ".flipline"), object: nil, queue: .main) { [weak self] _ in self?.statusClicked() }
         DistributedNotificationCenter.default().addObserver(forName: Notification.Name(prefix + ".history"), object: nil, queue: .main) { [weak self] _ in self?.openHistory() }
         DistributedNotificationCenter.default().addObserver(forName: Notification.Name(prefix + ".settings"), object: nil, queue: .main) { [weak self] _ in self?.openSettingsTab() }
@@ -283,6 +300,9 @@ final class Stripe: NSObject {
     // the pill at rest: HR / EN, pause and the wave quiet, the blue button ready to start
     func refresh() {
         face.lang.text = HearEngine.current.lang.uppercased()
+        face.mode.text = TextMode.current.short
+        face.mode.axLabel = "Text mode: " + TextMode.current.title
+        face.lang.axLabel = "Language: " + ["en": "English", "hr": "Croatian", "auto": "Auto (Croatian and English)"][HearEngine.current.lang, default: "Auto"]
         face.pause.live = recorder.recording
         // v17 (Marko, 31.10.2026: "tile should be always available, grayed out. When I press it, while it's working, it's
         // becoming green"): STYLE always there and pressable, grey at rest, green while it works
@@ -294,7 +314,8 @@ final class Stripe: NSObject {
     // who hears and who cleans, in the small letters above the pill (as the Claude blob names its voice engine)
     var engines: String {
         "\(HearEngine.current.title.uppercased())\(Stats.tag(HearEngine.current.id, HearEngine.current.lang)) · " +
-            (StyleEngine.current == .off ? "NO AUTO CORRECT" : "AUTO CORRECT: \(StyleEngine.current.title.uppercased())")
+            (StyleEngine.current == .off ? "NO AUTO CORRECT · STYLE: \(TextMode.current.title.uppercased())"
+                                         : "\(TextMode.current.title.uppercased()): \(StyleEngine.current.title.uppercased())")
     }
 
     func say(_ text: String, _ color: NSColor, tip: String? = nil) {
@@ -412,6 +433,15 @@ final class Stripe: NSObject {
         // EN → HR → AUTO within the same model (v15; v8 Parakeet; v12 AssemblyAI)
         HearEngine.cycleLang()
         refresh(); recorder.recording ? showListening() : ready()
+        settings?.paintChoices()
+    }
+
+    // v28: the TEXT selector: STY → S+C → COR (what the auto correct after a take and STYLE do)
+    @objc func toggleMode() {
+        TextMode.cycle()
+        appendLog("text mode: \(TextMode.current.title)")
+        refresh(); recorder.recording ? showListening() : ready()
+        settings?.paintChoices()
     }
 
     // WHILE THE TAKE IS WRITTEN DOWN AND STYLED: the Braille spinner in front of the words, the meter quiet (request 13:
@@ -486,7 +516,7 @@ final class Stripe: NSObject {
         escape = HotKey(code: UInt32(kVK_Escape), id: 2) { [weak self] in self?.cancelProcessing() }
         dot.color = Ink.amber
         say("writing it down…", Ink.amber)
-        let hear = HearEngine.current, styleChosen = StyleEngine.current
+        let hear = HearEngine.current, styleChosen = StyleEngine.current, textMode = TextMode.current
         let byVoice = voiceTake
         voiceTake = false
         DispatchQueue.global().async {
@@ -522,7 +552,7 @@ final class Stripe: NSObject {
             if style != .off { DispatchQueue.main.async { self.say("auto correct (\(style.title))…", Ink.amber) } }
             let t1 = Date()
             var final = corrected(words), warning: String?
-            switch Style.run(style, text: words, lang: lang) {
+            switch Style.run(style, text: words, lang: lang, mode: textMode) {
             case .success(let t): final = t
             case .failure(let e):
                 warning = "not auto corrected: " + e.message        // the words as heard still go in, he is never left with nothing
@@ -585,7 +615,7 @@ final class Stripe: NSObject {
     }
 
     // History… opens ⚙ on its second tab, Transcription history (request 14).
-    @objc func openHistory() { openSettings(tab: 1) }
+    @objc func openHistory() { openSettings(tab: SettingsWindow.historyTab) }
 
     @objc func openSettingsTab() { openSettings(tab: 0) }
 
@@ -729,7 +759,7 @@ final class Stripe: NSObject {
         say("STYLE: looking for a text box…", Ink.amber)
         refresh()
         let last = lastText, lastL = lastLang
-        let engine = StyleButtonEngine.current
+        let engine = StyleButtonEngine.current, mode = TextMode.current
         // the focus is read at the press: the blob never takes it (a non-activating panel)
         DispatchQueue.global().async { [weak self] in
             let found = Stripe.bounded(2.0) { Restyle.find(lastTyped: last) }
@@ -745,6 +775,8 @@ final class Stripe: NSObject {
                     if t.text == last { lang = lastL }
                 case .ownWindow:
                     self.styleDone(false, "STYLE: no text box found (click into the box you want styled)"); return
+                case .noFocus where last.isEmpty:
+                    self.styleDone(false, "STYLE: no text box found (click into the box you want styled, then STYLE)"); return
                 case .empty:
                     self.styleDone(false, "STYLE: this text box is empty"); return
                 case .noFocus, .unreadable:
@@ -753,9 +785,9 @@ final class Stripe: NSObject {
                     lang = lastL
                 }
                 let source = target?.text ?? last
-                self.say("styling \(target?.what ?? "the last take") (\(engine.title))…", Ink.amber)
+                self.say("\(mode.title.lowercased()): \(target?.what ?? "the last take") (\(engine.title))…", Ink.amber)
                 DispatchQueue.global().async {
-                    let r = Stripe.bounded(12.0) { Style.run(engine, text: source, lang: lang) }
+                    let r = Stripe.bounded(12.0) { Style.run(engine, text: source, lang: lang, mode: mode) }
                     guard let r else {
                         DispatchQueue.main.async { self.styleDone(false, "STYLE: the style engine timed out"); appendLog("STYLE timed out (\(engine.title))") }
                         return
@@ -764,7 +796,7 @@ final class Stripe: NSObject {
                     var styled = ""
                     if case .success(let s) = r {
                         styled = s
-                        if s != source, let t = target { written = Stripe.bounded(2.0) { Restyle.write(s, to: t) } ?? .failed }
+                        if s != source, let t = target { written = Stripe.bounded(3.5) { Restyle.write(s, to: t) } ?? .failed }
                     }
                     DispatchQueue.main.async {
                         switch r {
@@ -1145,7 +1177,7 @@ if let i = CommandLine.arguments.firstIndex(of: "--pill-shot"), i + 1 < CommandL
         let f = PillFace(close: {}, lang: {}, pause: {}, style: {}, copy: {}, gear: {}, send: {})
         f.wave.color = wave; f.placeLine(below: below)
         f.line.stringValue = line; f.line.textColor = colour
-        f.lang.text = "AUTO"; f.send.symbol = send; f.pause.live = pause; f.light(autoCorrect: autoCorrect, styling: styling, unlanded: unlanded, copying: copying)
+        f.lang.text = "AUTO"; f.mode.text = "S+C"; f.send.symbol = send; f.pause.live = pause; f.light(autoCorrect: autoCorrect, styling: styling, unlanded: unlanded, copying: copying)
         f.wave.moving = db != nil; f.wave.take(db)
         try? f.png()?.write(to: dir.appendingPathComponent(name))
     }

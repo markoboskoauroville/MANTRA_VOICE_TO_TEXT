@@ -30,14 +30,16 @@ final class EngineCard: NSView {
     var sub = "" { didSet { needsDisplay = true } }
     init(id: String, lang: String) {
         self.id = id; self.lang = lang
-        super.init(frame: NSRect(x: 0, y: 0, width: 300, height: 52))
+        // v28: 34 pt (was 52) so the grouped thirteen fit the ENGINES tab without scrolling
+        super.init(frame: NSRect(x: 0, y: 0, width: 300, height: EngineCard.H))
         translatesAutoresizingMaskIntoConstraints = false
-        heightAnchor.constraint(equalToConstant: 52).isActive = true
+        heightAnchor.constraint(equalToConstant: EngineCard.H).isActive = true
         addTrackingArea(NSTrackingArea(rect: .zero, options: [.mouseEnteredAndExited, .activeInKeyWindow, .inVisibleRect], owner: self))
         setAccessibilityRole(.radioButton); setAccessibilityIdentifier("engine-\(lang)-\(id)")
     }
     required init?(coder: NSCoder) { fatalError() }
-    override var intrinsicContentSize: NSSize { NSSize(width: NSView.noIntrinsicMetric, height: 52) }
+    static let H: CGFloat = 34
+    override var intrinsicContentSize: NSSize { NSSize(width: NSView.noIntrinsicMetric, height: EngineCard.H) }
     override func mouseEntered(with e: NSEvent) { if usable { hovering = true } }
     override func mouseExited(with e: NSEvent) { hovering = false }
     override func mouseDown(with e: NSEvent) { if usable { onPick?(lang, id) } }
@@ -46,20 +48,20 @@ final class EngineCard: NSView {
     override func accessibilityLabel() -> String? { name + " " + pct }
     override func draw(_ r: NSRect) {
         let box = bounds.insetBy(dx: 1, dy: 1)
-        let p = NSBezierPath(roundedRect: box, xRadius: 12, yRadius: 12)
+        let p = NSBezierPath(roundedRect: box, xRadius: 9, yRadius: 9)
         (hovering ? Host.lit : Host.key).setFill(); p.fill()
         if chosen { Host.red.withAlphaComponent(0.14).setFill(); p.fill() }
         (chosen ? Host.red : NSColor(white: 1, alpha: 0.10)).setStroke(); p.lineWidth = chosen ? 2 : 1; p.stroke()
         let cy = bounds.midY
-        let ring = NSBezierPath(ovalIn: NSRect(x: 14, y: cy - 9, width: 18, height: 18).insetBy(dx: 1, dy: 1))
+        let ring = NSBezierPath(ovalIn: NSRect(x: 12, y: cy - 8, width: 16, height: 16).insetBy(dx: 1, dy: 1))
         (chosen ? Host.red : Host.muted).setStroke(); ring.lineWidth = 2; ring.stroke()
-        if chosen { Host.red.setFill(); NSBezierPath(ovalIn: NSRect(x: 19, y: cy - 4, width: 8, height: 8)).fill() }
-        let title = NSMutableAttributedString(string: name, attributes: [.font: NSFont.systemFont(ofSize: 14, weight: .semibold), .foregroundColor: Host.ink])
-        if !pct.isEmpty { title.append(NSAttributedString(string: " " + pct, attributes: [.font: NSFont.monospacedDigitSystemFont(ofSize: 14, weight: .semibold), .foregroundColor: Host.gold])) }
-        let w = bounds.width - 46 - 10
-        title.draw(with: NSRect(x: 44, y: cy + 1, width: w, height: 20), options: [.truncatesLastVisibleLine, .usesLineFragmentOrigin], context: nil)
-        NSAttributedString(string: sub, attributes: [.font: NSFont.systemFont(ofSize: 11), .foregroundColor: Host.muted])
-            .draw(with: NSRect(x: 44, y: cy - 19, width: w, height: 16), options: [.truncatesLastVisibleLine, .usesLineFragmentOrigin], context: nil)
+        if chosen { Host.red.setFill(); NSBezierPath(ovalIn: NSRect(x: 16.5, y: cy - 3.5, width: 7, height: 7)).fill() }
+        let title = NSMutableAttributedString(string: name, attributes: [.font: NSFont.systemFont(ofSize: 13, weight: .semibold), .foregroundColor: Host.ink])
+        if !pct.isEmpty { title.append(NSAttributedString(string: " " + pct, attributes: [.font: NSFont.monospacedDigitSystemFont(ofSize: 13, weight: .semibold), .foregroundColor: Host.gold])) }
+        let w = bounds.width - 40 - 8
+        title.draw(with: NSRect(x: 38, y: cy - 1, width: w, height: 17), options: [.truncatesLastVisibleLine, .usesLineFragmentOrigin], context: nil)
+        NSAttributedString(string: sub, attributes: [.font: NSFont.systemFont(ofSize: 10.5), .foregroundColor: Host.muted])
+            .draw(with: NSRect(x: 38, y: cy - 15, width: w, height: 14), options: [.truncatesLastVisibleLine, .usesLineFragmentOrigin], context: nil)
     }
     override var isFlipped: Bool { false }
 }
@@ -70,15 +72,15 @@ final class ColumnHead: NSView {
     var ringColour = Host.red
     override init(frame: NSRect) {
         super.init(frame: frame); translatesAutoresizingMaskIntoConstraints = false
-        heightAnchor.constraint(equalToConstant: 48).isActive = true
+        heightAnchor.constraint(equalToConstant: 38).isActive = true
     }
     required init?(coder: NSCoder) { fatalError() }
     override func draw(_ r: NSRect) {
-        let p = NSBezierPath(roundedRect: bounds.insetBy(dx: 1, dy: 1), xRadius: 24, yRadius: 24)
+        let p = NSBezierPath(roundedRect: bounds.insetBy(dx: 1, dy: 1), xRadius: 19, yRadius: 19)
         Host.key.setFill(); p.fill(); ringColour.setStroke(); p.lineWidth = 2; p.stroke()
-        let s = NSMutableAttributedString(string: letter + "  ", attributes: [.font: NSFont.systemFont(ofSize: 20, weight: .bold), .foregroundColor: Host.ink])
-        s.append(NSAttributedString(string: engine, attributes: [.font: NSFont.systemFont(ofSize: 17), .foregroundColor: Host.sand]))
-        if !pct.isEmpty { s.append(NSAttributedString(string: " " + pct, attributes: [.font: NSFont.monospacedDigitSystemFont(ofSize: 17, weight: .regular), .foregroundColor: Host.gold])) }
+        let s = NSMutableAttributedString(string: letter + "  ", attributes: [.font: NSFont.systemFont(ofSize: 17, weight: .bold), .foregroundColor: Host.ink])
+        s.append(NSAttributedString(string: engine, attributes: [.font: NSFont.systemFont(ofSize: 15), .foregroundColor: Host.sand]))
+        if !pct.isEmpty { s.append(NSAttributedString(string: " " + pct, attributes: [.font: NSFont.monospacedDigitSystemFont(ofSize: 15, weight: .regular), .foregroundColor: Host.gold])) }
         let h = s.size().height
         s.draw(with: NSRect(x: 18, y: bounds.midY - h / 2, width: bounds.width - 30, height: h), options: [.truncatesLastVisibleLine, .usesLineFragmentOrigin], context: nil)
     }

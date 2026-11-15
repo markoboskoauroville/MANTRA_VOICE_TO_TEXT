@@ -8,7 +8,7 @@
 // does each is a choice on the stripe, remembered.
 import Foundation
 
-let appVersion = 27
+let appVersion = 28
 let VERSION = appVersion              // the Updater kit reads these two
 let APP_NAME = "Voice to Text (Mantra)"
 
@@ -70,7 +70,57 @@ enum StyleButtonEngine {
     }
 }
 
+// v28 (Marko, 15.11.2026: "Next to Auto, Croatian and English comes Styling, Styling plus Correction, and Correction only.
+// Correction means correcting spelling mistakes, Styling means correcting style, and Styling plus Correction corrects
+// both."): the second selector on the pill. LANGUAGE (EN · HR · AUTO) x TEXT (these three) = nine modes; the TEXT mode
+// decides what the auto correct after a take and the STYLE button do.
+enum TextMode: String, CaseIterable {
+    case style, styleCorrect = "style_correct", correct
+
+    var title: String {
+        switch self {
+        case .style: return "Style"
+        case .styleCorrect: return "Style + Correct"
+        case .correct: return "Correct"
+        }
+    }
+    /// the pill's word (three letters, as EN / HR)
+    var short: String {
+        switch self {
+        case .style: return "STY"
+        case .styleCorrect: return "S+C"
+        case .correct: return "COR"
+        }
+    }
+    var explain: String {
+        switch self {
+        case .style: return "style only: repetitions, filler words and order cleaned, short paragraphs; spelling left as it is"
+        case .styleCorrect: return "style and correction: both at once"
+        case .correct: return "correction only: spelling, grammar, punctuation and misheard words; your wording and order stay"
+        }
+    }
+    static var current: TextMode {
+        get { TextMode(rawValue: UserDefaults.standard.string(forKey: "textMode") ?? "") ?? .styleCorrect }
+        set { UserDefaults.standard.set(newValue.rawValue, forKey: "textMode") }
+    }
+    /// STY → S+C → COR → STY (the pill's button)
+    static func cycle() {
+        let all = TextMode.allCases
+        current = all[((all.firstIndex(of: current) ?? 0) + 1) % all.count]
+    }
+}
+
 enum Prefs {
+    // v28: when a box ignores Accessibility writing, its app is brought to the front and the text pasted (else: COPY)
+    static var pasteFallback: Bool {
+        get { UserDefaults.standard.object(forKey: "pasteFallback") as? Bool ?? true }
+        set { UserDefaults.standard.set(newValue, forKey: "pasteFallback") }
+    }
+    // v28: a real click at the box's centre when it cannot be focused by Accessibility (only if the click lands on that box)
+    static var clickToFocus: Bool {
+        get { UserDefaults.standard.object(forKey: "clickToFocus") as? Bool ?? true }
+        set { UserDefaults.standard.set(newValue, forKey: "clickToFocus") }
+    }
     // v22: the status line below the pill instead of above (a short click on it flips it)
     static var lineBelow: Bool {
         get { UserDefaults.standard.bool(forKey: "lineBelow") }
@@ -208,8 +258,46 @@ enum Rules {
 
     """
 
+    // v28: CORRECT only (spelling, grammar, punctuation, misheard words), the wording and the layout as they are
+    static let correctOnly = """
+    You correct a message that a person dictated and a speech recogniser wrote down. Reply with the corrected message only, nothing before or after it.
+
+    This is a correction, not an edit. Fix only what is wrong: spelling, grammar, punctuation, capitals, apostrophes, and the words the recogniser clearly misheard (choose the word that makes sense in the sentence).
+
+    Keep everything else exactly as it is: their words, their order, their sentences, their repetitions and filler words, their tone and their paragraphs. Do not shorten, rephrase, reorder, summarise or restyle. Keep their point of view, every fact, name, number and date. Add nothing.
+
+    If nothing is wrong, reply with the message unchanged.
+
+    """
+
+    // v28: STYLE only (the style rules of `base`), the spelling of the words kept as written
+    static let styleOnly = """
+    You restyle a message that a person dictated and a speech recogniser wrote down. Reply with the restyled message only, nothing before or after it.
+
+    This is a style edit, not a correction and not a summary. Do not correct spelling, grammar or misheard words: every word you keep stays exactly as it is written. Keep their sentences, their words and their order as far as the style allows.
+
+    Keep their point of view exactly: "I", "me", "my" stay "I", "me", "my", and "you" stays "you". A request stays a request, with its "please" and its "if you can". A wish stays a wish. Never change who does what.
+
+    Remove repetitions, false starts ("no wait") and filler words (um, uh, you know, like, I mean, ono, ovaj, znači, dakle). When they say the same thing twice, keep it once. When an explanation is confused, say it once, clearly, in the order that makes sense.
+
+    Keep every fact, name, number, date, request and decision. Add nothing they did not say. Do not soften what they said firmly and do not make firmer what they said gently. Keep English words mixed into Croatian.
+
+    Style: short paragraphs of one or two sentences, each paragraph on its own line, with no empty line between paragraphs. Plain everyday words. Written to one person as "you". The reason comes before the request. Warm, never gushing.
+
+    Never use dashes, bullet points, headings, bold, exclamation marks or emoji.
+
+    """
+
+    static func fixed(_ mode: TextMode) -> String {
+        switch mode {
+        case .styleCorrect: return base
+        case .correct: return correctOnly
+        case .style: return styleOnly
+        }
+    }
+
     // The fixed part first (so a cache can hold it), then his additions, then the language, named.
-    static func system(lang: String) -> (fixed: String, tail: String) {
+    static func system(lang: String, mode: TextMode = .styleCorrect) -> (fixed: String, tail: String) {
         var tail = ""
         if !Prefs.names.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { tail += "Names, spelled like this: \(Prefs.names)\n\n" }
         if !Prefs.extra.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { tail += "Also, from the person: \(Prefs.extra)\n\n" }
@@ -219,15 +307,19 @@ enum Rules {
             let name = lang == "hr" ? "Croatian" : "English"
             tail += "The message is in \(name). Write the result in \(name) and in no other language."
         }
-        return (base, tail)
+        return (fixed(mode), tail)
     }
 }
 
 enum Style {
-    static func run(_ engine: StyleEngine, text: String, lang: String) -> Result<String, EngineError> {
+    /// v28: `mode` is the TEXT selector (style, style + correct, correct); TextMode.current unless named
+    static func run(_ engine: StyleEngine, text: String, lang: String, mode: TextMode = TextMode.current) -> Result<String, EngineError> {
         let input = corrected(text)
         guard engine != .off else { return .success(input) }
-        return Claude.style(input, lang: lang, family: engine.rawValue).map(corrected).map(noEmptyLines)
+        // test (no Claude call, nothing spent): `defaults write com.mantra.voicetotext testStyleFake -bool true` writes the text
+        // in capitals, with the mode in front, so a test sees that STYLE reached the box
+        if UserDefaults.standard.bool(forKey: "testStyleFake") { return .success("[\(mode.short)] " + input.uppercased()) }
+        return Claude.style(input, lang: lang, family: engine.rawValue, mode: mode).map(corrected).map(noEmptyLines)
     }
 
     /// v10 (Marko, 8.11.2026: "When it's styling, it adds between paragraph one empty line. Please don't do this. Write
@@ -270,8 +362,8 @@ enum Claude {
         return newest
     }
 
-    static func style(_ text: String, lang: String, family: String) -> Result<String, EngineError> {
-        let s = Rules.system(lang: lang)
+    static func style(_ text: String, lang: String, family: String, mode: TextMode = .styleCorrect) -> Result<String, EngineError> {
+        let s = Rules.system(lang: lang, mode: mode)
         return Ring.run(.anthropic) { key -> Ring.Outcome<String> in
             guard let model = model(key, family: family) else { return .fail(Failure(status: 401, body: "no \(family) model listed for this key", headers: [:])) }
             let body: [String: Any] = [

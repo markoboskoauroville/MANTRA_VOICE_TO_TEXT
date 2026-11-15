@@ -11,7 +11,8 @@ import AppKit
 import AVFoundation
 import Accelerate
 
-let PILL_W: CGFloat = 430, PILL_H: CGFloat = 40, LINE_H: CGFloat = 20, PANEL_W: CGFloat = 460
+// v28: 48 pt wider for the TEXT selector (STY / S+C / COR) beside the language
+let PILL_W: CGFloat = 478, PILL_H: CGFloat = 40, LINE_H: CGFloat = 20, PANEL_W: CGFloat = 508
 let BLUE = NSColor(calibratedRed: 0x3D / 255, green: 0x7B / 255, blue: 0xF7 / 255, alpha: 1)
 
 // THE CRASH OF 30.10.2026 (22:33, caught in stderr): "NSInvalidArgumentException ... attempt to insert nil object" in
@@ -43,7 +44,9 @@ final class BlobButton: NSView {
     // v15 (MANTRA_MANIFEST swift-apps.md, "Accessibility built in"): every button of the blob is an Accessibility button
     override func isAccessibilityElement() -> Bool { true }
     override func accessibilityRole() -> NSAccessibility.Role? { .button }
-    override func accessibilityLabel() -> String? { text ?? toolTip }
+    /// v28: a fuller Accessibility label than the word (the TEXT selector's "S+C")
+    var axLabel: String?
+    override func accessibilityLabel() -> String? { axLabel ?? text ?? toolTip }
     override func accessibilityPerformPress() -> Bool { guard live else { return false }; action(); return true }
     override func isAccessibilityEnabled() -> Bool { live }
     // v27: held still for 0.6 s the button's part detaches (the magnet); the press then drags that part and does not act
@@ -337,8 +340,8 @@ final class BandField: NSTextField {
 final class PillFace: NSView {
     let pill = PillView(frame: NSRect(x: (PANEL_W - PILL_W) / 2, y: 0, width: PILL_W, height: PILL_H))
     let line = BandField(labelWithString: "")
-    let wave = WaveView(frame: NSRect(x: 96, y: 0, width: 80, height: PILL_H))
-    var close: BlobButton!, lang: BlobButton!, pause: BlobButton!, style: BlobButton!, copy: BlobButton!, gear: BlobButton!, send: BlobButton!
+    let wave = WaveView(frame: NSRect(x: 144, y: 0, width: 80, height: PILL_H))
+    var close: BlobButton!, lang: BlobButton!, mode: BlobButton!, pause: BlobButton!, style: BlobButton!, copy: BlobButton!, gear: BlobButton!, send: BlobButton!
     override var isFlipped: Bool { false }
 
     // v23 (Marko, 31.10.2026: "it's also anywhere where there is no button in upper part of the user interface. I can
@@ -363,7 +366,7 @@ final class PillFace: NSView {
     override func draw(_ r: NSRect) { NSColor(white: 0, alpha: 0.01).setFill(); bounds.fill() }
 
     init(close: @escaping () -> Void, lang: @escaping () -> Void, pause: @escaping () -> Void, style: @escaping () -> Void,
-         copy: @escaping () -> Void, gear: @escaping () -> Void, send: @escaping () -> Void) {
+         copy: @escaping () -> Void, gear: @escaping () -> Void, send: @escaping () -> Void, mode: @escaping () -> Void = {}) {
         super.init(frame: NSRect(x: 0, y: 0, width: PANEL_W, height: PILL_H + LINE_H))
         let grey = NSColor(white: 0.36, alpha: 1), white = NSColor(white: 0.95, alpha: 1)
         self.close = BlobButton("xmark", NSRect(x: 4, y: 2, width: 36, height: 36), circle: grey, tint: white, tip: "Throw this take away (Esc)", close)
@@ -372,26 +375,30 @@ final class PillFace: NSView {
         self.lang = BlobButton("globe", NSRect(x: 42, y: 2, width: 52, height: 36), circle: nil, tint: white, tip: "The language of this take: Croatian or English", lang)
         // v17 (Marko, 31.10.2026: "the pose and style are in the same area. They are overlapping ... never overlap two
         // buttons"): PAUSE and STYLE each in a place of its own, both always there; one that cannot act now is grey
-        self.pause = BlobButton("pause.fill", NSRect(x: 180, y: 2, width: 40, height: 36), circle: nil, tint: white, tip: "Pause; press again to go on", pause)
+        // v28 (Marko, 15.11.2026: "So there will be 2 selectors"): the TEXT selector beside the language, [S+C] [STY] [COR]
+        self.mode = BlobButton("textformat", NSRect(x: 96, y: 2, width: 46, height: 36), circle: nil, tint: white,
+                               tip: "What auto correct and STYLE do: STY style only, S+C style and correction, COR correction only (click to change)", mode)
+        self.mode.bracketed = true
+        self.pause = BlobButton("pause.fill", NSRect(x: 228, y: 2, width: 40, height: 36), circle: nil, tint: white, tip: "Pause; press again to go on", pause)
         // v15 STYLE (Marko, 31.10.2026: "one more action button inside the blob ... style ... It's going to use my prompt to
         // style the text pasted in that text field. And when I press style it means the blob will stay"): in the pause's
         // own place beside the pause (v17; v15 put it in the pause's place)
         // v22 (Marko, 31.10.2026: "switch the spaces with style and copy. Copy first style second"): COPY at 222, STYLE at 282
-        self.style = BlobButton("", NSRect(x: 282, y: 2, width: 60, height: 36), circle: nil, tint: white,
+        self.style = BlobButton("", NSRect(x: 330, y: 2, width: 60, height: 36), circle: nil, tint: white,
                                 tip: "Style: the text box you clicked into (its selection, or all of it) is corrected in place; the blob then stays until ✕", style)
         self.style.text = "STYLE"
         self.lang.bracketed = true
         // v17 COPY (Marko, 31.10.2026: "same as style, copy button is always available ... if it doesn't land in any
         // window ... this blob will not disappear, it will wait for action. and then I simply can press copy"): grey at
         // rest, green while it copies
-        self.copy = BlobButton("", NSRect(x: 222, y: 2, width: 56, height: 36), circle: nil, tint: BlobButton.dim,
+        self.copy = BlobButton("", NSRect(x: 270, y: 2, width: 56, height: 36), circle: nil, tint: BlobButton.dim,
                                tip: "Copy the last words to the clipboard, then ⌘V where you want them", copy)
         self.copy.text = "COPY"
-        self.gear = BlobButton("gearshape.fill", NSRect(x: 348, y: 2, width: 36, height: 36), circle: nil, tint: white, tip: "Settings: the recognition model, the correction model, the API keys, the history", gear)
-        self.send = BlobButton("arrow.up", NSRect(x: 390, y: 2, width: 36, height: 36), circle: BLUE, tint: white, tip: "Send: write it down and type it (F1)", send)
+        self.gear = BlobButton("gearshape.fill", NSRect(x: 396, y: 2, width: 36, height: 36), circle: nil, tint: white, tip: "Settings: the recognition model, the correction model, the API keys, the history", gear)
+        self.send = BlobButton("arrow.up", NSRect(x: 438, y: 2, width: 36, height: 36), circle: BLUE, tint: white, tip: "Send: write it down and type it (F1)", send)
         pill.addSubview(self.close); pill.addSubview(wave)
-        for b in [self.lang!, self.pause!, self.style!, self.copy!, self.gear!, self.send!] { pill.addSubview(b) }
-        for (b, id) in [(self.close!, "close"), (self.lang!, "language"), (self.pause!, "pause"), (self.style!, "style"), (self.copy!, "copy"),
+        for b in [self.lang!, self.mode!, self.pause!, self.style!, self.copy!, self.gear!, self.send!] { pill.addSubview(b) }
+        for (b, id) in [(self.close!, "close"), (self.lang!, "language"), (self.mode!, "textMode"), (self.pause!, "pause"), (self.style!, "style"), (self.copy!, "copy"),
                         (self.gear!, "settings"), (self.send!, "send")] { b.setAccessibilityIdentifier(id) }
         addSubview(pill)
         placeLine(below: false)
