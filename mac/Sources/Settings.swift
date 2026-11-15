@@ -62,6 +62,10 @@ final class SettingsWindow: NSObject, NSTextViewDelegate, NSTextFieldDelegate {
     let pasteTick = NSButton(checkboxWithTitle: "When a box ignores Accessibility writing, bring its app to the front and paste (your clipboard is put back)", target: nil, action: nil)
     let clickTick = NSButton(checkboxWithTitle: "When the box cannot be focused, click into it (only if the click lands on that same box)", target: nil, action: nil)
     var targetTimer: Timer?
+    // v28: the engine columns and their family headings, laid out by arrange()
+    var columns: [String: NSStackView] = [:]
+    var familyLabels: [String: [String: NSTextField]] = [:]
+    let orderPicker = NSSegmentedControl()
 
     init(onChange: @escaping () -> Void, typeText: @escaping (String) -> Void) {
         self.onChange = onChange
@@ -115,33 +119,34 @@ final class SettingsWindow: NSObject, NSTextViewDelegate, NSTextFieldDelegate {
         // THE ENGINE PANEL (v13, TTT's long-press panel): all 13, one click selects; the accuracy of the language chosen beside
         // the name, free or paid and the minutes, and the numbered key in use ("Groq 2/3 in use")
         // v17: TTT's Voice transcription buttons: two columns (Croatian H, English E), a radio card per engine
+        // v28: the cards made once; arrange() lays them out BEST FIRST (Marko: "order the engines inside the settings by the
+        // quality. At the top are the best ones from our test") or BY FAMILY (the families ordered by their best member)
         func column(_ lang: String, _ letter: String, _ title: String) -> NSStackView {
             let head = ColumnHead(frame: .zero); head.letter = letter; heads[lang] = head
             let t = label(title, bold: true); t.textColor = Host.muted
-            var views: [NSView] = [t, head]
             cards[lang] = [:]
-            let order = Catalog.order(lang).filter { Catalog.byId($0) != nil }
-            var placed = Set<String>()
-            for (family, ids) in SettingsWindow.families {
-                let inFamily = order.filter { ids.contains($0) }
-                if inFamily.isEmpty { continue }
+            for id in Catalog.all.map(\.id) {
+                let c = EngineCard(id: id, lang: lang); c.onPick = { [weak self] l, i in self?.cardPicked(l, i) }
+                cards[lang]![id] = c
+            }
+            familyLabels[lang] = [:]
+            for (family, _) in SettingsWindow.families {
                 let g = NSTextField(labelWithString: family)
                 g.font = .systemFont(ofSize: 10.5, weight: .bold); g.textColor = Host.gold
-                views.append(g)
-                for id in inFamily {
-                    let c = EngineCard(id: id, lang: lang); c.onPick = { [weak self] l, i in self?.cardPicked(l, i) }
-                    cards[lang]![id] = c; views.append(c); placed.insert(id)
-                }
+                familyLabels[lang]![family] = g
             }
-            for id in order where !placed.contains(id) {
-                let c = EngineCard(id: id, lang: lang); c.onPick = { [weak self] l, i in self?.cardPicked(l, i) }
-                cards[lang]![id] = c; views.append(c)
-            }
-            let col = NSStackView(views: views); col.orientation = .vertical; col.alignment = .leading; col.spacing = 4
+            let col = NSStackView(views: [t, head]); col.orientation = .vertical; col.alignment = .leading; col.spacing = 4
             col.setCustomSpacing(8, after: head)
-            for v in views.dropFirst() { v.widthAnchor.constraint(equalTo: col.widthAnchor).isActive = true }
+            head.widthAnchor.constraint(equalTo: col.widthAnchor).isActive = true
+            columns[lang] = col
+            arrange(lang)
             return col
         }
+        orderPicker.segmentCount = 2
+        orderPicker.setLabel("BEST FIRST", forSegment: 0); orderPicker.setLabel("BY FAMILY", forSegment: 1)
+        orderPicker.selectedSegment = SettingsWindow.byFamily ? 1 : 0
+        orderPicker.target = self; orderPicker.action = #selector(orderChanged)
+        orderPicker.setAccessibilityIdentifier("engineOrder"); orderPicker.setAccessibilityLabel("Engine order")
         let twoColumns = NSStackView(views: [column("hr", "H", "Croatian"), column("en", "E", "English")])
         twoColumns.orientation = .horizontal; twoColumns.distribution = .fillEqually; twoColumns.spacing = 16; twoColumns.alignment = .top
         twoColumns.widthAnchor.constraint(equalToConstant: 840).isActive = true
@@ -284,7 +289,7 @@ final class SettingsWindow: NSObject, NSTextViewDelegate, NSTextFieldDelegate {
         }
         let enginesTab: [NSView] = [routeHeader,
                                     row([label("Language", bold: true), langRow]),
-                                    label("Who writes down what you say, one engine per language (time · stars)", bold: true),
+                                    row([label("Who writes down what you say, one engine per language (time · stars)", bold: true), orderPicker]),
                                     twoColumns, whisperRow!]
         let textTab: [NSView] = [label("What auto correct and STYLE do (the second selector on the blob)", bold: true), modeCol,
                                  label("Auto correct after each take (Anthropic)", bold: true), styleRow, croatianTick,
@@ -489,6 +494,44 @@ final class SettingsWindow: NSObject, NSTextViewDelegate, NSTextFieldDelegate {
         ("GOOGLE", ["gemini", "google_v1", "google_chirp"]),
         ("OTHERS", ["deepgram", "assemblyai", "speechmatics", "soniox", "elevenlabs"]),
     ]
+
+    static var byFamily: Bool {
+        get { UserDefaults.standard.bool(forKey: "enginesByFamily") }
+        set { UserDefaults.standard.set(newValue, forKey: "enginesByFamily") }
+    }
+    @objc func orderChanged() {
+        SettingsWindow.byFamily = orderPicker.selectedSegment == 1
+        for l in Array(columns.keys) { arrange(l) }
+    }
+
+    /// the cards of one column, best first (Catalog.qualityRank) or by family (families by their best member, best first inside)
+    func arrange(_ lang: String) {
+        guard let col = columns[lang], let byId = cards[lang] else { return }
+        for v in col.arrangedSubviews.dropFirst(2) { col.removeArrangedSubview(v); v.removeFromSuperview() }
+        let ranked = Catalog.ranked()
+        var views: [NSView] = []
+        if SettingsWindow.byFamily {
+            func best(_ ids: Set<String>) -> Int {
+                for (i, id) in ranked.enumerated() where ids.contains(id) { return i }
+                return 99
+            }
+            let fams = SettingsWindow.families.sorted { best($0.1) < best($1.1) }
+            var placed = Set<String>()
+            for (family, ids) in fams {
+                let inFamily = ranked.filter { ids.contains($0) && byId[$0] != nil }
+                if inFamily.isEmpty { continue }
+                if let g = familyLabels[lang]?[family] { views.append(g) }
+                for id in inFamily { views.append(byId[id]!); placed.insert(id) }
+            }
+            for id in ranked where !placed.contains(id) { if let c = byId[id] { views.append(c) } }
+        } else {
+            for id in ranked { if let c = byId[id] { views.append(c) } }
+        }
+        for v in views {
+            col.addArrangedSubview(v)
+            v.widthAnchor.constraint(equalTo: col.widthAnchor).isActive = true
+        }
+    }
 
     func addTab(_ title: String, _ view: NSView) {
         let item = NSTabViewItem(identifier: title)

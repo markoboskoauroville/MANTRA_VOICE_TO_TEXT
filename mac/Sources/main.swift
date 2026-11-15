@@ -398,6 +398,7 @@ final class Stripe: NSObject {
         if let db { loudest = max(loudest, db) }
         face.wave.moving = !recorder.paused
         face.wave.take(recorder.bands.db)
+        face.line.meterDB = recorder.levelDB ?? BandField.meterFloor          // v28: the display's hairline meter
         face.pause.symbol = recorder.paused ? "play.fill" : "pause.fill"
         face.lang.text = HearEngine.current.lang.uppercased()
         let s = Int(recorder.elapsed)
@@ -409,6 +410,7 @@ final class Stripe: NSObject {
     func endListening() {
         Duck.up()                    // v4: the level back before the stop sound, so it is heard at the normal level
         tick?.invalidate(); escape = nil
+        face.line.meterDB = nil
         face.pause.live = false
         if VoiceWords.enabled && voice.running { voiceMeter(); return }      // v22: the listener's meter goes on
         // v9: the bars go to zero the moment the take ends. The old release timer stopped itself on its first tick,
@@ -931,6 +933,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         TakeMark.set(false)          // v26: a mark left by a crash never holds the voice
         Exclusive.start()            // v16: Speechify closed at start; closes this app when Speechify opens
         Stats.seedOnce()             // v24: speed and quality in the engine names; the live test of 15.11.2026 goes in once
+        Stats.seed28()               // v28: the engine test of 15.11.2026 (11 engines, 3 takes each)
         FileAPI.start()              // v15: the local API for Transcribe a file, 127.0.0.1:8865 only
         DispatchQueue.global().async { KeyImporter.loadFamous(); Frankfurt.syncKeys() }     // v20: the keys go to the relay, write only
         Duck.up()                    // v3: speakers left at 6 % by a crash go back to their level

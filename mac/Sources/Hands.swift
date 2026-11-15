@@ -126,6 +126,11 @@ final class Recorder: NSObject, AVCaptureFileOutputRecordingDelegate {
         guard let o = output, !paused, let ch = o.connections.first?.audioChannels.first else { return nil }
         return ch.peakHoldLevel
     }
+    /// v28: the level of the last instant (average power, dB) for the display's hairline meter; nil while paused
+    var levelDB: Float? {
+        guard let o = output, !paused, let ch = o.connections.first?.audioChannels.first else { return nil }
+        return ch.averagePowerLevel
+    }
 }
 
 // MARK: the hotkey (a Carbon hot key: it works without Accessibility and the key does not reach the front app)

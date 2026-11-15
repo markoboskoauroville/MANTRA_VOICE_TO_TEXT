@@ -324,13 +324,48 @@ final class BandField: NSTextField {
         let m = NSEvent.mouseLocation
         if hypot(m.x - downMouse.x, m.y - downMouse.y) < 4 { clicked?() }
     }
+    // v28 (Marko, 15.11.2026: "This small display which I can detach ... needs to have hairline Vometer at the bottom"):
+    // TTT's hairline meter (MaRecordMeter.kt): a rounded track at 18 %, green, orange above -12 dB, red above -3 dB, floor
+    // -54 dB, a peak hold that falls back slowly. One bar (the microphone is mono: MANTRA_MANIFEST vu-meter-mono-stereo.md).
+    // nil = no take recording: the track alone.
+    static let meterFloor: Float = -54
+    var meterDB: Float? {
+        didSet {
+            if let db = meterDB { meterPeak = max(db, meterPeak - 0.35) } else { meterPeak = BandField.meterFloor }
+            needsDisplay = true
+        }
+    }
+    private var meterPeak: Float = BandField.meterFloor
+    private func meterX(_ db: Float, _ track: NSRect) -> CGFloat {
+        let f = CGFloat(max(0, min(1, (db - BandField.meterFloor) / -BandField.meterFloor)))
+        return track.minX + f * track.width
+    }
+    private func drawMeter(in band: NSRect) {
+        let track = NSRect(x: band.minX + 7, y: 1, width: max(0, band.width - 14), height: 2)
+        guard track.width > 4 else { return }
+        NSColor(white: 1, alpha: 0.18).setFill()
+        NSBezierPath(roundedRect: track, xRadius: 1, yRadius: 1).fill()
+        guard let db = meterDB, db > BandField.meterFloor else { return }
+        let end = meterX(db, track), x12 = meterX(-12, track), x3 = meterX(-3, track)
+        NSGraphicsContext.saveGraphicsState()
+        NSBezierPath(roundedRect: NSRect(x: track.minX, y: track.minY, width: end - track.minX, height: track.height), xRadius: 1, yRadius: 1).addClip()
+        Ink.green.setFill(); NSRect(x: track.minX, y: track.minY, width: min(end, x12) - track.minX, height: track.height).fill()
+        if end > x12 { NSColor.orange.setFill(); NSRect(x: x12, y: track.minY, width: min(end, x3) - x12, height: track.height).fill() }
+        if end > x3 { Ink.red.setFill(); NSRect(x: x3, y: track.minY, width: end - x3, height: track.height).fill() }
+        NSGraphicsContext.restoreGraphicsState()
+        let px = meterX(meterPeak, track)
+        (meterPeak > -3 ? Ink.red : meterPeak > -12 ? NSColor.orange : Ink.green).setFill()
+        NSRect(x: min(px, track.maxX - 2), y: track.minY, width: 2, height: track.height).fill()
+    }
     override func draw(_ r: NSRect) {
         if !stringValue.isEmpty {
             let w = min(bounds.width, ceil(attributedStringValue.size().width) + 16)
             NSColor(white: 0, alpha: 0.55).setFill()
-            let band = NSBezierPath(roundedRect: NSRect(x: (bounds.width - w) / 2, y: 0, width: w, height: bounds.height), xRadius: 6, yRadius: 6)
+            let rect = NSRect(x: (bounds.width - w) / 2, y: 0, width: w, height: bounds.height)
+            let band = NSBezierPath(roundedRect: rect, xRadius: 6, yRadius: 6)
             band.fill()
             if glow { BLUE.setStroke(); band.lineWidth = 2; band.stroke() }
+            drawMeter(in: rect)
         }
         super.draw(r)
     }

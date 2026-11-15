@@ -54,6 +54,14 @@ enum Catalog {
 
     static func byId(_ id: String) -> EngineSpec? { all.first { $0.id == id } }
 
+    /// v28 (Marko, 15.11.2026: "order the engines inside the settings by the quality. At the top are the best ones from our
+    /// test and down there are the worst ones"): the test of 15.11.2026, one recording of the reference sentence, three
+    /// times per engine: exact and fast first; Soniox and ElevenLabs (paid, not tested) last
+    static let qualityRank = ["groq_v3", "whisper", "gemini", "google_chirp", "groq_turbo", "cloudflare", "assemblyai",
+                              "deepgram", "speechmatics", "parakeet", "google_v1", "soniox", "elevenlabs"]
+    /// every engine of the catalogue, best first (one not in the ranking goes last)
+    static func ranked() -> [String] { qualityRank.filter { byId($0) != nil } + all.map(\.id).filter { !qualityRank.contains($0) } }
+
     static func thousands(_ n: Int) -> String {
         let f = NumberFormatter(); f.numberStyle = .decimal; f.groupingSeparator = ","; f.usesGroupingSeparator = true
         return f.string(from: NSNumber(value: n)) ?? "\(n)"

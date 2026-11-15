@@ -128,6 +128,32 @@ enum Stats {
         appendLog("stats: seeded from the live test of 15.11.2026 (Parakeet 3 takes, Whisper 1)")
     }
 
+    /// v28: the engine test of 15.11.2026 (one recording of the reference sentence, three times each, English) seeds the
+    /// time and the stars of every engine once; a later take or rating moves them as before
+    static func seed28() {
+        let d = UserDefaults.standard
+        guard !d.bool(forKey: "statsSeeded28") else { return }
+        d.set(true, forKey: "statsSeeded28")
+        let test: [(String, [Double], String)] = [
+            ("parakeet", [1.01, 0.69, 0.71], "This is the test stream recording of the concept of seventeen.10.2026."),
+            ("whisper", [1.1, 1.15, 1.17], "This is a test stream recording of the concert of 17.10.2026. Češki narodni dom Zagreb"),
+            ("groq_turbo", [0.88, 0.85, 0.78], "This is a test stream recording of the concert of 17.10.2026 Cz.Narodni Dom Zagreb"),
+            ("groq_v3", [0.95, 0.79, 0.88], "This is a test stream recording of the concert of 17.10.2026 Česki Narodni Dom Zagreb."),
+            ("cloudflare", [2.34, 2.09, 3.99], "This is a test stream. Recording of the concert of 17.10.2026. Češki narodni dom Zagreb."),
+            ("gemini", [2.13, 1.61, 1.52], "This is a test stream recording of the concert of 17.10.2026. Češki narodni dom Zagreb."),
+            ("deepgram", [1.31, 1.76, 1.7], "This is a test stream. Recording of the concert of seventeen dot ten dot two thousand twenty six."),
+            ("assemblyai", [5.6, 4.96, 5.6], "This is a test stream recording of the concert of 17.10.2026, Český Narodny Dom Zagreb."),
+            ("speechmatics", [2.07, 1.96, 2.47], "This is a test stream recording of the concert of 17.1 2026 Chesky narodni dom, Zagreb."),
+            ("google_v1", [2.66, 2.92, 2.62], "This is a test stream recording of the concert of 17.10 2026 cheskin."),
+            ("google_chirp", [3.59, 5.09, 3.58], "This is a test stream recording of the concert of 17.10.2026, Češki narodni dom, Zagreb."),
+        ]
+        for (id, times, text) in test {
+            let q = Scores.accuracy(reference: defaultReference, heard: text)
+            for t in times { recordTime(id, "en", t); recordQuality(id, "en", q) }
+        }
+        appendLog("stats: seeded from the engine test of 15.11.2026 (11 engines, 3 takes each)")
+    }
+
     /// for /engines
     static func json(_ id: String, _ lang: String) -> [String: Any] {
         var o: [String: Any] = ["takes": samples(id, lang), "rated_takes": qualitySamples(id, lang)]
