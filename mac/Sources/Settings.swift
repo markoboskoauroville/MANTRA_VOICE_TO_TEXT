@@ -245,7 +245,7 @@ final class SettingsWindow: NSObject, NSTextViewDelegate, NSTextFieldDelegate {
         var views: [NSView] = []
         views.append(routeHeader)
         views.append(label("1 · The key that starts and stops listening", bold: true)); views.append(hotkey)
-        views.append(label("2 · Recognition engine for each language: the round button picks who writes down what you say (each name: median time of the last 20 takes · stars = quality)", bold: true))
+        views.append(label("2 · Recognition engine for each language: the round button picks who writes down what you say (time · stars)", bold: true))
         views.append(row([label("Listening in"), langRow]))
         views.append(frankfurtTick); views.append(frankfurtNote)
         views.append(contentsOf: engineRows)
