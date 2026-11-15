@@ -175,3 +175,9 @@ Marko, 15.11.2026, added (word for word):
 > Also I have two application, one is voice to text and another is voice engine. And they both have same icon so I am confused. Let the voice to text be red icon and let the engine be green icon.
 
 **Status:** saved first. Read as: Voice to Text (Mantra) gets a red icon in v20 (Dock, Finder, menu bar consistent); the Voice Engine gets green separately.
+
+## 15.11.2026: make Frankfurt visible (via the master session)
+Marko, 15.11.2026, word for word:
+> How will I know that my voice to text is now going through Frankfurt? How will I know that? I don't see anywhere the indication.
+
+**Status:** saved first. v22: FRA / DIR badge beside VT in the menu bar, a 2 s toast after each take with the route, and the Settings window header showing "Route: FRANKFURT ✓ (relay v2 answers)".
