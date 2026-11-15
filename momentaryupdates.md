@@ -223,3 +223,9 @@ Marko, 15.11.2026, word for word (via the master session):
 > This is for voice to text. The same as we have in our TTT. This small display which I can detach, the small display at the top, needs to have hairline Vometer at the bottom. Please make that possible. Please order the engines inside the settings by the quality. At the top are the best ones from our test and down there are the worst ones.
 
 **Status:** saved first (15.11.2026). The display gets TTT's hairline meter (MaRecordMeter.kt look) along its bottom edge, live while recording; the engines in Settings ordered best first by the test of 15.11.2026 (Groq large-v3, Whisper this Mac, Gemini, Chirp 3, Groq turbo, Cloudflare, AssemblyAI, Deepgram, Speechmatics, Parakeet, Google v1; Soniox, ElevenLabs untested last), families ordered by their best member; the stars seeded from that test.
+
+## 15.11.2026: the TEXT selector's empty choice (with v28)
+Marko, 15.11.2026, word for word (via the master session):
+> The switch in the blob, correction, styling, styling plus correction. I am missing empty thing, maybe just minuses, three minuses. Because sometimes I don't want either of these.
+
+**Status:** saved first (15.11.2026). A fourth TEXT mode "———" (AX "No styling or correction"): the words as the engine heard them, nothing changed. Order ——— · COR · STY · S+C; 3 languages x 4 text modes = 12; the default stays Style + Correct.
