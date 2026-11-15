@@ -1,5 +1,11 @@
 # Lessons
 
+## v27 (15.11.2026)
+
+- A drag that records the window origin at mouse-down breaks when the press itself moves or re-parents things (the long press detaches the display mid-press). Drag by increments (origin plus the mouse delta since the last event) and any part can change under the finger.
+- A borderless panel with no fill lets clicks through its clear pixels: the detached display's panel is clear, so only the band needs a hitTest; the body's panel needed the 1 % fill for the opposite reason.
+- A still press must never attach: the detached display steps 30 pt from its slot (more than the 24 pt snap) and attaching needs a real drag (`didDrag`).
+
 ## v16 (14.11.2026)
 
 - Two apps that want the same key must be told apart by who starts: ours closes Speechify only at its own start and remembers those pids; the launch watcher ignores them, so the two rules never chase each other. Speechify's own app is the agent com.cliffweitzman.speechifymacagent; the splash closer (community.auroville.speechifysplashcloser) is ours and must not match, so the match is the prefix com.cliffweitzman.speechify.
