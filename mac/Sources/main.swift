@@ -287,7 +287,7 @@ final class Stripe: NSObject {
         // v17 (Marko, 31.10.2026: "tile should be always available, grayed out. When I press it, while it's working, it's
         // becoming green"): STYLE always there and pressable, grey at rest, green while it works
         face.style.live = true
-        face.light(autoCorrect: StyleEngine.current != .off, styling: styling, unlanded: unlanded, copying: copying)
+        face.light(autoCorrect: StyleEngine.current != .off, styling: false, unlanded: unlanded, copying: copying, flash: styleFlash)
         if !recorder.recording && !busy { face.send.symbol = "mic.fill" }
     }
 
@@ -676,6 +676,39 @@ final class Stripe: NSObject {
     /// STYLE is working (v17): its word green from the press until the words are replaced or it failed
     var styling = false
 
+    // v27 (Marko, 15.11.2026: "if there is nothing to be changed the application is freezing. It should try only for 2
+    // seconds ... grey. I click style. It is yellow ... If it's not successful, it become red and again grey. When it's
+    // successful, it become green and then grey ... No blockage of the app whatsoever."): the main thread only flips colours.
+    // Looking for the box (AX, each call bounded to 0.6 s) is given 2 s in all; the styling request and the write back run
+    // off the main thread too (12 s for the engine, 2 s for the write). Yellow while it works, green 1 s or red 1.5 s, grey.
+    /// the colour the STYLE button shows now (nil = its resting colour)
+    var styleFlash: NSColor?
+    private var styleToken = 0
+
+    private func styleDone(_ ok: Bool, _ text: String, tip: String? = nil) {
+        styling = false
+        let c = ok ? Ink.green : Ink.red
+        dot.color = ok ? Ink.green : Ink.red
+        say(text, c, tip: tip)
+        styleFlash = c
+        styleToken += 1
+        let token = styleToken
+        refresh()
+        DispatchQueue.main.asyncAfter(deadline: .now() + (ok ? 1.0 : 1.5)) { [weak self] in
+            guard let self, token == self.styleToken, !self.styling else { return }
+            self.styleFlash = nil
+            self.refresh()
+        }
+    }
+
+    /// run work off the main thread and wait at most `secs` for it; nil when it did not finish (it is left to end alone)
+    private static func bounded<T>(_ secs: Double, _ work: @escaping () -> T) -> T? {
+        var out: T? = nil
+        let sem = DispatchSemaphore(value: 0)
+        DispatchQueue.global().async { out = work(); sem.signal() }
+        return sem.wait(timeout: .now() + secs) == .success ? out : nil
+    }
+
     @objc func stylePressed() {
         if styling { return }
         if recorder.recording { say("STYLE works on text already written: send this take first", Ink.amber); return }
@@ -688,68 +721,78 @@ final class Stripe: NSObject {
             say("PERMISSIONS: STYLE needs Accessibility (System Settings is open)", Ink.amber)
             return
         }
-        // the focus is read at the press: the blob never takes it (a non-activating panel)
-        var target: Restyle.Target?
-        var lang = "auto"
-        switch Restyle.find(lastTyped: lastText) {
-        case .target(let t):
-            if t.text.count > 20000 { say("too much text for STYLE (\(t.text.count) characters): select a part, then STYLE", Ink.amber); return }
-            target = t
-            if t.text == lastText { lang = lastLang }
-        case .ownWindow:
-            say("click into the text box you want styled, then STYLE", Ink.amber); return
-        case .empty:
-            say("this text box is empty: write or select something, then STYLE", Ink.amber); return
-        case .noFocus, .unreadable:
-            // no text box, or one that does not let its text be read: the last take styled onto the clipboard, if any
-            if lastText.isEmpty { say("no text box to style: click into one (or select its text), then STYLE", Ink.amber); return }
-            lang = lastLang
-        }
-        let source = target?.text ?? lastText
         styling = true
         pinned = true
         hideToken += 1
-        busy = true
-        let engine = StyleButtonEngine.current
-        sending(true)
-        say("styling \(target?.what ?? "the last take") (\(engine.title))…", Ink.amber)
+        styleToken += 1
+        styleFlash = WaveView.yellow
+        say("STYLE: looking for a text box…", Ink.amber)
         refresh()
-        DispatchQueue.global().async {
-            let r = Style.run(engine, text: source, lang: lang)
-            DispatchQueue.main.async {
-                self.busy = false
-                self.sending(false)
-                self.styling = false
-                switch r {
-                case .failure(let e):
-                    self.dot.color = Ink.red
-                    self.say("not styled: " + e.message, Ink.red)
-                    appendLog("STYLE failed (\(engine.title)): \(e.message)")
-                case .success(let styled):
-                    appendLog("STYLE (\(engine.title)) on \(target?.what ?? "the last take"), \(target.map { Restyle.role($0.field) } ?? "no field"): \(source)\n  styled: \(styled)")
-                    let n = styled.split(whereSeparator: { $0 == " " || $0 == "\n" }).count
-                    if styled == source { self.dot.color = Ink.green; self.say("nothing to correct · ✕ closes", Ink.green); break }
-                    let written = target.map { Restyle.write(styled, to: $0) } ?? .failed
-                    switch written {
-                    case .replaced:
-                        self.lastText = styled
-                        self.dot.color = Ink.green
-                        self.say("styled: \(target!.what), \(n) words · ✕ closes", Ink.green)
-                    case .believed:
-                        self.lastText = styled
-                        self.toClipboard(styled)
-                        self.dot.color = Ink.green
-                        self.say("styled: \(n) words written (this box cannot be read back; also on the clipboard)", Ink.green)
-                    case .failed:
-                        self.lastText = styled
-                        self.toClipboard(styled)
-                        self.dot.color = Ink.amber
-                        self.say(target == nil ? "styled the last take: on the clipboard, press ⌘V where you want it"
-                                               : "this box takes no writing: styled text on the clipboard, select its text and press ⌘V", Ink.amber)
-                        appendLog("STYLE: the field did not take it (\(target.map { Restyle.role($0.field) } ?? "no field")), on the clipboard")
+        let last = lastText, lastL = lastLang
+        let engine = StyleButtonEngine.current
+        // the focus is read at the press: the blob never takes it (a non-activating panel)
+        DispatchQueue.global().async { [weak self] in
+            let found = Stripe.bounded(2.0) { Restyle.find(lastTyped: last) }
+            DispatchQueue.main.async { [weak self] in
+                guard let self else { return }
+                var target: Restyle.Target?
+                var lang = "auto"
+                guard let found else { self.styleDone(false, "STYLE: no text box found (the box did not answer in 2 s)"); return }
+                switch found {
+                case .target(let t):
+                    if t.text.count > 20000 { self.styleDone(false, "too much text for STYLE (\(t.text.count) characters): select a part"); return }
+                    target = t
+                    if t.text == last { lang = lastL }
+                case .ownWindow:
+                    self.styleDone(false, "STYLE: no text box found (click into the box you want styled)"); return
+                case .empty:
+                    self.styleDone(false, "STYLE: this text box is empty"); return
+                case .noFocus, .unreadable:
+                    // no text box, or one that does not let its text be read: the last take styled onto the clipboard, if any
+                    if last.isEmpty { self.styleDone(false, "STYLE: no text box found"); return }
+                    lang = lastL
+                }
+                let source = target?.text ?? last
+                self.say("styling \(target?.what ?? "the last take") (\(engine.title))…", Ink.amber)
+                DispatchQueue.global().async {
+                    let r = Stripe.bounded(12.0) { Style.run(engine, text: source, lang: lang) }
+                    guard let r else {
+                        DispatchQueue.main.async { self.styleDone(false, "STYLE: the style engine timed out"); appendLog("STYLE timed out (\(engine.title))") }
+                        return
+                    }
+                    var written: Restyle.Written = .failed
+                    var styled = ""
+                    if case .success(let s) = r {
+                        styled = s
+                        if s != source, let t = target { written = Stripe.bounded(2.0) { Restyle.write(s, to: t) } ?? .failed }
+                    }
+                    DispatchQueue.main.async {
+                        switch r {
+                        case .failure(let e):
+                            self.styleDone(false, "not styled: " + e.message)
+                            appendLog("STYLE failed (\(engine.title)): \(e.message)")
+                        case .success:
+                            appendLog("STYLE (\(engine.title)) on \(target?.what ?? "the last take"), \(target.map { Restyle.role($0.field) } ?? "no field"): \(source)\n  styled: \(styled)")
+                            let n = styled.split(whereSeparator: { $0 == " " || $0 == "\n" }).count
+                            if styled == source { self.styleDone(true, "nothing to correct · ✕ closes"); break }
+                            switch written {
+                            case .replaced:
+                                self.lastText = styled
+                                self.styleDone(true, "styled: \(target!.what), \(n) words · ✕ closes")
+                            case .believed:
+                                self.lastText = styled
+                                self.toClipboard(styled)
+                                self.styleDone(true, "styled: \(n) words written (this box cannot be read back; also on the clipboard)")
+                            case .failed:
+                                self.lastText = styled
+                                self.toClipboard(styled)
+                                self.styleDone(false, target == nil ? "styled the last take: on the clipboard, press ⌘V where you want it"
+                                                                    : "STYLE: this box takes no writing: styled text on the clipboard, press ⌘V")
+                                appendLog("STYLE: the field did not take it (\(target.map { Restyle.role($0.field) } ?? "no field")), on the clipboard")
+                            }
+                        }
                     }
                 }
-                self.refresh()
             }
         }
     }

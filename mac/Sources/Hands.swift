@@ -279,7 +279,7 @@ enum Restyle {
 
     static func focusedElement() -> AXUIElement? {
         let system = AXUIElementCreateSystemWide()
-        AXUIElementSetMessagingTimeout(system, 2)
+        AXUIElementSetMessagingTimeout(system, 0.6)
         guard let el = attr(system, kAXFocusedUIElementAttribute) else { return nil }
         return (el as! AXUIElement)
     }
@@ -300,7 +300,7 @@ enum Restyle {
     }
 
     static func find(in field: AXUIElement, lastTyped: String) -> Found {
-        AXUIElementSetMessagingTimeout(field, 2)
+        AXUIElementSetMessagingTimeout(field, 0.6)
         let value = Typer.value(field)
         let blank = { (s: String) in s.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
         if let sel = attr(field, kAXSelectedTextAttribute) as? String, !blank(sel) {

@@ -408,8 +408,8 @@ final class PillFace: NSView {
     // light up so it is white. In the same way, copy should also become white if my transcription didn't fall into any
     // box"): green while working; white when there is something for it (an auto correct chosen in ⚙ / a take that landed
     // nowhere waiting for COPY); grey otherwise
-    func light(autoCorrect: Bool, styling: Bool, unlanded: Bool, copying: Bool) {
-        style.tint = styling ? Ink.green : autoCorrect ? BlobButton.lit : BlobButton.dim
+    func light(autoCorrect: Bool, styling: Bool, unlanded: Bool, copying: Bool, flash: NSColor? = nil) {
+        style.tint = flash ?? (styling ? Ink.green : autoCorrect ? BlobButton.lit : BlobButton.dim)
         copy.tint = copying ? Ink.green : unlanded ? BlobButton.lit : BlobButton.dim
     }
 
