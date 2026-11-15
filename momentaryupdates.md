@@ -205,3 +205,9 @@ Marko, 15.11.2026, word for word:
 > can we please do our updating of this application, I call it Vox Voice to Text. and idea is because voice to text has two parts, there is a small display at the top and the body I want to be able to long press the small display or the body, whatever long pressing and then they detach imagine like a magnet which gets deactivated and then I can move each piece separately and when I bring them together they again attach as two magnets because I want to have this small display around the screen available in front of my eyes and a big one somewhere on the side. So can we make this magnetic thing trick now please?
 
 **Status:** saved first (15.11.2026).
+
+## 15.11.2026: STYLE must never freeze (v27, with the magnet)
+Marko, 15.11.2026, word for word (via the coordinator):
+> Please fix the bug. There is a style icon there ... When I click on the style ... if there is nothing to be changed the application is freezing. It should try only for 2 seconds. In that time it needs to check if there is a box to change and try to change. If there is no box and it couldn't change it shows that with red color. So coloring sequence is the next one. It's grey. I click style. It is yellow, meaning it's searching for box and changing it. If it's not successful, it become red and again grey. When it's successful, it become green and then grey. ... It tries few seconds and then quits. and I can manually try again ... No blockage of the app whatsoever.
+
+**Status:** saved first (15.11.2026).
