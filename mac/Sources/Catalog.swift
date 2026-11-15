@@ -71,7 +71,7 @@ enum Catalog {
         return Ears.current == .server || Model.ready
     }
 
-    static func shown(_ s: EngineSpec, lang: String) -> String { s.name + Scores.suffix(s.id, lang) }
+    static func shown(_ s: EngineSpec, lang: String) -> String { Stats.name(s, lang, long: true) }
 }
 
 // MARK: the accuracy next to each engine (TTT EngineScores: "100% is the best, less is worse"), per language

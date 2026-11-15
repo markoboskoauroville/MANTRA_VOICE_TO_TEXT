@@ -292,7 +292,7 @@ final class Stripe: NSObject {
 
     // who hears and who cleans, in the small letters above the pill (as the Claude blob names its voice engine)
     var engines: String {
-        "\(HearEngine.current.title.uppercased()) · " +
+        "\(HearEngine.current.title.uppercased())\(Stats.tag(HearEngine.current.id, HearEngine.current.lang)) · " +
             (StyleEngine.current == .off ? "NO AUTO CORRECT" : "AUTO CORRECT: \(StyleEngine.current.title.uppercased())")
     }
 
@@ -539,7 +539,7 @@ final class Stripe: NSObject {
                 self.busy = false
                 History.add(wav: wav, Version(at: Date(), hear: usedTitle, style: style.title, lang: hear.lang, heard: words,
                                               text: final))
-                if self.settings?.window.isVisible == true { self.settings?.history.reload() }
+                if self.settings?.window.isVisible == true { self.settings?.history.reload(); self.settings?.refreshStats() }
                 let n = final.split(whereSeparator: { $0 == " " || $0 == "\n" }).count
                 // TEST MODE (request 17: tested by Claude with artificial speech while Marko works): `defaults write
                 // com.mantra.markotranscribe testNoTyping -bool true` keeps the words out of the app in front; history and log only
@@ -852,6 +852,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ n: Notification) {
         TakeMark.set(false)          // v26: a mark left by a crash never holds the voice
         Exclusive.start()            // v16: Speechify closed at start; closes this app when Speechify opens
+        Stats.seedOnce()             // v24: speed and quality in the engine names; the live test of 15.11.2026 goes in once
         FileAPI.start()              // v15: the local API for Transcribe a file, 127.0.0.1:8865 only
         DispatchQueue.global().async { KeyImporter.loadFamous(); Frankfurt.syncKeys() }     // v20: the keys go to the relay, write only
         Duck.up()                    // v3: speakers left at 6 % by a crash go back to their level

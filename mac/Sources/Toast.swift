@@ -11,13 +11,14 @@ enum Toast {
 
     static func line(_ h: HearEngine, seconds: Double) -> String {
         let r = Hear.route ?? ""
-        let t = String(format: "%.1f s", seconds)
-        if r.hasPrefix("Frankfurt") { good = true; return "Frankfurt · \(h.spec.short) · \(t)" }
+        let t = String(format: "now %.1f s", seconds)
+        let n = Stats.name(h.spec, h.lang)
+        if r.hasPrefix("Frankfurt") { good = true; return "Frankfurt · \(n) · \(t)" }
         good = false
-        if r.hasPrefix("direct (Frankfurt") { return "Direct — Frankfurt did not answer · \(h.spec.short) · \(t)" }
-        if r == "direct" { return "Direct — Frankfurt is off · \(h.spec.short) · \(t)" }
-        if r == "this Mac" { return "This Mac · \(h.spec.short) · \(t)" }
-        return "\(h.spec.short) · \(t)"
+        if r.hasPrefix("direct (Frankfurt") { return "Direct — Frankfurt did not answer · \(n) · \(t)" }
+        if r == "direct" { return "Direct — Frankfurt is off · \(n) · \(t)" }
+        if r == "this Mac" { return "This Mac · \(n) · \(t)" }
+        return "\(n) · \(t)"
     }
 
     static func show(_ text: String, good: Bool, seconds: Double = 2.2) {

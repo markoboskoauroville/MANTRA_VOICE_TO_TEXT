@@ -15,6 +15,8 @@ final class SettingsWindow: NSObject, NSTextViewDelegate, NSTextFieldDelegate {
     var heads: [String: ColumnHead] = [:]
     let benchButton = NSButton(title: "Benchmark engines", target: nil, action: nil)
     let benchNote = NSTextField(wrappingLabelWithString: "")
+    let testTick = NSButton(checkboxWithTitle: "TEST: score each take against the reference sentence (speak it, any engine; the stars follow)", target: nil, action: nil)
+    let testField = NSTextField()
     // v20: the FRANKFURT switch (the relay on chromium-vm calls the cloud engines; direct stays as the fallback)
     let frankfurtTick = NSButton(checkboxWithTitle: "FRANKFURT: send the audio to the relay in Frankfurt, which calls the engines (each engine's direct path is the fallback)", target: nil, action: nil)
     let routeHeader = NSTextField(labelWithString: "Route: checking…")
@@ -127,6 +129,12 @@ final class SettingsWindow: NSObject, NSTextViewDelegate, NSTextFieldDelegate {
         frankfurtNote.font = .systemFont(ofSize: 11); frankfurtNote.textColor = Host.muted
         frankfurtNote.preferredMaxLayoutWidth = 780; frankfurtNote.maximumNumberOfLines = 3
         frankfurtNote.stringValue = "Parakeet and Whisper on this Mac run here; the other eleven engines run in Frankfurt while the relay answers."
+        testTick.target = self; testTick.action = #selector(testChanged); testTick.setAccessibilityIdentifier("statsTest")
+        testField.stringValue = Stats.reference; testField.target = self; testField.action = #selector(testChanged)
+        testField.setAccessibilityIdentifier("statsReference"); testField.lineBreakMode = .byWordWrapping
+        testField.usesSingleLineMode = false; testField.cell?.wraps = true; testField.cell?.isScrollable = false
+        testField.widthAnchor.constraint(equalToConstant: 640).isActive = true
+        testTick.state = Stats.testOn ? .on : .off
         benchButton.target = self; benchButton.action = #selector(benchPressed)
         benchButton.setAccessibilityIdentifier("benchmark")
         benchNote.font = .systemFont(ofSize: 11); benchNote.textColor = Host.muted
@@ -237,11 +245,12 @@ final class SettingsWindow: NSObject, NSTextViewDelegate, NSTextFieldDelegate {
         var views: [NSView] = []
         views.append(routeHeader)
         views.append(label("1 · The key that starts and stops listening", bold: true)); views.append(hotkey)
-        views.append(label("2 · Recognition engine for each language: the round button picks who writes down what you say (% = accuracy)", bold: true))
+        views.append(label("2 · Recognition engine for each language: the round button picks who writes down what you say (each name: median time of the last 20 takes · stars = quality)", bold: true))
         views.append(row([label("Listening in"), langRow]))
         views.append(frankfurtTick); views.append(frankfurtNote)
         views.append(contentsOf: engineRows)
         views.append(row([benchButton, benchNote]))
+        views.append(testTick); views.append(testField)
         views.append(whisperRow)
         views.append(label("3 · Correction model: who cleans the text after each take (Anthropic)", bold: true)); views.append(styleRow)
         views.append(row([label("The STYLE button"), styleButtonRow])); views.append(croatianTick); views.append(anthropicLabel)
@@ -422,6 +431,16 @@ final class SettingsWindow: NSObject, NSTextViewDelegate, NSTextFieldDelegate {
             DispatchQueue.main.async { self.frankfurtNote.stringValue = "Parakeet and Whisper on this Mac run here; the other eleven run in Frankfurt while the relay answers. " + t }
         }
     }
+    @objc func testChanged() {
+        Stats.testOn = testTick.state == .on
+        let r = testField.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !r.isEmpty { Stats.reference = r }
+        appendLog("TEST mode \(Stats.testOn ? "on" : "off"), reference: \(Stats.reference)")
+    }
+    /// the API changed the TEST mode
+    func paintTest() { testTick.state = Stats.testOn ? .on : .off; testField.stringValue = Stats.reference }
+    /// after a take or a rating: the names in the panel carry the new median and stars
+    func refreshStats() { paintChoices(); showKeys() }
     @objc func benchPressed() {
         guard !Bench.running else { return }
         benchButton.isEnabled = false
@@ -443,7 +462,7 @@ final class SettingsWindow: NSObject, NSTextViewDelegate, NSTextFieldDelegate {
         for (l, byId) in cards {
             let chosen = UserDefaults.standard.string(forKey: "engine_" + l) ?? "assemblyai"
             for (id, c) in byId { c.chosen = id == chosen }
-            if let sp = Catalog.byId(chosen) { heads[l]?.engine = sp.short; heads[l]?.pct = Scores.get(chosen, l).map { "(\($0)%)" } ?? ""; heads[l]?.needsDisplay = true }
+            if let sp = Catalog.byId(chosen) { heads[l]?.engine = sp.short; heads[l]?.pct = String(Stats.tag(chosen, l).dropFirst(3)); heads[l]?.needsDisplay = true }
         }
         for (l, b) in langRadios { b.state = l == h.lang ? .on : .off }
         for (e, b) in styleRadios { b.state = e == StyleEngine.current ? .on : .off }
@@ -538,7 +557,7 @@ final class SettingsWindow: NSObject, NSTextViewDelegate, NSTextFieldDelegate {
             for (id, c) in byId {
                 guard let s = Catalog.byId(id) else { continue }
                 let ok = Catalog.available(s)
-                c.usable = ok; c.name = s.short; c.pct = Scores.get(id, l).map { "(\($0)%)" } ?? ""
+                c.usable = ok; c.name = s.short; c.pct = String(Stats.tag(id, l).dropFirst(3))
                 let keys = s.ring.map(keyText) ?? (ok ? "on this Mac" : "not on this Mac")
                 c.sub = s.label + " · " + keys
                 c.toolTip = s.ring.map { p in

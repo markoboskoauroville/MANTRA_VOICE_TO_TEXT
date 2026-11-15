@@ -11,7 +11,7 @@
 // A click opens a small menu: the blob, ⚙, the history, Quit. The place is kept (autosaveName, MANTRA_MANIFEST swift-apps.md).
 import AppKit
 
-final class MenuBar: NSObject {
+final class MenuBar: NSObject, NSMenuDelegate {
     enum State: Equatable { case idle, recording(Int), paused(Int), processing }
 
     let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
@@ -33,6 +33,9 @@ final class MenuBar: NSObject {
             let m = NSMenuItem(title: title, action: sel, keyEquivalent: ""); m.target = self; menu.addItem(m)
         }
         menu.addItem(.separator())
+        menu.delegate = self
+        for l in ["en", "hr"] { let m = NSMenuItem(title: "", action: nil, keyEquivalent: ""); m.isEnabled = false; m.tag = l == "en" ? 1 : 2; menu.addItem(m) }
+        menu.addItem(.separator())
         let quit = NSMenuItem(title: "Quit Voice to Text (Mantra)", action: #selector(quit), keyEquivalent: "")
         quit.target = self; menu.addItem(quit)
         item.menu = menu
@@ -46,6 +49,15 @@ final class MenuBar: NSObject {
         DispatchQueue.global().async { _ = Frankfurt.reachable(force: true) }
         DistributedNotificationCenter.default().addObserver(forName: .init("com.mantra.voicetotext.toast"), object: nil, queue: .main) { n in
             if let t = n.object as? String { Toast.show(t, good: !t.hasPrefix("Direct")) }      // test hook: --hear ... --toast
+        }
+    }
+
+    /// v24: the engines in use for English and Croatian, each with its median time and its stars
+    func menuNeedsUpdate(_ menu: NSMenu) {
+        for m in menu.items where m.tag == 1 || m.tag == 2 {
+            let l = m.tag == 1 ? "en" : "hr"
+            let id = UserDefaults.standard.string(forKey: "engine_" + l) ?? "assemblyai"
+            if let s = Catalog.byId(id) { m.title = (l == "en" ? "English: " : "Croatian: ") + Stats.name(s, l) }
         }
     }
 

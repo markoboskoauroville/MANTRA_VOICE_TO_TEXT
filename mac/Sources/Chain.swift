@@ -14,6 +14,7 @@ enum Chain {
         // waits 3 s and tries the same engine again, up to 10 times, the status shown; then the take stops and stays in History.
         guard let spec = Catalog.byId(h.id) else { return .failure(EngineError("unknown engine \(h.id)")) }
         var tries = 0
+        let runStart = Date()
         var test = UserDefaults.standard.integer(forKey: "testNetFail")     // test mode: the first N attempts fail as if offline
         while true {
             tries += 1
@@ -24,6 +25,7 @@ enum Chain {
             switch r {
             case .success:
                 Quota.add(spec, seconds: seconds)
+                if case .success(let said) = r { Stats.afterTake(spec.id, h.lang, text: said, secs: Date().timeIntervalSince(runStart)) }   // v24
                 Hear.used = spec.short + " " + h.lang.uppercased()
                 appendLog(String(format: "engine %@ (%@) %.1f s, attempt %d", spec.id, h.lang, Date().timeIntervalSince(t0), tries))
                 return r

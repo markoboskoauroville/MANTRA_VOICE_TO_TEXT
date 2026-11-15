@@ -450,14 +450,22 @@ enum FileAPI {
             return (200, ["app": "Voice to Text (Mantra)", "version": appVersion, "api": 1, "port": Int(port), "busy": FileJobs.busy,
                           "jobs": FileJobs.order.count, "engine": HearEngine.current.id])
         }
+        if method == "POST", path == "/test" {          // v24: TEST mode {"on": bool, "reference"?: "sentence"}
+            guard let b = (try? JSONSerialization.jsonObject(with: body)) as? [String: Any] else { return (400, ["error": "send {\"on\": true, \"reference\"?: \"the sentence\"}"]) }
+            if let on = b["on"] as? Bool { Stats.testOn = on }
+            if let r = b["reference"] as? String, !r.trimmingCharacters(in: .whitespaces).isEmpty { Stats.reference = r }
+            DispatchQueue.main.async { stripe.settings?.paintTest() }
+            return (200, ["test": ["on": Stats.testOn, "reference": Stats.reference]])
+        }
         if method == "GET", path == "/engines" {
             let cur = HearEngine.current.id
             let list: [[String: Any]] = Catalog.all.map { s in
-                ["id": s.id, "name": s.name, "available": Catalog.available(s), "local": s.local, "paid": s.paid,
+                ["id": s.id, "name": Stats.name(s, "en", long: true), "label": Stats.name(s, "en"), "label_hr": Stats.name(s, "hr"),
+                 "stats_en": Stats.json(s.id, "en"), "stats_hr": Stats.json(s.id, "hr"), "available": Catalog.available(s), "local": s.local, "paid": s.paid,
                  "selected": s.id == cur, "timestamps": FileJobs.timestamps(s.id) ? "segments" : "piece",
                  "piece_seconds": Int(FileJobs.pieceSeconds(s))]
             }
-            return (200, ["engines": list, "languages": HearEngine.langs])
+            return (200, ["engines": list, "languages": HearEngine.langs, "test": ["on": Stats.testOn, "reference": Stats.reference]])
         }
         if method == "GET", path.hasPrefix("/job/") {
             guard let j = FileJobs.job(String(path.dropFirst(5))) else { return (404, ["error": "no such job"]) }
@@ -478,7 +486,7 @@ enum FileAPI {
             FileJobs.present(j)
             return (200, ["id": j.id, "status": "started"])
         }
-        return (404, ["error": "GET /status, GET /engines, POST /transcribe, GET /job/<id>, POST /hear?lang=en|hr|auto"])
+        return (404, ["error": "GET /status, GET /engines, POST /transcribe, GET /job/<id>, POST /hear?lang=en|hr|auto, POST /test"])
     }
 
     /// v23 (Marko, 15.11.2026, for Talk Mode (Mantra): "It needs to use my engine basically, voice to text, the same one I'm
@@ -503,7 +511,8 @@ enum FileAPI {
         hearLock.lock(); defer { hearLock.unlock() }
         let t0 = Date()
         let r = Hear.run(e, wav: url)
-        var out: [String: Any] = ["engine": Hear.used ?? e.title, "engine_id": id, "route": Hear.route ?? "",
+        let usedTitle = Hear.used ?? e.title
+        var out: [String: Any] = ["engine": Stats.decorate(hear: usedTitle), "engine_id": id, "route": Hear.route ?? "",
                                   "lang": Hear.lastLang ?? lang, "secs": (Date().timeIntervalSince(t0) * 100).rounded() / 100]
         switch r {
         case .success(let t): out["ok"] = true; out["text"] = corrected(t)

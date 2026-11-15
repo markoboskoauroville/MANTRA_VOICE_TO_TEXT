@@ -10,6 +10,7 @@ import AppKit
 
 struct Version: Codable {
     let at: Date, hear: String, style: String, lang: String, heard: String, text: String
+    var rating: Int? = nil                 // v24: Marko's thumb on this version: 1 up, -1 down
 }
 
 struct Entry: Codable {
@@ -146,7 +147,12 @@ final class HistoryPane: NSObject, NSTableViewDataSource, NSTableViewDelegate, N
         status.textColor = .secondaryLabelColor
         status.lineBreakMode = .byTruncatingTail
         let buttons = NSStackView(views: [hear, hearLang, style])
-        let buttons2 = NSStackView(views: [retranscribe, NSView(), copy, typeAgain])
+        let up = NSButton(title: "👍", target: self, action: #selector(thumbUp))
+        let down = NSButton(title: "👎", target: self, action: #selector(thumbDown))
+        up.toolTip = "This engine heard this take well: counts in its quality stars"; down.toolTip = "This engine heard this take badly: counts in its quality stars"
+        up.setAccessibilityIdentifier("rateUp"); down.setAccessibilityIdentifier("rateDown")
+        up.setAccessibilityLabel("Good take"); down.setAccessibilityLabel("Bad take")
+        let buttons2 = NSStackView(views: [retranscribe, up, down, NSView(), copy, typeAgain])
         buttons2.orientation = .horizontal
         buttons.orientation = .horizontal
         let right = NSStackView(views: [detailScroll, buttons, buttons2, status])
@@ -231,7 +237,7 @@ final class HistoryPane: NSObject, NSTableViewDataSource, NSTableViewDelegate, N
         let f = DateFormatter(); f.dateFormat = "d.M. HH:mm"
         let l = NSTextField(labelWithString: "")
         l.lineBreakMode = .byTruncatingTail
-        let head = "\(f.string(from: e.versions.first!.at)) · \(v.lang.uppercased()) · \(v.hear) · \(v.style)\(History.hasAudio(e.id) ? "" : " · no audio")\n"
+        let head = "\(f.string(from: e.versions.first!.at)) · \(v.lang.uppercased()) · \(Stats.decorate(hear: v.hear)) · \(v.style)\(v.rating == 1 ? " · 👍" : v.rating == -1 ? " · 👎" : "")\(History.hasAudio(e.id) ? "" : " · no audio")\n"
         let s = NSMutableAttributedString(string: head, attributes: [.font: NSFont.systemFont(ofSize: 10), .foregroundColor: NSColor.secondaryLabelColor])
         if v.text.isEmpty {
             s.append(NSAttributedString(string: "not transcribed: select it, Transcribe again", attributes: [.font: NSFont.systemFont(ofSize: 12), .foregroundColor: NSColor.systemRed]))
@@ -269,7 +275,7 @@ final class HistoryPane: NSObject, NSTableViewDataSource, NSTableViewDelegate, N
         }
         let f = DateFormatter(); f.dateFormat = "d.M.yyyy HH:mm:ss"
         detail.string = e.versions.enumerated().map { i, v in
-            "\(i == 0 ? "THE TAKE" : "VERSION \(i + 1)") · \(f.string(from: v.at)) · \(v.lang.uppercased()) · \(v.hear) · \(v.style)\n\n\(v.text)\n\nheard: \(v.heard)"
+            "\(i == 0 ? "THE TAKE" : "VERSION \(i + 1)") · \(f.string(from: v.at)) · \(v.lang.uppercased()) · \(Stats.decorate(hear: v.hear)) · \(v.style)\(v.rating == 1 ? " · 👍" : v.rating == -1 ? " · 👎" : "")\n\n\(v.text)\n\nheard: \(v.heard)"
         }.joined(separator: "\n\n────────\n\n")
         retranscribe.isEnabled = History.hasAudio(e.id)
         status.stringValue = History.hasAudio(e.id) ? "The audio is kept until \(f.string(from: e.versions.first!.at.addingTimeInterval(History.audioDays)))." : "The audio is gone (kept one day); the words stay."
@@ -321,6 +327,22 @@ final class HistoryPane: NSObject, NSTableViewDataSource, NSTableViewDelegate, N
         NSPasteboard.general.setString(text, forType: .string)
         status.stringValue = "copied: ⌘V where you want it"
     }
+
+    /// v24: Marko's rating of the version shown: it counts in that engine's stars (Stats.rate); a second press replaces the first
+    func rate(_ r: Int) {
+        guard var e = selected, let (eid, lang) = Stats.engineId(hear: e.latest.hear) else { status.stringValue = "this version has no engine to rate"; return }
+        let last = e.versions.count - 1
+        if e.versions[last].rating == r { return }
+        e.versions[last].rating = r
+        Stats.rate(eid, lang, up: r == 1)
+        History.save(e)
+        if let i = everything.firstIndex(where: { $0.id == e.id }) { everything[i] = e }
+        filter()
+        status.stringValue = (r == 1 ? "👍" : "👎") + " counted for " + Stats.name(Catalog.byId(eid)!, lang)
+        stripe.settings?.refreshStats()
+    }
+    @objc func thumbUp() { rate(1) }
+    @objc func thumbDown() { rate(-1) }
 
     @objc func copySelected() { if let e = selected { copy(e.latest.text) } }
 
