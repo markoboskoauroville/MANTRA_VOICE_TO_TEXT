@@ -229,3 +229,9 @@ Marko, 15.11.2026, word for word (via the master session):
 > The switch in the blob, correction, styling, styling plus correction. I am missing empty thing, maybe just minuses, three minuses. Because sometimes I don't want either of these.
 
 **Status:** saved first (15.11.2026). A fourth TEXT mode "———" (AX "No styling or correction"): the words as the engine heard them, nothing changed. Order ——— · COR · STY · S+C; 3 languages x 4 text modes = 12; the default stays Style + Correct.
+
+## 15.11.2026: quick switches at the top of Settings (with v28)
+Marko, 15.11.2026, word for word (via the master session):
+> In the settings, I need to have quick switches at the top, MAC switches. And these switches are basically telling me for correction and styling which model are used.
+
+**Status:** saved first (15.11.2026). Above the tabs, always in sight: CORRECTION (auto correct after each take) and STYLING (the STYLE button), each a macOS switch with its Claude model picker, the model id really called and its last time; FRANKFURT and TEST as switches too.
