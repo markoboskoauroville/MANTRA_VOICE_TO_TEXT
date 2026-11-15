@@ -164,3 +164,9 @@ Marko, 14.11.2026, added (word for word):
 
 **Status:** saved first (read as: the engine panel in Settings gets two columns, one per language, a radio button per engine picks the engine used for that language, in TTT's modern look).
 **Status (14.11.2026):** DONE in v17 (run 43605113038, green) and v18: benchmark, two-column cards, flipping strip; see TAKEOVER.
+
+## 15.11.2026: Frankfurt route for every engine (via the master session)
+Marko, 15.11.2026, word for word:
+> Please update my voice to text application so it also goes to Frankfurt and it needs to have all the engines it has it very good
+
+**Status:** saved first. Read as: the audio goes to the ttt-relay on chromium-vm (Tailscale 100.102.86.30:8897), which calls the engines from Frankfurt; every engine the app has that can run in the cloud works through it, the direct path stays as the fallback; a FRANKFURT switch in the engine panel; the route shown per take.
