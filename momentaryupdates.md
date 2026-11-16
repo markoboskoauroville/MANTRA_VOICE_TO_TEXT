@@ -247,3 +247,6 @@ Marko, 15.11.2026, word for word (via the master session):
 > please also, correct my voice to text the [VU meter] on a small blob should be down not up
 
 **Status:** v32. The hairline meter (v28) was drawn at the TOP of the small display: an NSTextField is flipped, so y: 1 meant the top. It now follows isFlipped and sits on the bottom edge, attached and detached. Also "Anthropic Anthropic 1/2 in use" in the quick row detail line is now "Anthropic 1/2 in use".
+
+## 16.11.2026
+Marko, word for word: "I want to have option in the settings that this bar which is small display bar become part of menu. When I select this option, what is going to happen is this bar will become permanent part of menu bar with all its text as it is now, even with Vumeter. and will be installed always next to the date so it is the first thing in line please make that happened"
