@@ -257,10 +257,14 @@ final class GripView: NSView {
     override func accessibilityRole() -> NSAccessibility.Role? { .handle }
     override func accessibilityLabel() -> String? { "Move the blob" }
     override func resetCursorRects() { addCursorRect(bounds, cursor: .openHand) }
+    // v36 (Marko, 16.11.2026: "finally update my voice to text with this grabbing handle. I told you 500 times"): the two lines
+    // are 3 pt wide, 18 pt high, nearly white, on a slightly lighter plate, so they are seen at a glance
     override func draw(_ r: NSRect) {
-        NSColor(white: 0.55, alpha: 1).setFill()
-        for x in [bounds.midX - 4, bounds.midX + 2] {
-            NSBezierPath(roundedRect: NSRect(x: x, y: bounds.midY - 8, width: 2, height: 16), xRadius: 1, yRadius: 1).fill()
+        NSColor(white: 1, alpha: 0.10).setFill()
+        NSBezierPath(roundedRect: bounds.insetBy(dx: 1, dy: 5), xRadius: 5, yRadius: 5).fill()
+        NSColor(white: 0.92, alpha: 1).setFill()
+        for x in [bounds.midX - 4.5, bounds.midX + 1.5] {
+            NSBezierPath(roundedRect: NSRect(x: x, y: bounds.midY - 9, width: 3, height: 18), xRadius: 1.5, yRadius: 1.5).fill()
         }
     }
     override func mouseDown(with e: NSEvent) { last = NSEvent.mouseLocation; Magnet.shared.didDrag = false }
@@ -404,7 +408,7 @@ final class BandField: NSTextField {
 final class PillFace: NSView {
     let pill = PillView(frame: NSRect(x: (PANEL_W - PILL_W) / 2, y: 0, width: PILL_W, height: PILL_H))
     let line = BandField(labelWithString: "")
-    let grip = GripView(frame: NSRect(x: 328, y: 2, width: 16, height: 36))
+    let grip = GripView(frame: NSRect(x: 327, y: 2, width: 18, height: 36))
     let wave = WaveView(frame: NSRect(x: 144, y: 0, width: 80, height: PILL_H))
     var close: BlobButton!, lang: BlobButton!, mode: BlobButton!, pause: BlobButton!, style: BlobButton!, copy: BlobButton!, gear: BlobButton!, send: BlobButton!
     override var isFlipped: Bool { false }
