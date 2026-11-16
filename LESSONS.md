@@ -142,3 +142,8 @@ A stored property with an observer must be a declaration of its own: "var declar
 - A view lives in one superview only: the display (BandField) is built once and moved between the blob, the magnet's panel and the status item's button; `passThrough` hitTest nil lets the status button take the click and show the menu.
 - A status item's place cannot be forced: autosaveName plus "NSStatusItem Preferred Position <name>" = 0 gives the slot nearest the system icons, which on this Mac is left of Control Center and the clock, not between them.
 - The ON/OFF were in Settings' first row, not on the blob; the corner X now quits. A released number is never reused; this one built green first time.
+
+## v34 (16.11.2026)
+- The install quit is refused during a take: the old copy was replaced on disk anyway before this showed; check `pgrep` after the quit and wait (loop the quit until the take is over) before relaunching. Never kill it.
+- A reachable() that holds its lock during the 4 s health call makes every take wait behind the 20 s background check; the lock now covers only the shared fields.
+- A full-screen app hides the menu bar: the strip screenshot is black; look when no full-screen app is on the MacBook screen.
