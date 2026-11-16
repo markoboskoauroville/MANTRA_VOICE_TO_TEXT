@@ -165,3 +165,6 @@ A stored property with an observer must be a declaration of its own: "var declar
 ## v38 (16.11.2026)
 - The menu items stay in sync by reading the settings when the menu opens, and every pick calls the same refresh as the blob's buttons. The Show/Hide item is found by its action, not by position.
 - A status-item menu can be photographed without the mouse: a notification that performClick()s the button and cancelTracking() on a timer.
+
+## Lesson: hover card and pipes (16.11.2026)
+Poll the mouse (macOS draws a status item once per display, only one copy owns the button, so a tracking area misses the other display). The panel needs `titleVisibility = .hidden` for the one-title guard. A non-activating NSPanel at statusBar+1 never takes focus. Pipes for text items: attributed title; for icon items: pipedIcon + rightPipe; for view items: drawPipes or PipesView.
