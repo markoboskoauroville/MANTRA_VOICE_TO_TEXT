@@ -83,7 +83,7 @@ enum Frankfurt {
               let ms = o["matches"] as? [[String: Any]] else { return nil }
         let ids = ms.compactMap { $0["id"] as? String }
         if ids.contains("tailscale-ensure-up") { return "tailscale-ensure-up" }
-        return ids.first { $0.contains("tailscale") && ["ensure", "up", "connect", "on"].contains { k in $0.contains(k) } && !$0.contains("exit") }
+        return ids.first { id in id.contains("tailscale") && !id.contains("exit") && ["ensure", "up", "connect", "on"].contains { k in id.contains(k) } }
     }
 
     static func fixTailscale() {
