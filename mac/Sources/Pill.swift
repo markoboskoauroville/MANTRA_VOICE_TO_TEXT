@@ -12,7 +12,7 @@ import AVFoundation
 import Accelerate
 
 // v28: 48 pt wider for the TEXT selector (STY / S+C / COR) beside the language
-let PILL_W: CGFloat = 478, PILL_H: CGFloat = 40, LINE_H: CGFloat = 20, PANEL_W: CGFloat = 508
+let PILL_W: CGFloat = 494, PILL_H: CGFloat = 40, LINE_H: CGFloat = 20, PANEL_W: CGFloat = 524
 let BLUE = NSColor(calibratedRed: 0x3D / 255, green: 0x7B / 255, blue: 0xF7 / 255, alpha: 1)
 
 // THE CRASH OF 30.10.2026 (22:33, caught in stderr): "NSInvalidArgumentException ... attempt to insert nil object" in
@@ -247,6 +247,32 @@ final class WaveView: NSView {
 
 // The dark pill, dragged by its body anywhere; the panel's move is kept by Place (main.swift).
 // v27: held still for 0.6 s it lets go of the display (Magnet.swift); it glows when the display is near its slot.
+// v33 (Marko, 16.11.2026: "between copy and style in this blob add two lines grip lines and these grip lines allow me to
+// simply select and move this bar ... the mouse is staying on the grip bar"): two short vertical lines; the press moves the
+// whole panel at once by the mouse's own travel (no threshold, no snapping), so the pointer stays on the grip
+final class GripView: NSView {
+    private var last = NSPoint.zero
+    override func acceptsFirstMouse(for e: NSEvent?) -> Bool { true }
+    override func isAccessibilityElement() -> Bool { true }
+    override func accessibilityRole() -> NSAccessibility.Role? { .handle }
+    override func accessibilityLabel() -> String? { "Move the blob" }
+    override func resetCursorRects() { addCursorRect(bounds, cursor: .openHand) }
+    override func draw(_ r: NSRect) {
+        NSColor(white: 0.55, alpha: 1).setFill()
+        for x in [bounds.midX - 4, bounds.midX + 2] {
+            NSBezierPath(roundedRect: NSRect(x: x, y: bounds.midY - 8, width: 2, height: 16), xRadius: 1, yRadius: 1).fill()
+        }
+    }
+    override func mouseDown(with e: NSEvent) { last = NSEvent.mouseLocation; Magnet.shared.didDrag = false }
+    override func mouseDragged(with e: NSEvent) {
+        guard let w = window else { return }
+        let m = NSEvent.mouseLocation
+        w.setFrameOrigin(NSPoint(x: w.frame.origin.x + m.x - last.x, y: w.frame.origin.y + m.y - last.y))
+        last = m; Magnet.shared.didDrag = true
+    }
+    override func mouseUp(with e: NSEvent) { Magnet.shared.released() }
+}
+
 final class PillView: NSView {
     var last: NSPoint?, down = NSPoint.zero
     private let hold = LongPress()
@@ -296,7 +322,9 @@ final class BandField: NSTextField {
         return NSRect(x: (bounds.width - w) / 2, y: 0, width: w, height: bounds.height)
     }
     override func acceptsFirstMouse(for e: NSEvent?) -> Bool { true }
+    var passThrough = false        // v33: in the menu bar the status item's button takes the click
     override func hitTest(_ p: NSPoint) -> NSView? {
+        if passThrough { return nil }
         guard frame.contains(p) else { return nil }
         if restrictHit { return band.contains(convert(p, from: superview)) ? self : nil }
         return self
@@ -376,6 +404,7 @@ final class BandField: NSTextField {
 final class PillFace: NSView {
     let pill = PillView(frame: NSRect(x: (PANEL_W - PILL_W) / 2, y: 0, width: PILL_W, height: PILL_H))
     let line = BandField(labelWithString: "")
+    let grip = GripView(frame: NSRect(x: 328, y: 2, width: 16, height: 36))
     let wave = WaveView(frame: NSRect(x: 144, y: 0, width: 80, height: PILL_H))
     var close: BlobButton!, lang: BlobButton!, mode: BlobButton!, pause: BlobButton!, style: BlobButton!, copy: BlobButton!, gear: BlobButton!, send: BlobButton!
     override var isFlipped: Bool { false }
@@ -420,7 +449,7 @@ final class PillFace: NSView {
         // style the text pasted in that text field. And when I press style it means the blob will stay"): in the pause's
         // own place beside the pause (v17; v15 put it in the pause's place)
         // v22 (Marko, 31.10.2026: "switch the spaces with style and copy. Copy first style second"): COPY at 222, STYLE at 282
-        self.style = BlobButton("", NSRect(x: 330, y: 2, width: 60, height: 36), circle: nil, tint: white,
+        self.style = BlobButton("", NSRect(x: 346, y: 2, width: 60, height: 36), circle: nil, tint: white,
                                 tip: "Style: the text box you clicked into (its selection, or all of it) is corrected in place; the blob then stays until ✕", style)
         self.style.text = "STYLE"
         self.lang.bracketed = true
@@ -430,9 +459,9 @@ final class PillFace: NSView {
         self.copy = BlobButton("", NSRect(x: 270, y: 2, width: 56, height: 36), circle: nil, tint: BlobButton.dim,
                                tip: "Copy the last words to the clipboard, then ⌘V where you want them", copy)
         self.copy.text = "COPY"
-        self.gear = BlobButton("gearshape.fill", NSRect(x: 396, y: 2, width: 36, height: 36), circle: nil, tint: white, tip: "Settings: the recognition model, the correction model, the API keys, the history", gear)
-        self.send = BlobButton("arrow.up", NSRect(x: 438, y: 2, width: 36, height: 36), circle: BLUE, tint: white, tip: "Send: write it down and type it (F1)", send)
-        pill.addSubview(self.close); pill.addSubview(wave)
+        self.gear = BlobButton("gearshape.fill", NSRect(x: 412, y: 2, width: 36, height: 36), circle: nil, tint: white, tip: "Settings: the recognition model, the correction model, the API keys, the history", gear)
+        self.send = BlobButton("arrow.up", NSRect(x: 454, y: 2, width: 36, height: 36), circle: BLUE, tint: white, tip: "Send: write it down and type it (F1)", send)
+        pill.addSubview(self.close); pill.addSubview(wave); pill.addSubview(grip); grip.setAccessibilityIdentifier("grip")
         for b in [self.lang!, self.mode!, self.pause!, self.style!, self.copy!, self.gear!, self.send!] { pill.addSubview(b) }
         for (b, id) in [(self.close!, "close"), (self.lang!, "language"), (self.mode!, "textMode"), (self.pause!, "pause"), (self.style!, "style"), (self.copy!, "copy"),
                         (self.gear!, "settings"), (self.send!, "send")] { b.setAccessibilityIdentifier(id) }

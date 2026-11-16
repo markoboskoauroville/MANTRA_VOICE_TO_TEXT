@@ -111,12 +111,13 @@ final class Magnet: NSObject {
 
     func longPressed() {
         guard let s = stripe, s.minimizedFrame == nil else { return }
+        if Prefs.barInMenu { return }         // v33: the display is in the menu bar
         if detached { cue(); return }
         detach()
     }
 
     func detach(at origin: NSPoint? = nil) {
-        guard display == nil, let s = stripe, s.minimizedFrame == nil else { return }
+        guard display == nil, let s = stripe, s.minimizedFrame == nil, !Prefs.barInMenu else { return }
         let r = slot()
         let face = s.face!
         let p = DisplayPanel(contentRect: r, styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)

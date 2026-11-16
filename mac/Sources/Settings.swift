@@ -64,7 +64,7 @@ final class SettingsWindow: NSObject, NSTextViewDelegate, NSTextFieldDelegate {
     var targetTimer: Timer?
     // v28 (Marko, 15.11.2026: "quick switches at the top, MAC switches ... telling me for correction and styling which model
     // are used"): above the tabs, always in sight
-    let qCorrect = NSSwitch(), qStyle = NSSwitch(), qFrankfurt = NSSwitch(), qTest = NSSwitch()
+    let qCorrect = NSSwitch(), qStyle = NSSwitch(), qFrankfurt = NSSwitch(), qTest = NSSwitch(), qBar = NSSwitch()
     let qCorrectModel = NSPopUpButton(), qStyleModel = NSPopUpButton()
     let qDetail = NSTextField(labelWithString: "")
     let output = NSPopUpButton()                 // v28: OUTPUT, the speaker of Vox's own sounds
@@ -339,21 +339,24 @@ final class SettingsWindow: NSObject, NSTextViewDelegate, NSTextFieldDelegate {
         let quick = quickRow()
         quick.translatesAutoresizingMaskIntoConstraints = false
         box.addSubview(quick)
-        let x = closeX(self, #selector(closeWindow), tip: "Close; Voice to Text (Mantra) stays on")
-        x.setAccessibilityIdentifier("close"); x.setAccessibilityLabel("Close window")
-        let on = rowWord("ON", Ink.green, id: "on", label: "On", #selector(nothing))
-        on.toolTip = "Voice to Text (Mantra) runs"
-        let off = rowWord("OFF", Ink.grey, id: "off", label: "Off", #selector(offPressed))
-        off.toolTip = "Quit Voice to Text (Mantra) (not while a take is open)"
+        // v33 (Marko, 16.11.2026: "ON-OFF needs to go out of this application ... this X is actually becoming OFF button ... it
+        // closes application completely. On the left side ... small speakers which is green when I select it ... gray"):
+        // the ✕ quits the app (not while a take is open); the speaker is the start and stop sounds on or off
+        let x = closeX(self, #selector(offPressed), tip: "Quit Voice to Text (Mantra) completely (not while a take is open)")
+        x.setAccessibilityIdentifier("close"); x.setAccessibilityLabel("Quit")
+        let on = NSButton(title: "", target: self, action: #selector(soundsPressed))
+        on.isBordered = false; on.imagePosition = .imageOnly
+        on.setAccessibilityIdentifier("sounds"); on.setAccessibilityLabel("Start and stop sounds")
+        soundsButton = on; paintSounds()
+        let off = on
         topWord = rowWord("TOP", Ink.grey, id: "top", label: "Top", #selector(topPressed))
         paintTop()
         let name = NSTextField(labelWithString: "Voice to Text (Mantra)")
         name.font = .systemFont(ofSize: 13, weight: .bold)
         offNote.font = .systemFont(ofSize: 11); offNote.textColor = Ink.amber
-        for v in [x, on, off, topWord!, name, offNote] as [NSView] { v.translatesAutoresizingMaskIntoConstraints = false; box.addSubview(v) }
+        for v in [x, on, topWord!, name, offNote] as [NSView] { v.translatesAutoresizingMaskIntoConstraints = false; box.addSubview(v) }
         NSLayoutConstraint.activate([
             on.leadingAnchor.constraint(equalTo: box.leadingAnchor, constant: 16), on.centerYAnchor.constraint(equalTo: x.centerYAnchor),
-            off.leadingAnchor.constraint(equalTo: on.trailingAnchor, constant: 10), off.centerYAnchor.constraint(equalTo: x.centerYAnchor),
             offNote.leadingAnchor.constraint(equalTo: off.trailingAnchor, constant: 12), offNote.centerYAnchor.constraint(equalTo: x.centerYAnchor),
             name.centerXAnchor.constraint(equalTo: box.centerXAnchor), name.centerYAnchor.constraint(equalTo: x.centerYAnchor),
             topWord.trailingAnchor.constraint(equalTo: x.leadingAnchor, constant: -10), topWord.centerYAnchor.constraint(equalTo: x.centerYAnchor),
@@ -387,8 +390,8 @@ final class SettingsWindow: NSObject, NSTextViewDelegate, NSTextFieldDelegate {
     @objc func stopLevelChanged() {
         Prefs.stopVolume = Float(stopLevel.doubleValue / 100); stopPct.stringValue = "\(Int(stopLevel.doubleValue.rounded())) %"
     }
-    @objc func playStart() { Chime.play(start: true) }
-    @objc func playStop() { Chime.play(start: false) }
+    @objc func playStart() { Chime.play(start: true, force: true) }
+    @objc func playStop() { Chime.play(start: false, force: true) }
 
     @objc func styleButtonChanged() {
         if let raw = styleButton.selectedItem?.representedObject as? String, let e = StyleEngine(rawValue: raw) { StyleButtonEngine.current = e }
@@ -519,18 +522,20 @@ final class SettingsWindow: NSObject, NSTextViewDelegate, NSTextFieldDelegate {
         }
         qCorrectModel.setAccessibilityLabel("Correction model"); qStyleModel.setAccessibilityLabel("Styling model")
         for (sw, id, label) in [(qCorrect, "quickCorrection", "Correction after each take"), (qStyle, "quickStyling", "Styling (the STYLE button)"),
-                                (qFrankfurt, "quickFrankfurt", "Frankfurt route"), (qTest, "quickTest", "TEST mode")] {
+                                (qFrankfurt, "quickFrankfurt", "Frankfurt route"), (qTest, "quickTest", "TEST mode"),
+                                (qBar, "quickMenuBar", "Show the bar in the menu bar")] {
             sw.target = self; sw.action = #selector(quickChanged(_:)); sw.controlSize = .small
             sw.setAccessibilityIdentifier(id); sw.setAccessibilityLabel(label)
         }
         qCorrect.toolTip = "Auto correct after each take, by this Claude (Anthropic), as the TEXT mode on the blob says"
         qStyle.toolTip = "The STYLE button on the blob, by this Claude (Anthropic)"
         qFrankfurt.toolTip = "The cloud engines are called from the relay in Frankfurt (direct is the fallback)"
+        qBar.toolTip = "The small display (its text and its meter) lives in the menu bar, next to the clock, instead of floating"
         qTest.toolTip = "Score each take against the reference sentence (Test tab)"
         qDetail.font = .systemFont(ofSize: 11); qDetail.textColor = Host.muted; qDetail.lineBreakMode = .byTruncatingTail
         qDetail.setAccessibilityIdentifier("quickModels")
         let r1 = NSStackView(views: [word("CORRECTION"), qCorrect, qCorrectModel, word("   STYLING"), qStyle, qStyleModel,
-                                     word("   FRANKFURT"), qFrankfurt, word("   TEST"), qTest])
+                                     word("   FRANKFURT"), qFrankfurt, word("   TEST"), qTest, word("   MENU BAR"), qBar])
         r1.orientation = .horizontal; r1.spacing = 6; r1.alignment = .centerY
         device.setAccessibilityIdentifier("input"); device.setAccessibilityLabel("Input: the microphone Vox records from")
         output.setAccessibilityIdentifier("output"); output.setAccessibilityLabel("Output: the speaker of Vox's sounds")
@@ -567,7 +572,7 @@ final class SettingsWindow: NSObject, NSTextViewDelegate, NSTextFieldDelegate {
     @objc func outputChanged() {
         OutputDevice.chosenUID = output.selectedItem?.representedObject as? String
         appendLog("output: \(output.titleOfSelectedItem ?? "")")
-        Chime.play(start: true)                  // heard on the speaker just chosen
+        Chime.play(start: true, force: true)                  // heard on the speaker just chosen
     }
 
     /// the models really called (the newest of the family, as Anthropic lists it) and how long their last answer took
@@ -588,6 +593,7 @@ final class SettingsWindow: NSObject, NSTextViewDelegate, NSTextFieldDelegate {
         qStyleModel.isEnabled = Prefs.styleButtonOn
         qFrankfurt.state = Frankfurt.on ? .on : .off
         qTest.state = Stats.testOn ? .on : .off
+        qBar.state = Prefs.barInMenu ? .on : .off
         let anth = keyText(.anthropic)
         qDetail.stringValue = "Correction: " + (corr == .off ? "off" : SettingsWindow.modelLine(corr)) +
             "   ·   Styling: " + (Prefs.styleButtonOn ? SettingsWindow.modelLine(StyleButtonEngine.current) : "off") +
@@ -606,6 +612,10 @@ final class SettingsWindow: NSObject, NSTextViewDelegate, NSTextFieldDelegate {
                 appendLog("quick: styling \(Prefs.styleButtonOn ? "on" : "off")")
             } else if sw === qFrankfurt {
                 frankfurtTick.state = sw.state; frankfurtChanged()
+            } else if sw === qBar {
+                Prefs.barInMenu = sw.state == .on
+                MenuDisplay.shared.apply()
+                appendLog("quick: bar in the menu bar \(Prefs.barInMenu ? "on" : "off")")
             } else if sw === qTest {
                 testTick.state = sw.state; testChanged()
             }
@@ -737,7 +747,20 @@ final class SettingsWindow: NSObject, NSTextViewDelegate, NSTextFieldDelegate {
         b.setAccessibilityIdentifier(id); b.setAccessibilityLabel(label)
         return b
     }
-    @objc func nothing() {}
+    var soundsButton: NSButton!
+    func paintSounds() {
+        let on = Prefs.chimesOn
+        let cfg = NSImage.SymbolConfiguration(pointSize: 15, weight: .semibold)
+        soundsButton.image = NSImage(systemSymbolName: on ? "speaker.wave.2.fill" : "speaker.fill", accessibilityDescription: "sounds")?.withSymbolConfiguration(cfg)
+        soundsButton.contentTintColor = on ? Ink.green : Ink.grey
+        soundsButton.setAccessibilityValue(on ? "on" : "off")
+        soundsButton.toolTip = on ? "The start and stop sounds are on (click: off)" : "The start and stop sounds are off (click: on)"
+    }
+    @objc func soundsPressed() {
+        Prefs.chimesOn.toggle(); paintSounds()
+        appendLog("start/stop sounds: \(Prefs.chimesOn ? "on" : "off")")
+        if Prefs.chimesOn { Chime.play(start: true, force: true) }
+    }
     // OFF quits, but never costs a take (the same guard as a build's quit)
     @objc func offPressed() {
         if stripe.recorder.recording || stripe.busy {
@@ -746,7 +769,7 @@ final class SettingsWindow: NSObject, NSTextViewDelegate, NSTextFieldDelegate {
             DispatchQueue.main.asyncAfter(deadline: .now() + 4) { [weak self] in self?.offNote.stringValue = "" }
             return
         }
-        appendLog("OFF pressed: quit")
+        appendLog("✕ pressed: quit")
         DispatchQueue.main.async { NSApp.terminate(nil) }
     }
     @objc func topPressed() {

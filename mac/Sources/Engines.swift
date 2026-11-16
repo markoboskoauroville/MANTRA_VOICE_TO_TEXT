@@ -8,7 +8,7 @@
 // does each is a choice on the stripe, remembered.
 import Foundation
 
-let appVersion = 32
+let appVersion = 33
 let VERSION = appVersion              // the Updater kit reads these two
 let APP_NAME = "Voice to Text (Mantra)"
 
@@ -119,6 +119,16 @@ enum TextMode: String, CaseIterable {
 }
 
 enum Prefs {
+    // v33: the speaker in ⚙ (the start and stop sounds), green = on
+    static var chimesOn: Bool {
+        get { UserDefaults.standard.object(forKey: "chimesOn") as? Bool ?? true }
+        set { UserDefaults.standard.set(newValue, forKey: "chimesOn") }
+    }
+    // v33: the display lives in the menu bar (a status item), the floating display is hidden
+    static var barInMenu: Bool {
+        get { UserDefaults.standard.bool(forKey: "barInMenu") }
+        set { UserDefaults.standard.set(newValue, forKey: "barInMenu") }
+    }
     // v28: the STYLING quick switch: off, the STYLE button says so and does nothing
     static var styleButtonOn: Bool {
         get { UserDefaults.standard.object(forKey: "styleButtonOn") as? Bool ?? true }

@@ -27,18 +27,7 @@ final class MenuBar: NSObject, NSMenuDelegate {
         super.init()
         item.autosaveName = "voicetotext"
         item.button?.setAccessibilityLabel("Voice to Text (Mantra)")
-        let menu = NSMenu()
-        for (title, sel) in [("Show the blob", #selector(showBlob)), ("Settings…", #selector(settings)),
-                             ("Transcription history", #selector(history))] {
-            let m = NSMenuItem(title: title, action: sel, keyEquivalent: ""); m.target = self; menu.addItem(m)
-        }
-        menu.addItem(.separator())
-        menu.delegate = self
-        for l in ["en", "hr"] { let m = NSMenuItem(title: "", action: nil, keyEquivalent: ""); m.isEnabled = false; m.tag = l == "en" ? 1 : 2; menu.addItem(m) }
-        menu.addItem(.separator())
-        let quit = NSMenuItem(title: "Quit Voice to Text (Mantra)", action: #selector(quit), keyEquivalent: "")
-        quit.target = self; menu.addItem(quit)
-        item.menu = menu
+        item.menu = makeMenu()
         show(.idle)
         let t = Timer(timeInterval: 0.1, repeats: true) { [weak self] _ in self?.follow() }
         RunLoop.main.add(t, forMode: .common)            // it changes colour while a menu is open too
@@ -50,6 +39,22 @@ final class MenuBar: NSObject, NSMenuDelegate {
         DistributedNotificationCenter.default().addObserver(forName: .init("com.mantra.voicetotext.toast"), object: nil, queue: .main) { n in
             if let t = n.object as? String { Toast.show(t, good: !t.hasPrefix("Direct")) }      // test hook: --hear ... --toast
         }
+    }
+
+    /// v33: the same menu for the VT icon and for the display in the menu bar (MenuDisplay)
+    func makeMenu() -> NSMenu {
+        let menu = NSMenu()
+        for (title, sel) in [("Show the blob", #selector(showBlob)), ("Settings…", #selector(settings)),
+                             ("Transcription history", #selector(history))] {
+            let m = NSMenuItem(title: title, action: sel, keyEquivalent: ""); m.target = self; menu.addItem(m)
+        }
+        menu.addItem(.separator())
+        menu.delegate = self
+        for l in ["en", "hr"] { let m = NSMenuItem(title: "", action: nil, keyEquivalent: ""); m.isEnabled = false; m.tag = l == "en" ? 1 : 2; menu.addItem(m) }
+        menu.addItem(.separator())
+        let quit = NSMenuItem(title: "Quit Voice to Text (Mantra)", action: #selector(quit), keyEquivalent: "")
+        quit.target = self; menu.addItem(quit)
+        return menu
     }
 
     /// v24: the engines in use for English and Croatian, each with its median time and its stars

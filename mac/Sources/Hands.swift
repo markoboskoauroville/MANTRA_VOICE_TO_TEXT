@@ -424,7 +424,8 @@ enum Chime {
     /// how long the sound of a start or a stop lasts (0 when there is none)
     static func duration(start: Bool) -> TimeInterval { sound(start: start)?.duration ?? 0 }
 
-    static func play(start: Bool, position: Float? = nil, then: (() -> Void)? = nil) {
+    static func play(start: Bool, position: Float? = nil, force: Bool = false, then: (() -> Void)? = nil) {
+        if !force && !Prefs.chimesOn { DispatchQueue.main.async { then?() }; return }       // v33: the speaker in ⚙ is grey
         let s = sound(start: start)
         s?.volume = gain(position ?? (start ? Prefs.startVolume : Prefs.stopVolume))      // v15: the levels in ⚙
         OutputDevice.apply(s)                                                        // v28: OUTPUT in Settings

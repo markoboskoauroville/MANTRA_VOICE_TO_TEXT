@@ -195,6 +195,7 @@ final class Stripe: NSObject {
         }
         panel.orderFrontRegardless()
         Magnet.shared.setup(self)         // v27: the display and the body may be detached; the state of the last run comes back
+        MenuDisplay.shared.setup(self)    // v33: the display in the menu bar, when ⚙ says so
         TextTarget.shared.start()         // v28: the last text box he clicked or focused, for typing and for STYLE
 
         // Typing into other apps needs Accessibility; macOS asks him once.
@@ -880,7 +881,7 @@ final class Stripe: NSObject {
     }
 
     @objc func statusClicked() {
-        if Magnet.shared.detached { return }          // v27: the flip belongs to the attached strip
+        if Magnet.shared.detached || Prefs.barInMenu { return }          // v27: the flip belongs to the attached strip
         Prefs.lineBelow.toggle()
         face.placeLine(below: Prefs.lineBelow)
         var o = panel.frame.origin
@@ -976,7 +977,7 @@ if let i = CommandLine.arguments.firstIndex(of: "--import-keys"), i + 1 < Comman
 if let i = CommandLine.arguments.firstIndex(of: "--chime"), i + 2 < CommandLine.arguments.count,
    let pct = Float(CommandLine.arguments[i + 2]) {
     _ = NSApplication.shared
-    Chime.play(start: CommandLine.arguments[i + 1] == "start", position: pct / 100)
+    Chime.play(start: CommandLine.arguments[i + 1] == "start", position: pct / 100, force: true)
     RunLoop.main.run(until: Date().addingTimeInterval(1.2))
     exit(0)
 }
