@@ -41,12 +41,29 @@ final class MenuDisplay: NSObject {
         let line = s.face.line
         line.removeFromSuperview()
         line.passThrough = true; line.restrictHit = false
+        button.addSubview(pipes, positioned: .below, relativeTo: nil)
         button.addSubview(line)
+        HoverCard.attach(to: it) { [weak self] in self?.hoverContent() ?? HoverCard.Content(name: "Voice to Text (Mantra)", what: "", state: "") }
         menuBar.item.isVisible = false              // its menu is on the display now
         layout()
         let t = Timer(timeInterval: 0.1, repeats: true) { [weak self] _ in self?.layout() }
         RunLoop.main.add(t, forMode: .common); timer = t
         appendLog("menu bar: the display is the menu-bar item (always there)")
+    }
+
+    private let pipes = HoverCard.PipesView(frame: .zero)
+
+    /// the hover card (kit menubar-hover)
+    func hoverContent() -> HoverCard.Content {
+        let r = stripe?.recorder
+        let secs = Int(r?.elapsed ?? 0)
+        let (st, col): (String, NSColor) = (r?.recording ?? false) ? ((r?.paused ?? false) ? ("PAUSED", .systemOrange) : ("RECORDING", .systemRed))
+            : (stripe?.busy ?? false) ? ("WRITING", .systemYellow) : ("READY", .systemGreen)
+        let d = UserDefaults.standard
+        func eng(_ l: String) -> String { let id = d.string(forKey: "engine_" + l) ?? "assemblyai"; return Catalog.byId(id).map { Stats.name($0, l) } ?? id }
+        var lines = ["English: " + eng("en"), "Croatian: " + eng("hr"), "Route: " + (Frankfurt.badge == "FRA" ? "Frankfurt relay" : "direct")]
+        if r?.recording ?? false { lines.insert(String(format: "Take: %d:%02d", secs / 60, secs % 60), at: 0) }
+        return HoverCard.Content(name: "Voice to Text (Mantra)", what: "Press F1, talk, the text is typed at the cursor", state: st, stateColor: col, lines: lines)
     }
 
     /// the item is as wide as the words (the band is the words plus 16 pt), the band 18 pt high in the 22 pt bar
@@ -55,8 +72,9 @@ final class MenuDisplay: NSObject {
         let line = s.face.line
         let words = line.stringValue.isEmpty ? 0 : ceil(line.attributedStringValue.size().width) + 16
         let w = max(words, 8)
-        if w != shownWidth { shownWidth = w; it.length = w + 6 }
+        if w != shownWidth { shownWidth = w; it.length = w + 6 + 8 }
         let h = max(18, button.bounds.height - 4)
-        line.frame = NSRect(x: 3, y: (button.bounds.height - h) / 2, width: w, height: h)
+        pipes.frame = button.bounds
+        line.frame = NSRect(x: 7, y: (button.bounds.height - h) / 2, width: w, height: h)
     }
 }

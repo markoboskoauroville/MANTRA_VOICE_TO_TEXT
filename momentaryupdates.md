@@ -268,3 +268,6 @@ Context: the v33 grip was hidden while MENU BAR is on, which is how he runs it. 
 
 ## 16.11.2026 (v37), Marko word for word (via the coordinator)
 > "I want that this menu bar item is always there. I cannot detach it. Now I was able to detach it and when I close the blob, it disappears from the screen and blob can be reopened by this menu bar item and application can be quick menu bar item. So we are discarding small display at the top of the blob. Blob can be closed and application stay open. To close application one needs to click on this status line in the menu bar. and also these dragging handles, gripping handles are too bright, they look like a pause button please make grey handles and write this in the manifest that the handles are never in full color and make them thinner and make them three"
+
+16.11.2026 (Marko, 16.11.2026): "Please with all my apps on the menu bar, make a comprehensive pop-up menu. When I hover over, I want to see what is it and what is it doing." and "for my apps always make a pipes before and after so I know where one app ends and other begins."
+**Status:** saved first; building in v38 (HoverCard kit, PipesView around the display).

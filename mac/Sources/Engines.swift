@@ -8,7 +8,7 @@
 // does each is a choice on the stripe, remembered.
 import Foundation
 
-let appVersion = 37
+let appVersion = 38
 let VERSION = appVersion              // the Updater kit reads these two
 let APP_NAME = "Voice to Text (Mantra)"
 
