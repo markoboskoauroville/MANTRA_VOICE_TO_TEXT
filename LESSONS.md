@@ -152,3 +152,7 @@ A stored property with an observer must be a declaration of its own: "var declar
 - A pause for N takes was the wrong cure; the cure is the macro that brings Tailscale up, started by the miss itself and never waited for by a take.
 - `$0` inside a closure that also has an explicit `k in` argument does not compile; name the outer argument too.
 - Menu-bar line seen 16.11.2026 (shots/menubar-v35.png): "GROQ EN · 0.9 s" with the meter underline, nothing else.
+
+## v36 (16.11.2026)
+- A control hidden in the mode its owner actually uses is a control that does not exist for him: when a mode is added, every control gets a place in it, and the screenshot of THAT mode is the proof.
+- The status item can hold the grip as a subview next to the display view; the item must keep its own length (display words + grip) and the layout timer must stop once the display has left.
