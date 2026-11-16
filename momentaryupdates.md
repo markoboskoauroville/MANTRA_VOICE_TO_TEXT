@@ -271,3 +271,7 @@ Context: the v33 grip was hidden while MENU BAR is on, which is how he runs it. 
 
 16.11.2026 (Marko, 16.11.2026): "Please with all my apps on the menu bar, make a comprehensive pop-up menu. When I hover over, I want to see what is it and what is it doing." and "for my apps always make a pipes before and after so I know where one app ends and other begins."
 **Status:** saved first; building in v38 (HoverCard kit, PipesView around the display).
+
+## 16.11.2026 (v38), Marko word for word (dictated in Croatian, via the coordinator)
+> "Potrebno je od Voice to Text, aplikacija Voice to Text u menubaru. Potrebne su checkmarke za 4 opcije, Engleski, Hrvatski, Korekcija, Stilizacija."
+Meaning: in the Voice to Text menu-bar menu, checkmarks for 4 options: English, Croatian, Correction, Styling.
