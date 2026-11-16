@@ -29,6 +29,7 @@ final class MenuBar: NSObject, NSMenuDelegate {
         item.button?.setAccessibilityLabel("Voice to Text (Mantra)")
         item.menu = makeMenu()
         show(.idle)
+        item.isVisible = false                           // v37: the display item carries the menu
         let t = Timer(timeInterval: 0.1, repeats: true) { [weak self] _ in self?.follow() }
         RunLoop.main.add(t, forMode: .common)            // it changes colour while a menu is open too
         timer = t
@@ -59,6 +60,7 @@ final class MenuBar: NSObject, NSMenuDelegate {
 
     /// v24: the engines in use for English and Croatian, each with its median time and its stars
     func menuNeedsUpdate(_ menu: NSMenu) {
+        if let m = menu.items.first, m.action == #selector(showBlob) { m.title = stripe.minimizedFrame == nil && stripe.panel.isVisible ? "Hide the blob" : "Show the blob" }
         for m in menu.items where m.tag == 1 || m.tag == 2 {
             let l = m.tag == 1 ? "en" : "hr"
             let id = UserDefaults.standard.string(forKey: "engine_" + l) ?? "assemblyai"
@@ -104,7 +106,10 @@ final class MenuBar: NSObject, NSMenuDelegate {
         }
     }
 
-    @objc func showBlob() { stripe.showQuietly(); stripe.panel.orderFrontRegardless() }
+    @objc func showBlob() {
+        if stripe.minimizedFrame == nil && stripe.panel.isVisible { stripe.pinned = false; stripe.minimizeStripe() }
+        else { stripe.showQuietly(); stripe.panel.orderFrontRegardless() }
+    }
     @objc func settings() { stripe.openSettingsTab() }
     @objc func history() { stripe.openHistory() }
     @objc func quit() {

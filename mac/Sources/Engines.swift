@@ -8,7 +8,7 @@
 // does each is a choice on the stripe, remembered.
 import Foundation
 
-let appVersion = 36
+let appVersion = 37
 let VERSION = appVersion              // the Updater kit reads these two
 let APP_NAME = "Voice to Text (Mantra)"
 
@@ -125,10 +125,8 @@ enum Prefs {
         set { UserDefaults.standard.set(newValue, forKey: "chimesOn") }
     }
     // v33: the display lives in the menu bar (a status item), the floating display is hidden
-    static var barInMenu: Bool {
-        get { UserDefaults.standard.bool(forKey: "barInMenu") }
-        set { UserDefaults.standard.set(newValue, forKey: "barInMenu") }
-    }
+    // v37 (Marko, 16.11.2026): the display lives only in the menu bar item, which is always there
+    static var barInMenu: Bool { true }
     // v28: the STYLING quick switch: off, the STYLE button says so and does nothing
     static var styleButtonOn: Bool {
         get { UserDefaults.standard.object(forKey: "styleButtonOn") as? Bool ?? true }

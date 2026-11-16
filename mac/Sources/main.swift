@@ -190,9 +190,6 @@ final class Stripe: NSObject {
             self.flipStrip()
             Place.save(self.panel)
         }
-        for n in [NSApplication.didBecomeActiveNotification, NSApplication.didUnhideNotification] {
-            NotificationCenter.default.addObserver(forName: n, object: nil, queue: .main) { [weak self] _ in self?.restoreStripe() }
-        }
         panel.orderFrontRegardless()
         Magnet.shared.setup(self)         // v27: the display and the body may be detached; the state of the last run comes back
         MenuDisplay.shared.setup(self)    // v33: the display in the menu bar, when ⚙ says so
@@ -329,7 +326,8 @@ final class Stripe: NSObject {
         let kept = t.components(separatedBy: " · ").filter { seg in
             !drop.contains(seg) && !seg.hasSuffix(" TO TALK") && !(seg.allSatisfy { $0 == "★" || $0 == "☆" })
         }
-        return kept.joined(separator: " · ")
+        let out = kept.joined(separator: " · ")
+        return out.isEmpty ? "VOICE TO TEXT" : out
     }
 
     func say(_ text: String, _ color: NSColor, tip: String? = nil) {
@@ -650,9 +648,7 @@ final class Stripe: NSObject {
 
     @objc func minimizeStripe() {
         minimizedFrame = panel.frame
-        panel.orderOut(nil)
-        NSApp.setActivationPolicy(.regular)
-        NSApp.hide(nil)
+        panel.orderOut(nil)               // v37: the app stays a menu-bar app (no Dock icon); the menu-bar item brings the blob back
     }
 
     // F1 brings the stripe back to its place without taking the front from the app he is typing into.

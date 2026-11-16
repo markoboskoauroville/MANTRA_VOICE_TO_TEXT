@@ -12,7 +12,7 @@ import AVFoundation
 import Accelerate
 
 // v28: 48 pt wider for the TEXT selector (STY / S+C / COR) beside the language
-let PILL_W: CGFloat = 494, PILL_H: CGFloat = 40, LINE_H: CGFloat = 20, PANEL_W: CGFloat = 524
+let PILL_W: CGFloat = 494, PILL_H: CGFloat = 40, LINE_H: CGFloat = 0, PANEL_W: CGFloat = 524
 let BLUE = NSColor(calibratedRed: 0x3D / 255, green: 0x7B / 255, blue: 0xF7 / 255, alpha: 1)
 
 // THE CRASH OF 30.10.2026 (22:33, caught in stderr): "NSInvalidArgumentException ... attempt to insert nil object" in
@@ -257,14 +257,13 @@ final class GripView: NSView {
     override func accessibilityRole() -> NSAccessibility.Role? { .handle }
     override func accessibilityLabel() -> String? { "Move the blob" }
     override func resetCursorRects() { addCursorRect(bounds, cursor: .openHand) }
-    // v36 (Marko, 16.11.2026: "finally update my voice to text with this grabbing handle. I told you 500 times"): the two lines
-    // are 3 pt wide, 18 pt high, nearly white, on a slightly lighter plate, so they are seen at a glance
+    // v37 (Marko, 16.11.2026: "gripping handles are too bright, they look like a pause button please make grey handles ...
+    // make them thinner and make them three"): three thin grey lines, never white or a full colour
     override func draw(_ r: NSRect) {
-        NSColor(white: 1, alpha: 0.10).setFill()
-        NSBezierPath(roundedRect: bounds.insetBy(dx: 1, dy: 5), xRadius: 5, yRadius: 5).fill()
-        NSColor(white: 0.92, alpha: 1).setFill()
-        for x in [bounds.midX - 4.5, bounds.midX + 1.5] {
-            NSBezierPath(roundedRect: NSRect(x: x, y: bounds.midY - 9, width: 3, height: 18), xRadius: 1.5, yRadius: 1.5).fill()
+        NSColor(white: 0.5, alpha: 0.85).setFill()
+        for i in 0..<3 {
+            let x = bounds.midX - 3.5 + CGFloat(i) * 4
+            NSBezierPath(roundedRect: NSRect(x: x, y: bounds.midY - 7, width: 1.5, height: 14), xRadius: 0.75, yRadius: 0.75).fill()
         }
     }
     override func mouseDown(with e: NSEvent) { last = NSEvent.mouseLocation; Magnet.shared.didDrag = false }
@@ -476,7 +475,6 @@ final class PillFace: NSView {
         line.textColor = NSColor(white: 1, alpha: 0.75)
         line.lineBreakMode = .byTruncatingTail
         let sh = NSShadow(); sh.shadowColor = .black; sh.shadowBlurRadius = 3; line.shadow = sh
-        addSubview(line)
     }
     required init?(coder: NSCoder) { fatalError() }
 

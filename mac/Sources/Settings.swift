@@ -64,7 +64,7 @@ final class SettingsWindow: NSObject, NSTextViewDelegate, NSTextFieldDelegate {
     var targetTimer: Timer?
     // v28 (Marko, 15.11.2026: "quick switches at the top, MAC switches ... telling me for correction and styling which model
     // are used"): above the tabs, always in sight
-    let qCorrect = NSSwitch(), qStyle = NSSwitch(), qFrankfurt = NSSwitch(), qTest = NSSwitch(), qBar = NSSwitch()
+    let qCorrect = NSSwitch(), qStyle = NSSwitch(), qFrankfurt = NSSwitch(), qTest = NSSwitch()
     let qCorrectModel = NSPopUpButton(), qStyleModel = NSPopUpButton()
     let qDetail = NSTextField(labelWithString: "")
     let output = NSPopUpButton()                 // v28: OUTPUT, the speaker of Vox's own sounds
@@ -522,21 +522,19 @@ final class SettingsWindow: NSObject, NSTextViewDelegate, NSTextFieldDelegate {
         }
         qCorrectModel.setAccessibilityLabel("Correction model"); qStyleModel.setAccessibilityLabel("Styling model")
         for (sw, id, label) in [(qCorrect, "quickCorrection", "Correction after each take"), (qStyle, "quickStyling", "Styling (the STYLE button)"),
-                                (qFrankfurt, "quickFrankfurt", "Frankfurt route"),
-                                (qBar, "quickMenuBar", "Show the bar in the menu bar")] {
+                                (qFrankfurt, "quickFrankfurt", "Frankfurt route")] {
             sw.target = self; sw.action = #selector(quickChanged(_:)); sw.controlSize = .small
             sw.setAccessibilityIdentifier(id); sw.setAccessibilityLabel(label)
         }
         qCorrect.toolTip = "Auto correct after each take, by this Claude (Anthropic), as the TEXT mode on the blob says"
         qStyle.toolTip = "The STYLE button on the blob, by this Claude (Anthropic)"
         qFrankfurt.toolTip = "The cloud engines are called from the relay in Frankfurt (direct is the fallback)"
-        qBar.toolTip = "The small display (its text and its meter) lives in the menu bar, next to the clock, instead of floating"
         qDetail.font = .systemFont(ofSize: 11); qDetail.textColor = Host.muted; qDetail.lineBreakMode = .byTruncatingTail
         qDetail.setAccessibilityIdentifier("quickModels")
         // v34 (Marko, 16.11.2026: "the switch, macOS switch must become before the title"): switch first, then its word.
         // TEST left this row: it is the developer's accuracy scoring, it stays in the Test tab
         let r1 = NSStackView(views: [qCorrect, word("CORRECTION"), qCorrectModel, qStyle, word("STYLING"), qStyleModel,
-                                     qFrankfurt, word("FRANKFURT"), qBar, word("MENU BAR")])
+                                     qFrankfurt, word("FRANKFURT")])
         r1.setCustomSpacing(18, after: qCorrectModel); r1.setCustomSpacing(18, after: qStyleModel); r1.setCustomSpacing(18, after: r1.views[7])
         r1.orientation = .horizontal; r1.spacing = 6; r1.alignment = .centerY
         device.setAccessibilityIdentifier("input"); device.setAccessibilityLabel("Input: the microphone Vox records from")
@@ -594,7 +592,6 @@ final class SettingsWindow: NSObject, NSTextViewDelegate, NSTextFieldDelegate {
         qStyleModel.selectItem(at: StyleButtonEngine.choices.firstIndex(of: StyleButtonEngine.current) ?? 0)
         qStyleModel.isEnabled = Prefs.styleButtonOn
         qFrankfurt.state = Frankfurt.on ? .on : .off
-        qBar.state = Prefs.barInMenu ? .on : .off
         let anth = keyText(.anthropic)
         qDetail.stringValue = "Correction: " + (corr == .off ? "off" : SettingsWindow.modelLine(corr)) +
             "   ·   Styling: " + (Prefs.styleButtonOn ? SettingsWindow.modelLine(StyleButtonEngine.current) : "off") +
@@ -613,10 +610,6 @@ final class SettingsWindow: NSObject, NSTextViewDelegate, NSTextFieldDelegate {
                 appendLog("quick: styling \(Prefs.styleButtonOn ? "on" : "off")")
             } else if sw === qFrankfurt {
                 frankfurtTick.state = sw.state; frankfurtChanged()
-            } else if sw === qBar {
-                Prefs.barInMenu = sw.state == .on
-                MenuDisplay.shared.apply()
-                appendLog("quick: bar in the menu bar \(Prefs.barInMenu ? "on" : "off")")
             }
         } else if let p = sender as? NSPopUpButton {
             if p === qCorrectModel { StyleEngine.current = engine(p); appendLog("quick: correction \(StyleEngine.current.title)") }
