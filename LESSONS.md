@@ -137,3 +137,8 @@ A stored property with an observer must be a declaration of its own: "var declar
 - Hear.used must stay "Engine LANG" (History matches it); the route has its own field Hear.route.
 - ATS applies to IP addresses since macOS 11: a plain http://100.x relay needs an Info.plist exception, else URLSession fails silently and the direct fallback hides it. Test the route, not only the build; the harmless fallback must say why (v21).
 - A pushed version number is never reused: a diagnostic commit under v20 built but made no release.
+
+## v33 (16.11.2026)
+- A view lives in one superview only: the display (BandField) is built once and moved between the blob, the magnet's panel and the status item's button; `passThrough` hitTest nil lets the status button take the click and show the menu.
+- A status item's place cannot be forced: autosaveName plus "NSStatusItem Preferred Position <name>" = 0 gives the slot nearest the system icons, which on this Mac is left of Control Center and the clock, not between them.
+- The ON/OFF were in Settings' first row, not on the blob; the corner X now quits. A released number is never reused; this one built green first time.
