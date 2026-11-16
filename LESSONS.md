@@ -147,3 +147,8 @@ A stored property with an observer must be a declaration of its own: "var declar
 - The install quit is refused during a take: the old copy was replaced on disk anyway before this showed; check `pgrep` after the quit and wait (loop the quit until the take is over) before relaunching. Never kill it.
 - A reachable() that holds its lock during the 4 s health call makes every take wait behind the 20 s background check; the lock now covers only the shared fields.
 - A full-screen app hides the menu bar: the strip screenshot is black; look when no full-screen app is on the MacBook screen.
+
+## v35 (16.11.2026)
+- A pause for N takes was the wrong cure; the cure is the macro that brings Tailscale up, started by the miss itself and never waited for by a take.
+- `$0` inside a closure that also has an explicit `k in` argument does not compile; name the outer argument too.
+- Menu-bar line seen 16.11.2026 (shots/menubar-v35.png): "GROQ EN · 0.9 s" with the meter underline, nothing else.
