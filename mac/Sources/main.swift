@@ -320,9 +320,22 @@ final class Stripe: NSObject {
              : "\(TextMode.current.title.uppercased()): \(StyleEngine.current.title.uppercased())")
     }
 
+    /// v34 (Marko, 16.11.2026, the display in the menu bar: "Idle or non-Idle needs to go out. The shortcut F1 to talk needs to go
+    /// out. engine name stays. styling or correction ... only when those options are on ... remove star ratings"): only in
+    /// the menu bar the words that say nothing new are left out; the blob keeps its full line
+    static func barText(_ t: String) -> String {
+        guard Prefs.barInMenu else { return t }
+        let drop: Set<String> = ["IDLE", "NO STYLING OR CORRECTION", "NO AUTO CORRECT", "no rating yet", "no data yet"]
+        let kept = t.components(separatedBy: " · ").filter { seg in
+            !drop.contains(seg) && !seg.hasSuffix(" TO TALK") && !(seg.allSatisfy { $0 == "★" || $0 == "☆" })
+        }
+        return kept.joined(separator: " · ")
+    }
+
     func say(_ text: String, _ color: NSColor, tip: String? = nil) {
         statusText = text; crashCrumb = text
-        face.line.stringValue = sweepTimer == nil ? text : Stripe.braille[spinFrame % Stripe.braille.count] + " " + text
+        let shown = Stripe.barText(text)
+        face.line.stringValue = sweepTimer == nil ? shown : Stripe.braille[spinFrame % Stripe.braille.count] + " " + shown
         face.line.textColor = color == Ink.dim ? NSColor(white: 1, alpha: 0.75) : color
         face.line.toolTip = tip ?? (lastText.isEmpty ? nil : "Last: " + lastText)
     }
@@ -453,13 +466,13 @@ final class Stripe: NSObject {
     func sending(_ on: Bool) {
         sweepTimer?.invalidate()
         sweepTimer = nil
-        guard on else { face.line.stringValue = statusText; refresh(); return }
+        guard on else { face.line.stringValue = Stripe.barText(statusText); refresh(); return }
         face.send.symbol = "ellipsis"
         spinFrame = 0
         let t = Timer(timeInterval: 0.08, repeats: true) { [weak self] _ in
             guard let self else { return }
             self.spinFrame += 1
-            self.face.line.stringValue = Stripe.braille[self.spinFrame % Stripe.braille.count] + " " + self.statusText
+            self.face.line.stringValue = Stripe.braille[self.spinFrame % Stripe.braille.count] + " " + Stripe.barText(self.statusText)
         }
         RunLoop.main.add(t, forMode: .common)               // it turns while a menu is open too
         sweepTimer = t

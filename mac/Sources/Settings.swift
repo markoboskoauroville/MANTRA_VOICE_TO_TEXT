@@ -56,7 +56,7 @@ final class SettingsWindow: NSObject, NSTextViewDelegate, NSTextFieldDelegate {
     var whisperRow: NSStackView!
     var history: HistoryPane!
     // v28: the TEXT selector, the typing target and its two ticks
-    static let historyTab = 6
+    static let historyTab = 0          // v34: History is the first tab and the default one
     var modeRadios: [TextMode: NSButton] = [:]
     let targetLabel = NSTextField(labelWithString: "none yet: click into a text box")
     let pasteTick = NSButton(checkboxWithTitle: "When a box ignores Accessibility writing, bring its app to the front and paste (your clipboard is put back)", target: nil, action: nil)
@@ -317,8 +317,8 @@ final class SettingsWindow: NSObject, NSTextViewDelegate, NSTextFieldDelegate {
                                  label("TEST mode", bold: true), testTick, testField]
         let tabsContent: [(String, [NSView])] = [("Engines", enginesTab), ("Text", textTab), ("Typing", typingTab),
                                                  ("Keys", keysTab), ("Sound", soundTab), ("Test", testTab)]
+        addTab("History", history.view)           // v34 (Marko, 16.11.2026: "History first, please")
         for (title, views) in tabsContent { addTab(title, page(views)) }
-        addTab("History", history.view)
         let about: [NSView] = [
             label("Voice to Text (Mantra) · Vox · version \(appVersion)", bold: true),
             para("F1 talks; the words are typed into the text box you clicked into last. Two selectors on the blob: the language (EN · HR · AUTO) and the text mode (STY · S+C · COR)."),
@@ -522,7 +522,7 @@ final class SettingsWindow: NSObject, NSTextViewDelegate, NSTextFieldDelegate {
         }
         qCorrectModel.setAccessibilityLabel("Correction model"); qStyleModel.setAccessibilityLabel("Styling model")
         for (sw, id, label) in [(qCorrect, "quickCorrection", "Correction after each take"), (qStyle, "quickStyling", "Styling (the STYLE button)"),
-                                (qFrankfurt, "quickFrankfurt", "Frankfurt route"), (qTest, "quickTest", "TEST mode"),
+                                (qFrankfurt, "quickFrankfurt", "Frankfurt route"),
                                 (qBar, "quickMenuBar", "Show the bar in the menu bar")] {
             sw.target = self; sw.action = #selector(quickChanged(_:)); sw.controlSize = .small
             sw.setAccessibilityIdentifier(id); sw.setAccessibilityLabel(label)
@@ -531,11 +531,13 @@ final class SettingsWindow: NSObject, NSTextViewDelegate, NSTextFieldDelegate {
         qStyle.toolTip = "The STYLE button on the blob, by this Claude (Anthropic)"
         qFrankfurt.toolTip = "The cloud engines are called from the relay in Frankfurt (direct is the fallback)"
         qBar.toolTip = "The small display (its text and its meter) lives in the menu bar, next to the clock, instead of floating"
-        qTest.toolTip = "Score each take against the reference sentence (Test tab)"
         qDetail.font = .systemFont(ofSize: 11); qDetail.textColor = Host.muted; qDetail.lineBreakMode = .byTruncatingTail
         qDetail.setAccessibilityIdentifier("quickModels")
-        let r1 = NSStackView(views: [word("CORRECTION"), qCorrect, qCorrectModel, word("   STYLING"), qStyle, qStyleModel,
-                                     word("   FRANKFURT"), qFrankfurt, word("   TEST"), qTest, word("   MENU BAR"), qBar])
+        // v34 (Marko, 16.11.2026: "the switch, macOS switch must become before the title"): switch first, then its word.
+        // TEST left this row: it is the developer's accuracy scoring, it stays in the Test tab
+        let r1 = NSStackView(views: [qCorrect, word("CORRECTION"), qCorrectModel, qStyle, word("STYLING"), qStyleModel,
+                                     qFrankfurt, word("FRANKFURT"), qBar, word("MENU BAR")])
+        r1.setCustomSpacing(18, after: qCorrectModel); r1.setCustomSpacing(18, after: qStyleModel); r1.setCustomSpacing(18, after: r1.views[7])
         r1.orientation = .horizontal; r1.spacing = 6; r1.alignment = .centerY
         device.setAccessibilityIdentifier("input"); device.setAccessibilityLabel("Input: the microphone Vox records from")
         output.setAccessibilityIdentifier("output"); output.setAccessibilityLabel("Output: the speaker of Vox's sounds")
@@ -592,7 +594,6 @@ final class SettingsWindow: NSObject, NSTextViewDelegate, NSTextFieldDelegate {
         qStyleModel.selectItem(at: StyleButtonEngine.choices.firstIndex(of: StyleButtonEngine.current) ?? 0)
         qStyleModel.isEnabled = Prefs.styleButtonOn
         qFrankfurt.state = Frankfurt.on ? .on : .off
-        qTest.state = Stats.testOn ? .on : .off
         qBar.state = Prefs.barInMenu ? .on : .off
         let anth = keyText(.anthropic)
         qDetail.stringValue = "Correction: " + (corr == .off ? "off" : SettingsWindow.modelLine(corr)) +
@@ -616,8 +617,6 @@ final class SettingsWindow: NSObject, NSTextViewDelegate, NSTextFieldDelegate {
                 Prefs.barInMenu = sw.state == .on
                 MenuDisplay.shared.apply()
                 appendLog("quick: bar in the menu bar \(Prefs.barInMenu ? "on" : "off")")
-            } else if sw === qTest {
-                testTick.state = sw.state; testChanged()
             }
         } else if let p = sender as? NSPopUpButton {
             if p === qCorrectModel { StyleEngine.current = engine(p); appendLog("quick: correction \(StyleEngine.current.title)") }

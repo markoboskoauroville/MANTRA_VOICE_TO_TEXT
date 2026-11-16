@@ -15,6 +15,7 @@ enum Toast {
         let n = Stats.name(h.spec, h.lang)
         if r.hasPrefix("Frankfurt") { good = true; return "Frankfurt · \(n) · \(t)" }
         good = false
+        if r.hasPrefix("direct (Frankfurt skipped") { return "D" + String(r.dropFirst()) + " · \(n) · \(t)" }
         if r.hasPrefix("direct (Frankfurt") { return "Direct — Frankfurt did not answer · \(n) · \(t)" }
         if r == "direct" { return "Direct — Frankfurt is off · \(n) · \(t)" }
         if r == "this Mac" { return "This Mac · \(n) · \(t)" }

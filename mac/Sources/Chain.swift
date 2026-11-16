@@ -52,7 +52,7 @@ enum Chain {
         // v20: a cloud engine goes through Frankfurt first (the relay does its keys and retries); direct only when the relay does not answer
         if Frankfurt.runsThere(s.id) {
             if let r = Frankfurt.run(s, wav: wav, lang: lang) { return r }
-            Hear.route = Frankfurt.on ? "direct (Frankfurt did not answer)" : "direct"
+            Hear.route = Frankfurt.on ? (Frankfurt.skipNote ?? "direct (Frankfurt did not answer)") : "direct"
         } else { Hear.route = "this Mac" }
         return direct(s, source: source, wav: wav, lang: lang, seconds: seconds)
     }

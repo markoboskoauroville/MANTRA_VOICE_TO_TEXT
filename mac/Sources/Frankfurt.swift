@@ -32,17 +32,42 @@ enum Frankfurt {
 
     /// does the relay answer (cached 20 s; a failed check is cached 5 s)
     static func reachable(force: Bool = false) -> Bool {
-        lock.lock(); defer { lock.unlock() }
-        let age = Date().timeIntervalSince(checked)
-        if !force && age < (alive ? 20 : 5) { return alive }
+        lock.lock()
+        let age = Date().timeIntervalSince(checked), was = alive
+        lock.unlock()
+        if !force && age < (was ? 20 : 5) { return was }
+        // v34: the lock is not held while the network answers, so a take never waits behind the background check
         let r = call(Adapters.request(base + "/health", method: "GET"), timeout: 4)
-        alive = r.status == 200 && (json(r.data)["ok"] as? Bool) == true
-        if !alive { appendLog("frankfurt: /health HTTP \(r.status) \(r.error ?? "")") }
-        version = (json(r.data)["version"] as? Int) ?? 0
-        checked = Date()
-        return alive
+        let ok = r.status == 200 && (json(r.data)["ok"] as? Bool) == true
+        if !ok { appendLog("frankfurt: /health HTTP \(r.status) \(r.error ?? "")") }
+        lock.lock()
+        alive = ok; version = (json(r.data)["version"] as? Int) ?? version; checked = Date()
+        if !ok { if skipLeft == 0 { skipLeft = skipCount } } else { skipLeft = 0 }
+        lock.unlock()
+        return ok
     }
 
+    // v34 (Marko, 16.11.2026: "if Frankfurt is not answering, then you need to do next few transcriptions, let's say 5 of
+    // them, without Frankfurt, without checking, going normal route, direct route, and then try again. not check every
+    // time"): after a miss the next 5 takes go direct with no call to the relay at all, then one try again
+    static let skipCount = 5
+    private static var skipLeft = 0
+    /// set while the current take is skipped: "direct (Frankfurt skipped, n of 5)"
+    static var skipNote: String?
+    /// the background 20 s check: not while takes are being skipped (nothing is asked of the relay then)
+    static func backgroundCheck() {
+        lock.lock(); let skipping = skipLeft > 0; lock.unlock()
+        if !skipping { _ = reachable(force: true) }
+    }
+    private static func takeSkip() -> Int? {
+        lock.lock(); defer { lock.unlock() }
+        guard skipLeft > 0 else { return nil }
+        skipLeft -= 1
+        return skipCount - skipLeft
+    }
+    private static func startSkip() { lock.lock(); skipLeft = skipCount; lock.unlock() }
+
+    static var skipping: Bool { lock.lock(); defer { lock.unlock() }; return skipLeft > 0 }
     static var relayVersion: Int { version }
     /// the menu bar's badge: FRA while the switch is on and the relay answered last time, else DIR
     static var badge: String { on && alive ? "FRA" : "DIR" }
@@ -67,7 +92,7 @@ enum Frankfurt {
     /// sends the Mac's keys that the relay may lack: every provider merged (a key it holds is not doubled); Cloudflare and the
     /// service account are one credential each and go only where the relay has none. Only when the keys changed since last time.
     static func syncKeys(force: Bool = false) {
-        guard on, reachable() else { return }
+        guard on, !Frankfurt.skipping, reachable() else { return }
         var payload: [String: [String]] = [:]
         let st = call(Adapters.request(base + "/status", method: "GET"), timeout: 8)
         let held = (json(st.data)["rings"] as? [String: Any]) ?? [:]
@@ -92,7 +117,14 @@ enum Frankfurt {
 
     /// nil = the relay did not answer, run the engine direct; otherwise the engine's own answer through Frankfurt
     static func run(_ spec: EngineSpec, wav: Data, lang: String) -> Result<String, EngineError>? {
-        guard on, runsThere(spec.id), reachable() else { return nil }
+        skipNote = nil
+        guard on, runsThere(spec.id) else { return nil }
+        if let n = takeSkip() {
+            skipNote = "direct (Frankfurt skipped, \(n) of \(skipCount))"
+            appendLog("frankfurt: " + (skipNote ?? ""))
+            return nil
+        }
+        guard reachable() else { return nil }
         if lang == "auto" && version < 2 { return nil }                  // the relay learned AUTO in version 2
         var h = ["Content-Type": "audio/wav"]
         let n = Adapters.names()
@@ -126,10 +158,11 @@ enum Frankfurt {
             }
         }
         _ = call(Adapters.request(base + "/jobs/\(id)/cancel"), timeout: 4)
+        startSkip()
         return .failure(EngineError("Frankfurt: no result in time"))
     }
 
-    private static func forget() { lock.lock(); alive = false; checked = Date(); lock.unlock() }
+    private static func forget() { lock.lock(); alive = false; checked = Date(); skipLeft = skipCount; lock.unlock() }
 }
 
 extension Adapters {
