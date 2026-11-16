@@ -261,3 +261,7 @@ Marko, 16.11.2026, word for word (second message, via the coordinator):
 
 ## 16.11.2026 (v35), Marko word for word (via the coordinator)
 > "You need to build in triggering of the macro recorder inside my voice to text engine. We don't need to now pause for 5 takes, it's not necessary. What is necessary is to solve immediately the problem. So if there is no connection to the server, it just triggers the macro to find where is Use it, this tailscale on the menu bar and just activate it and click the switch tailscale connect and then we can have it fixed, forget this 5 times pause"
+
+## 16.11.2026 (v36), Marko word for word (via the coordinator)
+> "finally update my voice to text with this grabbing handle. I told you 500 times and I don't know why you didn't do it still."
+Context: the v33 grip was hidden while MENU BAR is on, which is how he runs it. Wanted: a grab handle in every mode, visibly.
