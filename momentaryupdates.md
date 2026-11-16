@@ -265,3 +265,6 @@ Marko, 16.11.2026, word for word (second message, via the coordinator):
 ## 16.11.2026 (v36), Marko word for word (via the coordinator)
 > "finally update my voice to text with this grabbing handle. I told you 500 times and I don't know why you didn't do it still."
 Context: the v33 grip was hidden while MENU BAR is on, which is how he runs it. Wanted: a grab handle in every mode, visibly.
+
+## 16.11.2026 (v37), Marko word for word (via the coordinator)
+> "I want that this menu bar item is always there. I cannot detach it. Now I was able to detach it and when I close the blob, it disappears from the screen and blob can be reopened by this menu bar item and application can be quick menu bar item. So we are discarding small display at the top of the blob. Blob can be closed and application stay open. To close application one needs to click on this status line in the menu bar. and also these dragging handles, gripping handles are too bright, they look like a pause button please make grey handles and write this in the manifest that the handles are never in full color and make them thinner and make them three"
