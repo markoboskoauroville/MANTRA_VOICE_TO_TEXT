@@ -45,6 +45,15 @@ final class MenuBar: NSObject, NSMenuDelegate {
     /// v33: the same menu for the VT icon and for the display in the menu bar (MenuDisplay)
     func makeMenu() -> NSMenu {
         let menu = NSMenu()
+        // v38 (Marko, 16.11.2026: "checkmarks for 4 options: English, Croatian, Correction, Styling"): the dictation language
+        // (the same hearLang as the blob's [EN], with AUTO because the app has it) and the two quick switches of ⚙
+        for (title, tag, sel) in [("English", 11, #selector(pickLang(_:))), ("Croatian", 12, #selector(pickLang(_:))),
+                                  ("Auto (English and Croatian)", 13, #selector(pickLang(_:))),
+                                  ("Correction", 14, #selector(toggleCorrection)), ("Styling", 15, #selector(toggleStyling))] {
+            if tag == 14 { menu.addItem(.separator()) }
+            let m = NSMenuItem(title: title, action: sel, keyEquivalent: ""); m.target = self; m.tag = tag; menu.addItem(m)
+        }
+        menu.addItem(.separator())
         for (title, sel) in [("Show the blob", #selector(showBlob)), ("Settings…", #selector(settings)),
                              ("Transcription history", #selector(history))] {
             let m = NSMenuItem(title: title, action: sel, keyEquivalent: ""); m.target = self; menu.addItem(m)
@@ -60,7 +69,18 @@ final class MenuBar: NSObject, NSMenuDelegate {
 
     /// v24: the engines in use for English and Croatian, each with its median time and its stars
     func menuNeedsUpdate(_ menu: NSMenu) {
-        if let m = menu.items.first, m.action == #selector(showBlob) { m.title = stripe.minimizedFrame == nil && stripe.panel.isVisible ? "Hide the blob" : "Show the blob" }
+        let lang = HearEngine.current.lang
+        for m in menu.items {
+            switch m.tag {
+            case 11: m.state = lang == "en" ? .on : .off
+            case 12: m.state = lang == "hr" ? .on : .off
+            case 13: m.state = lang == "auto" ? .on : .off
+            case 14: m.state = StyleEngine.current != .off ? .on : .off
+            case 15: m.state = Prefs.styleButtonOn ? .on : .off
+            default: break
+            }
+        }
+        if let m = menu.items.first(where: { $0.action == #selector(showBlob) }) { m.title = stripe.minimizedFrame == nil && stripe.panel.isVisible ? "Hide the blob" : "Show the blob" }
         for m in menu.items where m.tag == 1 || m.tag == 2 {
             let l = m.tag == 1 ? "en" : "hr"
             let id = UserDefaults.standard.string(forKey: "engine_" + l) ?? "assemblyai"
@@ -109,6 +129,28 @@ final class MenuBar: NSObject, NSMenuDelegate {
     @objc func showBlob() {
         if stripe.minimizedFrame == nil && stripe.panel.isVisible { stripe.pinned = false; stripe.minimizeStripe() }
         else { stripe.showQuietly(); stripe.panel.orderFrontRegardless() }
+    }
+    /// everything that shows the choice follows at once: the blob, the status text, ⚙
+    private func changed() {
+        stripe.refresh()
+        if !stripe.recorder.recording && !stripe.busy { stripe.ready() } else if stripe.recorder.recording { stripe.showListening() }
+        stripe.settings?.paintChoices()
+    }
+    @objc func pickLang(_ m: NSMenuItem) {
+        HearEngine.setLang(m.tag == 11 ? "en" : m.tag == 12 ? "hr" : "auto")
+        appendLog("menu: language \(HearEngine.current.lang)")
+        changed()
+    }
+    @objc func toggleCorrection() {
+        if StyleEngine.current != .off { StyleEngine.current = .off }
+        else { StyleEngine.current = StyleEngine(rawValue: UserDefaults.standard.string(forKey: "styleLastOn") ?? "") ?? .haiku }
+        appendLog("menu: correction \(StyleEngine.current.title)")
+        changed()
+    }
+    @objc func toggleStyling() {
+        Prefs.styleButtonOn.toggle()
+        appendLog("menu: styling \(Prefs.styleButtonOn ? "on" : "off")")
+        changed()
     }
     @objc func settings() { stripe.openSettingsTab() }
     @objc func history() { stripe.openHistory() }

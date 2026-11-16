@@ -49,6 +49,14 @@ final class MenuDisplay: NSObject {
         let t = Timer(timeInterval: 0.1, repeats: true) { [weak self] _ in self?.layout() }
         RunLoop.main.add(t, forMode: .common); timer = t
         appendLog("menu bar: the display is the menu-bar item (always there)")
+        // test hook (--menu-shot): open the menu for a few seconds so it can be photographed, then close it again
+        DistributedNotificationCenter.default().addObserver(forName: .init("com.mantra.voicetotext.openmenu"), object: nil, queue: .main) { [weak self] n in
+            guard let it = self?.item else { return }
+            let secs = (n.object as? String).flatMap(Double.init) ?? 6
+            let t = Timer(timeInterval: secs, repeats: false) { _ in it.menu?.cancelTracking() }
+            RunLoop.main.add(t, forMode: .common)
+            it.button?.performClick(nil)
+        }
     }
 
     private let pipes = HoverCard.PipesView(frame: .zero)
