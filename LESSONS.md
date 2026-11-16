@@ -156,3 +156,8 @@ A stored property with an observer must be a declaration of its own: "var declar
 ## v36 (16.11.2026)
 - A control hidden in the mode its owner actually uses is a control that does not exist for him: when a mode is added, every control gets a place in it, and the screenshot of THAT mode is the proof.
 - The status item can hold the grip as a subview next to the display view; the item must keep its own length (display words + grip) and the layout timer must stop once the display has left.
+
+## v37 (16.11.2026)
+- A menu-bar app: the status item is the app; windows hide with their own ✕, only the item's menu quits. Keep the item alive (isVisible KVO) because macOS lets the user drag it out of the bar.
+- Dropping the display from the blob = LINE_H 0 and not adding the view to the face; the old placeLine code stays harmless.
+- Grips: three thin mid-grey lines; bright pairs look like a pause button.
