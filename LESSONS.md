@@ -1,5 +1,23 @@
 # Lessons
 
+## v48-v53 (17.11.2026): one grid, TTT's corrections, the shared database, typing suggestions
+- A group of controls is ONE NSGridView, never rows built one by one: a check box with its own title beside a labelled pop-up can never line up. Fix the label column's width, or the grid gives the free width to the labels and the pop-ups stay narrow at a wide window (v48 did).
+- "Global" has to be read from the code: the menu's Styling tick is the STYLE button's switch (styleButtonOn_<lang>), not the text mode. History now shows the same tick, so Re-transcribe with it on calls the styling Claude.
+- A page built for 840 pt leaves an empty column in a wide window: give the page the window's width and let paragraphs wrap at it (preferredMaxLayoutWidth 0 + a width constraint), never a fixed wrap width.
+- URLSession's cache reuses a GitHub API answer for 60 s: a tree read right after a push carries the old sha and the next PUT is refused (409). `cachePolicy: .reloadIgnoringLocalAndRemoteCacheData` on every API call.
+- One file per device in a shared data repo: append-only lines, each device writes only its own file, merge = union. No push can lose another device's work and there are no conflict files (TTT's whole-file sync has them).
+- TTT's release build is not debuggable: `adb run-as` cannot read its files. What the phones learned reaches the Mac only when TTT pushes it.
+- WhatsApp Web tells the name itself: the message box's accessibility description is "Type a message to <name>". Read the box, not the page.
+- The chat's name passed to the engine as a keyword is stronger than any fix afterwards: with keyterm "Vasyl" Deepgram wrote the contact's spelling by itself; without it the same clip came back as "athlete".
+- A box that empties when the message is sent cannot be read at the next take: look at it every few seconds while it still resembles the take and keep the last look (TTT has the IME's own field for this; the Mac has only Accessibility).
+- An event tap sees the mouse click BEFORE the button under it: clearing the suggestions on every click made a click on a suggestion do nothing. An Accessibility press does not go through the tap, so that test passed while the mouse failed. Test with what he uses.
+- Key events posted for a replacement need their own mark (eventSourceUserData) so the tap does not read them back, a private event source and empty flags (he is still holding Option: Option+Backspace deletes a whole word).
+- Do not offer corrections for a word that common words still begin with: he is not wrong, he is not finished.
+- Weights guessed by feel were 1 point of keystroke saving below the measured ones; an environment variable (VOX_W) made a sweep possible with no build. The plateau (36.5 % with the first suggestion, 49.6 % with a pick) is the n-gram ceiling; more needs a neural model.
+- MaCroatianFix changes correct but rare forms when a commoner neighbour fits the context (opciji → opcija, stvarom → stvaram): on 23 of his recent Croatian takes 9 changed, most for the better (objeviti → objaviti, mesec → mjesec), about a third not. It is TTT's behaviour, ported as it is; the tick on the Text tab turns it off.
+- AppleScript to an app the terminal was never allowed to control raises a macOS permission dialog (CotEditor, 17.11.2026): open a scratch file with `open -a` and use Accessibility instead; never answer the dialog.
+- A test window opens where the app last was: check its x and send it to the MacBook screen with Rectangle (`rectangle://execute-action?name=next-display`) before testing.
+
 ## v46-v47 (17.11.2026): the take that went away
 - NEVER auto-undo after typing. A read-back of a web box (WhatsApp Web's Lexical editor in Firefox, any contenteditable) is late and normalised (NBSP, paragraphs), so "the box is not what I expected" is not evidence that something was replaced. v43 pressed ⌘Z on that guess and removed the take Marko had just dictated, twice per take. A check after inserting may log or warn, never delete.
 - Web pages get one paste at the caret: the page's own editor handles ⌘V like his own; Accessibility writes into a DOM editor behind its back.
