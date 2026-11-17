@@ -48,6 +48,7 @@ final class SettingsWindow: NSObject, NSTextViewDelegate, NSTextFieldDelegate {
     let voiceTick = NSButton(checkboxWithTitle: VoiceWords.label, target: nil, action: nil)
     let voicePermissions = NSButton(title: "PERMISSIONS", target: nil, action: nil)
     let suggestSwitch = NSSwitch()             // v51: typing suggestions
+    let suggestModel = NSTextField(labelWithString: "")      // v55: the local model's state
     let fixTick = NSButton(checkboxWithTitle: "Corrections from the shared database (TTT): the Croatian dictionary fix, names, the spelling table, what you corrected before", target: nil, action: nil)
     let suggestPermissions = NSButton(title: "PERMISSIONS", target: nil, action: nil)
     var permTimer: Timer?
@@ -275,6 +276,8 @@ final class SettingsWindow: NSObject, NSTextViewDelegate, NSTextFieldDelegate {
         let suggestNote = label("While you type in any app, up to three suggestions (the word finished, or corrected) show on the blob and in the menu bar. Option+Space puts in the first, a click any of them; only the word being typed is replaced. Croatian and English, learned from your own dictations. Off in password boxes and terminals. Nothing you type is stored.")
         suggestNote.lineBreakMode = .byWordWrapping; suggestNote.maximumNumberOfLines = 4; suggestNote.textColor = Host.muted
         suggestRow = row([suggestSwitch, suggestWord, suggestPermissions])
+        suggestModel.font = .systemFont(ofSize: 11); suggestModel.textColor = Host.muted
+        suggestModel.setAccessibilityIdentifier("localModelState")
         // v53: TTT's corrections on or off (the dictionary fix for Croatian, the names, the spelling table, what was learned)
         fixTick.state = Fix.on ? .on : .off
         fixTick.target = self; fixTick.action = #selector(fixChanged)
@@ -339,7 +342,7 @@ final class SettingsWindow: NSObject, NSTextViewDelegate, NSTextFieldDelegate {
                                    row([label("Last text box:"), targetLabel]), pasteTick, clickTick,
                                    label("After hide", bold: true), autoHide,
                                    label("Voice activation", bold: true), row([voiceTick, voicePermissions]), voiceNote,
-                                   suggestRow, suggestNoteLabel]
+                                   suggestRow, suggestNoteLabel, suggestModel]
         let keysTab: [NSView] = [label("API keys: read by themselves from ~/Downloads/API; no key is ever shown, only its number", bold: true),
                                  row([importButton, retestButton]), importResult, anthropicLabel,
                                  label("Route", bold: true), frankfurtTick, frankfurtNote]
@@ -447,6 +450,7 @@ final class SettingsWindow: NSObject, NSTextViewDelegate, NSTextFieldDelegate {
     func paintTyping() {
         suggestSwitch.state = TypingSuggest.on ? .on : .off
         suggestPermissions.isHidden = !(TypingSuggest.on && TypingSuggest.shared.tapFailed)
+        suggestModel.stringValue = "Local model: " + LocalModel.state
     }
     @objc func fixChanged() { Fix.on = fixTick.state == .on; appendLog("TTT corrections: \(Fix.on ? "on" : "off")") }
     @objc func suggestChanged() {
@@ -864,6 +868,7 @@ final class SettingsWindow: NSObject, NSTextViewDelegate, NSTextFieldDelegate {
             if was != self.voicePermissions.isHidden, self.voicePermissions.isHidden, VoiceWords.enabled { stripe.voiceChanged() }
         }
         paintTarget()
+        paintTyping()
         targetTimer?.invalidate()
         targetTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] t in
             guard let self, self.window.isVisible else { t.invalidate(); return }

@@ -137,7 +137,7 @@ enum Predictor {
         // measured 17.11.2026 on 40 held-out History sentences (625 words): keystrokes saved 35.4 % → 36.5 % (Option+Space only),
         // on the strip within two keys 69.6 % → 72.0 %, against the first guess (bi 40, tri 40, pu 30, pb 70, pt 70, lean 14, len 0, su 4, sb 6, st 8)
         var d: [String: Double] = ["bi": 30, "tri": 30, "pu": 45, "pb": 90, "pt": 90, "next": 90, "lean": 25, "len": 3, "su": 8, "sb": 12, "st": 16,
-                                   "llm": 12, "llmfloor": -9]
+                                   "llm": 40, "llmfloor": -9]      // llm 40: the best of 6, 12, 25, 40, 60 on 40 held-out sentences (17.11.2026)
         for part in (ProcessInfo.processInfo.environment["VOX_W"] ?? "").split(separator: ",") {
             let kv = part.split(separator: "=")
             if kv.count == 2, let v = Double(kv[1]) { d[String(kv[0])] = v }
@@ -372,6 +372,11 @@ final class TypingSuggest {
     private var source: CFRunLoopSource?
     private var word = ""
     private var prev: [String] = []
+    private var recent: [String] = []          // v55: the last words typed, in memory only, for the local model (gone on a click or an app change)
+    private var pieces: [(String, Double)]?    // what the model expects next, for the word being typed now
+    private var piecesFor = -1
+    private var wordCount = 0
+    private var idleTimer: Timer?
     private var sentenceStart = true
     private var bias = 0.0
     private var textBox: Bool?                 // is the focus a text box (asked once per place: after a click or an app change)
@@ -427,7 +432,7 @@ final class TypingSuggest {
     }
 
     private func reset(place: Bool) {
-        word = ""; prev = []; sentenceStart = true
+        word = ""; prev = []; sentenceStart = true; recent = []; pieces = nil; piecesFor = -1
         if place { textBox = nil }
         clear()
     }
@@ -507,7 +512,21 @@ final class TypingSuggest {
             bias = max(-1, min(1, bias * 0.8 + (h && !e ? 0.35 : e && !h ? -0.35 : 0)))
         }
         prev.append(l); if prev.count > 2 { prev.removeFirst() }
+        recent.append(word); if recent.count > 40 { recent.removeFirst() }
         word = ""; sentenceStart = false
+        // the local model is asked once, now that the word ended: its answer is there before the next letter matters
+        wordCount += 1
+        let n = wordCount, context = recent.joined(separator: " ")
+        pieces = nil
+        queue.async {
+            LocalModel.ensure()
+            guard let m = LocalModel.next(context) else { return }
+            DispatchQueue.main.async {
+                guard n == self.wordCount else { return }
+                self.pieces = m; self.piecesFor = n
+                if !self.shown.isEmpty || !self.word.isEmpty { self.changed() }
+            }
+        }
     }
 
     /// is the focus a text box at all (a game, Finder's list, a shortcut field are not): asked once per place
@@ -530,9 +549,13 @@ final class TypingSuggest {
     private func changed() {
         generation += 1
         let g = generation, w = word, p = prev, start = sentenceStart, b = bias
+        let m = piecesFor == wordCount ? pieces : nil
         guard textBox != false, !(w.isEmpty && p.isEmpty) else { clear(); return }
+        // suggestions nobody takes go away by themselves (the window may have closed without a key or a click)
+        idleTimer?.invalidate()
+        idleTimer = Timer.scheduledTimer(withTimeInterval: 8, repeats: false) { [weak self] _ in self?.clear() }
         queue.async {
-            let s = Predictor.suggest(w, prev: p, sentenceStart: start, bias: b)
+            let s = Predictor.suggest(w, prev: p, sentenceStart: start, bias: b, model: m)
             DispatchQueue.main.async {
                 guard g == self.generation else { return }
                 self.shown = s
@@ -582,7 +605,78 @@ final class TypingSuggest {
 
 enum LocalModel {
     /// the server's address: VOX_LLM_URL for a measurement, else the app's own helper (port 8869) when it runs
-    static var url: String? = ProcessInfo.processInfo.environment["VOX_LLM_URL"]
+    private static let urlLock = NSLock()
+    private static var _url: String? = ProcessInfo.processInfo.environment["VOX_LLM_URL"]
+    static var url: String? {
+        get { urlLock.lock(); defer { urlLock.unlock() }; return _url }
+        set { urlLock.lock(); _url = newValue; urlLock.unlock() }
+    }
+
+    // v55, THE HELPER: llama.cpp's server (brew) with a small free model from the app's models folder, on 127.0.0.1 only.
+    // Measured 17.11.2026 on 40 of his held-out sentences (626 words): keystrokes saved 36.5 % → 40.5 % with the first
+    // suggestion (English 39.1 → 43.6, Croatian 20.4 → 21.5), asked once a word, 14 ms on average. It starts when he types
+    // and the files are there, and is stopped after ten idle minutes and when the app quits. What he types goes to this
+    // helper on this Mac only (the last words, in memory), never to a file and never to the network.
+    static let port = 8869
+    static var on: Bool {
+        get { UserDefaults.standard.object(forKey: "localModel") as? Bool ?? true }
+        set { UserDefaults.standard.set(newValue, forKey: "localModel"); if !newValue { stop() } }
+    }
+    static var modelFile: URL? {
+        let dir = appSupport.appendingPathComponent("models")
+        let names = ((try? FileManager.default.contentsOfDirectory(atPath: dir.path)) ?? []).filter { $0.hasSuffix(".gguf") }.sorted()
+        // the one named in the defaults, else the first gguf there (Whisper's ggml .bin files are not this)
+        let want = UserDefaults.standard.string(forKey: "localModelFile")
+        return (names.first { $0 == want } ?? names.first).map { dir.appendingPathComponent($0) }
+    }
+    static var server: String? { ["/opt/homebrew/bin/llama-server", "/usr/local/bin/llama-server"].first { FileManager.default.isExecutableFile(atPath: $0) } }
+    static var available: Bool { modelFile != nil && server != nil }
+    private static var process: Process?
+    private static var lastUse = Date()
+    private static var starting = false
+    static var state: String {
+        guard on else { return "off" }
+        guard let m = modelFile else { return "no model file in the models folder: suggestions use the dictionaries and your own layer" }
+        guard server != nil else { return "llama-server is not installed (brew install llama.cpp): suggestions use the dictionaries and your own layer" }
+        return m.deletingPathExtension().lastPathComponent + (url != nil ? " · running on this Mac" : " · starts when you type")
+    }
+
+    private static func healthy() -> Bool {
+        guard let u = URL(string: "http://127.0.0.1:\(port)/health") else { return false }
+        var r = URLRequest(url: u, timeoutInterval: 1)
+        r.cachePolicy = .reloadIgnoringLocalCacheData
+        let sem = DispatchSemaphore(value: 0)
+        var ok = false
+        URLSession.shared.dataTask(with: r) { d, resp, _ in ok = (resp as? HTTPURLResponse)?.statusCode == 200; sem.signal() }.resume()
+        _ = sem.wait(timeout: .now() + 1.5)
+        return ok
+    }
+
+    /// called on the suggestions' queue when a word ends: the helper is started if it is not there (never blocks the keys)
+    static func ensure() {
+        lastUse = Date()
+        guard on, url == nil, !starting, ProcessInfo.processInfo.environment["VOX_LLM_URL"] == nil, let model = modelFile, let bin = server else { return }
+        starting = true
+        DispatchQueue.global(qos: .utility).async {
+            defer { starting = false }
+            if healthy() { url = "http://127.0.0.1:\(port)"; appendLog("local model: a helper is already running on \(port)"); return }
+            let p = Process()
+            p.executableURL = URL(fileURLWithPath: bin)
+            p.arguments = ["-m", model.path, "--host", "127.0.0.1", "--port", String(port), "-c", "1024", "-np", "1", "--no-webui"]
+            p.standardOutput = FileHandle.nullDevice; p.standardError = FileHandle.nullDevice
+            guard (try? p.run()) != nil else { appendLog("local model: llama-server did not start"); return }
+            process = p
+            for _ in 0..<40 { if healthy() { break }; usleep(250_000) }
+            if healthy() { url = "http://127.0.0.1:\(port)"; appendLog("local model: \(model.lastPathComponent) ready on 127.0.0.1:\(port)") }
+            else { p.terminate(); process = nil; appendLog("local model: the helper did not answer, stopped") }
+        }
+    }
+    static func stop() {
+        if let p = process, p.isRunning { p.terminate(); appendLog("local model: helper stopped") }
+        process = nil
+        if ProcessInfo.processInfo.environment["VOX_LLM_URL"] == nil { url = nil }
+    }
+    static func stopIfIdle() { if process != nil, Date().timeIntervalSince(lastUse) > 600 { stop() } }
 
     /// the likeliest first pieces of the next word after `context` (lower case, no leading space) with their log probability
     static func next(_ context: String, pieces: Int = 150) -> [(String, Double)]? {

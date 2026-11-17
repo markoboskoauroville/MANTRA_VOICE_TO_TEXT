@@ -1109,7 +1109,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     // closing a window leaves the app ON; the star's open (a reopen) brings the stripe back (Marko, 19.10.2026)
-    func applicationWillTerminate(_ n: Notification) { stripe.releaseKeys(); Duck.up(); TakeMark.set(false) }
+    func applicationWillTerminate(_ n: Notification) { stripe.releaseKeys(); Duck.up(); TakeMark.set(false); LocalModel.stop() }
     func applicationShouldTerminateAfterLastWindowClosed(_ s: NSApplication) -> Bool { false }
     func applicationShouldHandleReopen(_ s: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
         if stripe.minimizedFrame != nil { stripe.showQuietly() } else { stripe.panel.orderFrontRegardless() }

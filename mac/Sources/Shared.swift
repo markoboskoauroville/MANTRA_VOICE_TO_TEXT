@@ -255,7 +255,7 @@ enum Shared {
         load()
         let t = DispatchSource.makeTimerSource(queue: queue)
         t.schedule(deadline: .now() + 3, repeating: 300)
-        t.setEventHandler { sync(); Lexicon.unloadIfIdle() }
+        t.setEventHandler { sync(); Lexicon.unloadIfIdle(); LocalModel.stopIfIdle() }
         t.resume()
         timer = t
         Learner.start()
