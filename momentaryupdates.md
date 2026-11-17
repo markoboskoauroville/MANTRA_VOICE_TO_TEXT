@@ -286,3 +286,8 @@ Meaning: in the Voice to Text menu-bar menu, checkmarks for 4 options: English, 
 Meaning: v39 put the engine dropdown on the pill; he meant the drop-down menu of the MENU BAR ITEM (where he picks EN / HR / AUTO). Also: the blob must always show at launch.
 
 **Status:** saved first (17.11.2026); building in v40: Engine submenu in the menu bar item's menu after AUTO; the blob always shown at start.
+
+## 17.11.2026 (v41), Marko word for word (via the coordinator)
+> "I actually need drop down menu to change engine in the menu bar item, not just display, and I want to see history at the top of the drop down menu in menu bar, so I click on the menu bar and I click on the history and then normal history window is opening up."
+
+**Status:** saved first (17.11.2026); v40 (Engine submenu, blob at start) was already pushed, so this is v41: the Engine items change the engine (HearEngine.setEngine), History is the first item of the menu bar item's menu and opens the History tab.
