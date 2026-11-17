@@ -315,21 +315,65 @@ enum Writer {
         }
     }
 
-    /// a take's words at the caret of the box (replacing its selection)
+    // v43 (Marko, 17.11.2026: "every sentence is replacing the old sentence. I want to work in insert mode all the time. Wherever my
+    // cursor is, sentence is inserted ... it deletes my own two minutes. This is unacceptable."): DICTATION ONLY INSERTS.
+    // Firefox leaves a text it was given through Accessibility selected; the next take then replaced it. Now a take first
+    // collapses any selection to its end, inserts, checks that everything that was in the box is still there, and moves the
+    // caret behind the insertion. Where it cannot be sure, it undoes and falls back, never leaving a replaced text.
+    static func caret(_ el: AXUIElement) -> CFRange? {
+        guard let v = TextTarget.attr(el, kAXSelectedTextRangeAttribute), CFGetTypeID(v as CFTypeRef) == AXValueGetTypeID() else { return nil }
+        var r = CFRange()
+        return AXValueGetValue(v as! AXValue, .cfRange, &r) ? r : nil
+    }
+    /// any selection collapsed to its end (the text stays); true when the caret now has no selection
+    @discardableResult static func collapse(_ el: AXUIElement) -> Bool {
+        guard let r = caret(el) else { return false }
+        if r.length == 0 { return true }
+        var c = CFRange(location: r.location + r.length, length: 0)
+        guard TextTarget.settable(el, kAXSelectedTextRangeAttribute), let v = AXValueCreate(.cfRange, &c),
+              AXUIElementSetAttributeValue(el, kAXSelectedTextRangeAttribute as CFString, v) == .success else { return false }
+        usleep(40_000)
+        return (caret(el)?.length ?? 1) == 0
+    }
+    /// everything that was in the box before is still in it, only text added at the caret (when both can be read)
+    static func intact(before: String?, after: String?, at: CFRange?) -> Bool {
+        guard let b = before, let a = after else { return true }
+        if let at, at.location >= 0, at.location <= (b as NSString).length {
+            let ns = b as NSString
+            return a.hasPrefix(ns.substring(to: at.location)) && a.hasSuffix(ns.substring(from: at.location))
+        }
+        return (a as NSString).length >= (b as NSString).length
+    }
+    private static func undoReplace(_ el: AXUIElement, before: String?) {
+        guard let before, focus(el) else { return }
+        _ = keys(el, kVK_ANSI_Z); usleep(150_000)
+        appendLog("typing: a replaced text was undone (box " + (value(el) == before ? "as before" : "NOT as before, check it") + ")")
+    }
+
+    /// a take's words at the caret of the box: INSERTED, never replacing anything (v43)
     static func insert(_ text: String, into b: TextTarget.Box) -> Landing {
         let el = b.element
         AXUIElementSetMessagingTimeout(el, 0.6)
         let before = value(el)
+        let sure = collapse(el)
+        let at = caret(el)
+        if !sure && (at?.length ?? 0) > 0 { appendLog("typing: \(b.app) \(b.role) kept a selection I could not collapse") }
         let snippet = String(text.prefix(20))
+        var replaced = false
         if TextTarget.settable(el, kAXSelectedTextAttribute),
            AXUIElementSetAttributeValue(el, kAXSelectedTextAttribute as CFString, text as CFTypeRef) == .success {
             for _ in 0..<4 {
                 if let a = value(el), a != (before ?? ""), a.contains(snippet) {
-                    appendLog("typing: Accessibility into \(b.app) \(b.role)"); return .typed
+                    if intact(before: before, after: a, at: at) {
+                        collapse(el)             // the inserted text is left selected by some apps: the next take must not replace it
+                        appendLog("typing: Accessibility into \(b.app) \(b.role)"); return .typed
+                    }
+                    replaced = true; break
                 }
                 usleep(60_000)
             }
         }
+        if replaced { undoReplace(el, before: before) }
         guard paste(text, into: el, selectAll: false) else {
             appendLog("typing: \(b.app) \(b.role) took no writing and could not be brought to the front: COPY")
             return .nowhere
@@ -337,6 +381,11 @@ enum Writer {
         if let a = value(el), a == (before ?? ""), !a.contains(snippet) {
             appendLog("typing: pasted into \(b.app) \(b.role) but the box did not change: COPY"); return .nowhere
         }
+        if !intact(before: before, after: value(el), at: at) {
+            undoReplace(el, before: before)
+            appendLog("typing: \(b.app) \(b.role) replaced text on insert: undone, COPY"); return .nowhere
+        }
+        collapse(el)
         appendLog("typing: pasted into \(b.app) \(b.role)")
         return .pasted
     }
