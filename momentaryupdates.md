@@ -354,3 +354,9 @@ Meaning (the master's look at his v46 screenshot): in History an empty column of
 Meaning: a bug hunt over the whole app; correction and completion improved by measured industry practice (noisy channel, keyboard adjacency, personal n-grams, Croatian diacritics, confidence threshold), top-1/top-3 and keystrokes saved before vs after; the best free local models for this Mac compared by latency and hit rate (downloads approved by the master, through the Nothing Phone line, on the Download Monitor).
 
 **Status:** saved first (17.11.2026).
+
+## 17.11.2026 (v47), Marko word for word (via the coordinator)
+> "Also another feature to be updated is that I have two shortcuts, one for English, one for Croatian transcription. F1 is English, F2 is Croatian by default."
+Meaning: F1 records a take in English, F2 in Croatian, each with its language's own slot (engine, correction, styling); both keys changeable in Settings.
+
+**Status:** saved first (17.11.2026); v47.
