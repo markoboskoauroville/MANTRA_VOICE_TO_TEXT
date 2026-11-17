@@ -195,6 +195,7 @@ final class Stripe: NSObject {
         panel.orderFrontRegardless()
         Magnet.shared.setup(self)         // v27: the display and the body may be detached; the state of the last run comes back
         MenuDisplay.shared.setup(self)    // v33: the display in the menu bar, when ⚙ says so
+        TypingSuggest.shared.setup(self)  // v51: suggestions while he types in any app (Option+Space takes the first)
         TextTarget.shared.start()         // v28: the last text box he clicked or focused, for typing and for STYLE
 
         // Typing into other apps needs Accessibility; macOS asks him once.
@@ -370,8 +371,23 @@ final class Stripe: NSObject {
         return out.isEmpty ? "VOICE TO TEXT" : out
     }
 
+    // v51: the typing suggestions take the display while there are any ("⌥␣ first · second · third"); the status comes back after
+    var suggesting = false
+    private var statusColor: NSColor = Ink.dim
+    func showSuggestions(_ words: [String]) {
+        if words.isEmpty {
+            if suggesting { suggesting = false; say(statusText, statusColor) }
+            return
+        }
+        suggesting = true
+        face.line.stringValue = "⌥␣  " + words.joined(separator: "  ·  ")
+        face.line.textColor = Host.sand
+        face.line.toolTip = "Option+Space (or a click here) puts in: " + words[0]
+    }
+
     func say(_ text: String, _ color: NSColor, tip: String? = nil) {
         statusText = text; crashCrumb = text
+        statusColor = color; suggesting = false
         let shown = Stripe.barText(text)
         face.line.stringValue = sweepTimer == nil ? shown : Stripe.braille[spinFrame % Stripe.braille.count] + " " + shown
         face.line.textColor = color == Ink.dim ? NSColor(white: 1, alpha: 0.75) : color
@@ -704,6 +720,7 @@ final class Stripe: NSObject {
                 Toast.show(Toast.line(hear, seconds: tHear), good: Toast.good)       // v22: the route, 2 s
                 self.lastText = final
                 self.lastLang = lang
+                Personal.queue.async { Personal.shared.learn(final) }      // v51: his sentences teach the suggestions
                 self.busy = false
                 let entry = History.add(wav: wav, Version(at: Date(), hear: usedTitle, style: style.title, lang: hear.lang, heard: words,
                                               text: final))
@@ -1161,6 +1178,23 @@ if CommandLine.arguments.contains("--sync") { Shared.load(); Shared.sync(); prin
 if let i = CommandLine.arguments.firstIndex(of: "--learn"), i + 3 < CommandLine.arguments.count {
     let a = CommandLine.arguments
     Shared.learn([CorrectionRules.Swap(wrong: a[i + 2], right: a[i + 3])], lang: a[i + 1]); Shared.sync(); print(Shared.status); exit(0)
+}
+
+// v51: --bench-complete [n] measures the typing suggestions on his own History sentences; --suggest <prefix> [words before...]
+// prints what the strip would show
+if let i = CommandLine.arguments.firstIndex(of: "--bench-complete") {
+    exit(CompleteBench.run(i + 1 < CommandLine.arguments.count ? Int(CommandLine.arguments[i + 1]) ?? 20 : 20))
+}
+if let i = CommandLine.arguments.firstIndex(of: "--suggest"), i + 1 < CommandLine.arguments.count {
+    let a = CommandLine.arguments
+    Personal.shared.build()
+    let prev = Array(a[(i + 2)...]).map { $0.lowercased() }
+    _ = Predictor.suggest(a[i + 1], prev: prev)
+    let t0 = Date()
+    let s = Predictor.suggest(a[i + 1], prev: prev)
+    print(s.map { "\($0.text) [\($0.kind.rawValue) \(Int($0.score))]" }.joined(separator: " · "))
+    FileHandle.standardError.write(Data(String(format: "%.2f ms\n", Date().timeIntervalSince(t0) * 1000).utf8))
+    exit(0)
 }
 
 // --transcribe-file <path> [engine] [lang]: a file of any length, asked of the running app (it shows the window) or done here

@@ -80,22 +80,26 @@ final class MenuDisplay: NSObject {
     // v45 (Marko, 17.11.2026: "if the text do not land ... I want to then click on menu bar item, and then it copies the text, and
     // second click lands as normal click"): while the take did not land the item has no menu and its click copies that take's
     // text; once copied (or a new take lands) the menu is back and the next click opens it
+    // v51: while typing suggestions are showing, a click on the item puts the first one in (the menu is back when they are gone)
+    private var suggestMode = false
     private func syncCopyMode() {
         guard let s = stripe, let it = item, let b = it.button else { return }
         let want = s.unlanded && !s.lastText.isEmpty
-        guard want != copyMode else { return }
-        copyMode = want
-        if want {
+        let wantSuggest = !want && s.suggesting
+        guard want != copyMode || wantSuggest != suggestMode else { return }
+        if want != copyMode, want { appendLog("menu bar: the take did not land: the first click copies it") }
+        copyMode = want; suggestMode = wantSuggest
+        if want || wantSuggest {
             it.menu = nil
-            b.target = self; b.action = #selector(copyClicked)
+            b.target = self; b.action = want ? #selector(copyClicked) : #selector(suggestionClicked)
             b.sendAction(on: .leftMouseDown)
-            appendLog("menu bar: the take did not land: the first click copies it")
         } else {
             b.target = nil; b.action = nil
             it.menu = savedMenu
         }
     }
     @objc func copyClicked() { stripe?.copyLast() }
+    @objc func suggestionClicked() { TypingSuggest.shared.take(0) }
 
     /// the item is as wide as the words (the band is the words plus 16 pt), the band 18 pt high in the 22 pt bar
     private func layout() {

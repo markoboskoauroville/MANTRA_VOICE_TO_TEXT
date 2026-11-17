@@ -47,6 +47,8 @@ final class SettingsWindow: NSObject, NSTextViewDelegate, NSTextFieldDelegate {
     // v21: voice activation, its words in the label from VoiceWords (Voice.swift), off by default
     let voiceTick = NSButton(checkboxWithTitle: VoiceWords.label, target: nil, action: nil)
     let voicePermissions = NSButton(title: "PERMISSIONS", target: nil, action: nil)
+    let suggestSwitch = NSSwitch()             // v51: typing suggestions
+    let suggestPermissions = NSButton(title: "PERMISSIONS", target: nil, action: nil)
     var permTimer: Timer?
     let tabs = NSTabView()
     // v12 (Marko, 8.11.2026: "remove from drop down menus options. It must be very simple"): the models are round buttons,
@@ -260,6 +262,20 @@ final class SettingsWindow: NSObject, NSTextViewDelegate, NSTextFieldDelegate {
         voiceNote.maximumNumberOfLines = 2
         voiceNote.preferredMaxLayoutWidth = 700
         showVoicePermissions()
+        // v51 (Marko, 17.11.2026: "it offers me corrected words or finishing what I'm typing ... every time I press alt space"):
+        // the switch stands before its name; PERMISSIONS (amber) only while macOS withholds the keys
+        suggestSwitch.target = self; suggestSwitch.action = #selector(suggestChanged)
+        suggestSwitch.setAccessibilityIdentifier("typingSuggestions"); suggestSwitch.setAccessibilityLabel("Typing suggestions")
+        suggestPermissions.isBordered = false
+        suggestPermissions.attributedTitle = voicePermissions.attributedTitle
+        suggestPermissions.target = self; suggestPermissions.action = #selector(openSuggestPermissions)
+        suggestPermissions.setAccessibilityIdentifier("typingPermissions")
+        let suggestWord = label("TYPING SUGGESTIONS", bold: true)
+        let suggestNote = label("While you type in any app, up to three suggestions (the word finished, or corrected) show on the blob and in the menu bar. Option+Space puts in the first, a click any of them; only the word being typed is replaced. Croatian and English, learned from your own dictations. Off in password boxes and terminals. Nothing you type is stored.")
+        suggestNote.lineBreakMode = .byWordWrapping; suggestNote.maximumNumberOfLines = 4; suggestNote.textColor = Host.muted
+        suggestRow = row([suggestSwitch, suggestWord, suggestPermissions])
+        suggestNoteLabel = suggestNote
+        paintTyping()
 
         for e in [Ears.server, Ears.builtIn] { earsButton.addItem(withTitle: e.title); earsButton.lastItem?.representedObject = e.rawValue }
         earsButton.selectItem(at: Ears.current == .server ? 0 : 1)
@@ -316,7 +332,8 @@ final class SettingsWindow: NSObject, NSTextViewDelegate, NSTextFieldDelegate {
                                    label("Where the words go", bold: true), typingNote,
                                    row([label("Last text box:"), targetLabel]), pasteTick, clickTick,
                                    label("After hide", bold: true), autoHide,
-                                   label("Voice activation", bold: true), row([voiceTick, voicePermissions]), voiceNote]
+                                   label("Voice activation", bold: true), row([voiceTick, voicePermissions]), voiceNote,
+                                   suggestRow, suggestNoteLabel]
         let keysTab: [NSView] = [label("API keys: read by themselves from ~/Downloads/API; no key is ever shown, only its number", bold: true),
                                  row([importButton, retestButton]), importResult, anthropicLabel,
                                  label("Route", bold: true), frankfurtTick, frankfurtNote]
@@ -419,6 +436,20 @@ final class SettingsWindow: NSObject, NSTextViewDelegate, NSTextFieldDelegate {
     }
 
     // MANTRA_MANIFEST swift-apps.md: PERMISSIONS only while one is missing, a click goes straight to its page, read every 2 s
+    var suggestRow: NSStackView!
+    var suggestNoteLabel: NSTextField!
+    func paintTyping() {
+        suggestSwitch.state = TypingSuggest.on ? .on : .off
+        suggestPermissions.isHidden = !(TypingSuggest.on && TypingSuggest.shared.tapFailed)
+    }
+    @objc func suggestChanged() {
+        TypingSuggest.on = suggestSwitch.state == .on
+        appendLog("typing suggestions: switched \(TypingSuggest.on ? "on" : "off") in Settings")
+    }
+    @objc func openSuggestPermissions() {
+        NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent")!)
+    }
+
     func showVoicePermissions() {
         voicePermissions.isHidden = !(VoiceWords.enabled && (!VoiceWords.authorized || !VoiceWords.micAllowed))
     }

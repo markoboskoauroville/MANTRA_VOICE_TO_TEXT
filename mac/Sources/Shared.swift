@@ -182,7 +182,8 @@ enum Shared {
 
     private static func call(_ method: String, _ path: String, token: String, body: Data? = nil, raw: Bool = false) -> (Int, Data)? {
         guard let url = URL(string: "https://api.github.com/repos/\(repo)" + path) else { return nil }
-        var r = URLRequest(url: url, timeoutInterval: 20)
+        // never the URL cache: GitHub lets an answer be reused for 60 s, and a stale tree gives a stale sha (the second push of v50 was refused)
+        var r = URLRequest(url: url, cachePolicy: .reloadIgnoringLocalAndRemoteCacheData, timeoutInterval: 20)
         r.httpMethod = method
         r.setValue("Bearer " + token, forHTTPHeaderField: "Authorization")
         r.setValue(raw ? "application/vnd.github.raw" : "application/vnd.github+json", forHTTPHeaderField: "Accept")

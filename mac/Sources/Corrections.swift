@@ -43,6 +43,9 @@ final class Lexicon {
     private(set) var bigrams: [String: Int] = [:]
     private(set) var trigrams: [String: Int] = [:]
     private(set) var sorted: [String] = []                      // for completions by prefix
+    private(set) var foldedSorted: [(String, String)] = []      // Croatian: (without diacritics, the word), for a prefix typed without them
+    private(set) var nextBi: [String: [(String, Int)]] = [:]    // the commonest words after one word
+    private(set) var nextTri: [String: [(String, Int)]] = [:]   // and after two
     private(set) var misspellings: [String: String] = [:]       // English only (Wikipedia's list)
 
     static func fold(_ s: String) -> String {
@@ -82,6 +85,12 @@ final class Lexicon {
         bigrams = Lexicon.counts(dir.appendingPathComponent(lang + "_bigrams.txt"))
         trigrams = Lexicon.counts(dir.appendingPathComponent(lang + "_trigrams.txt"))
         sorted = words.keys.sorted()
+        if lang == "hr" { foldedSorted = words.keys.map { (Lexicon.fold($0), $0) }.filter { $0.0 != $0.1 }.sorted { $0.0 < $1.0 } }
+        var nb: [String: [(String, Int)]] = [:], nt: [String: [(String, Int)]] = [:]
+        for (k, c) in bigrams { if let sp = k.firstIndex(of: " ") { nb[String(k[..<sp]), default: []].append((String(k[k.index(after: sp)...]), c)) } }
+        for (k, c) in trigrams { if let sp = k.lastIndex(of: " ") { nt[String(k[..<sp]), default: []].append((String(k[k.index(after: sp)...]), c)) } }
+        nextBi = nb.mapValues { Array($0.sorted { $0.1 > $1.1 }.prefix(12)) }
+        nextTri = nt.mapValues { Array($0.sorted { $0.1 > $1.1 }.prefix(12)) }
         if lang == "en", let t = try? String(contentsOf: dir.appendingPathComponent("en_misspellings.txt"), encoding: .utf8) {
             for line in t.split(separator: "\n") {
                 let p = line.split(separator: "\t")

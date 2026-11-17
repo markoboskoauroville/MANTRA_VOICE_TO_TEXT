@@ -64,6 +64,8 @@ final class MenuBar: NSObject, NSMenuDelegate {
             }
             let m = NSMenuItem(title: title, action: sel, keyEquivalent: ""); m.target = self; m.tag = tag; menu.addItem(m)
         }
+        // v51: typing suggestions on or off (the same switch as in Settings, Typing)
+        let ts = NSMenuItem(title: "Typing suggestions", action: #selector(toggleSuggestions), keyEquivalent: ""); ts.target = self; ts.tag = 18; menu.addItem(ts)
         menu.addItem(.separator())
         for (title, sel) in [("Show the blob", #selector(showBlob)), ("Settings…", #selector(settings))] {
             let m = NSMenuItem(title: title, action: sel, keyEquivalent: ""); m.target = self; menu.addItem(m)
@@ -87,6 +89,7 @@ final class MenuBar: NSObject, NSMenuDelegate {
             case 13: m.state = lang == "auto" ? .on : .off
             case 14: m.state = StyleEngine.current != .off ? .on : .off
             case 15: m.state = Prefs.styleButtonOn ? .on : .off
+            case 18: m.state = TypingSuggest.on ? .on : .off
             case 17: m.isHidden = !(stripe.unlanded && !stripe.lastText.isEmpty)      // v45
             case 16:       // v40: the Engine submenu, rebuilt for the language chosen now (HearEngine.setEngine on a pick)
                 let l = HearEngine.current
@@ -168,6 +171,7 @@ final class MenuBar: NSObject, NSMenuDelegate {
         appendLog("menu: styling \(Prefs.styleButtonOn ? "on" : "off")")
         changed()
     }
+    @objc func toggleSuggestions() { TypingSuggest.on.toggle(); appendLog("menu: typing suggestions \(TypingSuggest.on ? "on" : "off")") }
     @objc func copyUnlanded() { stripe.copyLast() }
     @objc func settings() { stripe.openSettingsTab() }
     @objc func history() { stripe.openHistory() }
