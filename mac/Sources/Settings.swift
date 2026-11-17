@@ -48,6 +48,7 @@ final class SettingsWindow: NSObject, NSTextViewDelegate, NSTextFieldDelegate {
     let voiceTick = NSButton(checkboxWithTitle: VoiceWords.label, target: nil, action: nil)
     let voicePermissions = NSButton(title: "PERMISSIONS", target: nil, action: nil)
     let suggestSwitch = NSSwitch()             // v51: typing suggestions
+    let fixTick = NSButton(checkboxWithTitle: "Corrections from the shared database (TTT): the Croatian dictionary fix, names, the spelling table, what you corrected before", target: nil, action: nil)
     let suggestPermissions = NSButton(title: "PERMISSIONS", target: nil, action: nil)
     var permTimer: Timer?
     let tabs = NSTabView()
@@ -274,6 +275,10 @@ final class SettingsWindow: NSObject, NSTextViewDelegate, NSTextFieldDelegate {
         let suggestNote = label("While you type in any app, up to three suggestions (the word finished, or corrected) show on the blob and in the menu bar. Option+Space puts in the first, a click any of them; only the word being typed is replaced. Croatian and English, learned from your own dictations. Off in password boxes and terminals. Nothing you type is stored.")
         suggestNote.lineBreakMode = .byWordWrapping; suggestNote.maximumNumberOfLines = 4; suggestNote.textColor = Host.muted
         suggestRow = row([suggestSwitch, suggestWord, suggestPermissions])
+        // v53: TTT's corrections on or off (the dictionary fix for Croatian, the names, the spelling table, what was learned)
+        fixTick.state = Fix.on ? .on : .off
+        fixTick.target = self; fixTick.action = #selector(fixChanged)
+        fixTick.setAccessibilityIdentifier("tttCorrections")
         suggestNoteLabel = suggestNote
         paintTyping()
 
@@ -322,6 +327,7 @@ final class SettingsWindow: NSObject, NSTextViewDelegate, NSTextFieldDelegate {
                                     twoColumns, whisperRow!]
         let namesRow = row([label("Names"), namesField]); fillWidth.append(namesRow)
         let textTab: [NSView] = [label("What auto correct and STYLE do (the second selector on the blob)", bold: true), modeCol,
+                                 label("Corrections without a model", bold: true), fixTick,
                                  label("Auto correct after each take (Anthropic)", bold: true), styleRow, croatianTick,
                                  label("The STYLE button's Claude", bold: true), styleButtonRow, styleNote,
                                  label("Your additions to auto correct and to STYLE", bold: true), note,
@@ -442,6 +448,7 @@ final class SettingsWindow: NSObject, NSTextViewDelegate, NSTextFieldDelegate {
         suggestSwitch.state = TypingSuggest.on ? .on : .off
         suggestPermissions.isHidden = !(TypingSuggest.on && TypingSuggest.shared.tapFailed)
     }
+    @objc func fixChanged() { Fix.on = fixTick.state == .on; appendLog("TTT corrections: \(Fix.on ? "on" : "off")") }
     @objc func suggestChanged() {
         TypingSuggest.on = suggestSwitch.state == .on
         appendLog("typing suggestions: switched \(TypingSuggest.on ? "on" : "off") in Settings")

@@ -134,7 +134,9 @@ enum Predictor {
     /// the weights of the ranking; measured on his own sentences (--bench-complete), and changeable for a measurement without
     /// a new build: VOX_W="bi=40,tri=40,pu=30,pb=70,pt=70,next=90,lean=14,len=0"
     static var w: [String: Double] = {
-        var d: [String: Double] = ["bi": 40, "tri": 40, "pu": 30, "pb": 70, "pt": 70, "next": 90, "lean": 14, "len": 0, "su": 4, "sb": 6, "st": 8]
+        // measured 17.11.2026 on 40 held-out History sentences (625 words): keystrokes saved 35.4 % → 36.5 % (Option+Space only),
+        // on the strip within two keys 69.6 % → 72.0 %, against the first guess (bi 40, tri 40, pu 30, pb 70, pt 70, lean 14, len 0, su 4, sb 6, st 8)
+        var d: [String: Double] = ["bi": 30, "tri": 30, "pu": 45, "pb": 90, "pt": 90, "next": 90, "lean": 25, "len": 3, "su": 8, "sb": 12, "st": 16]
         for part in (ProcessInfo.processInfo.environment["VOX_W"] ?? "").split(separator: ",") {
             let kv = part.split(separator: "=")
             if kv.count == 2, let v = Double(kv[1]) { d[String(kv[0])] = v }
