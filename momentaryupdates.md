@@ -280,3 +280,9 @@ Meaning: in the Voice to Text menu-bar menu, checkmarks for 4 options: English, 
 > "Let's debug our application voice to text. First rename it. Vox to txt yes it is Vox to txt Add drop down menu for the menu item for this box to text, which is selecting the engines. I need only one drop down menu because I already choose the language in this drop down menu and then after Auto or before correction there will be engine menu. And in the engine menu I am choosing the language, I mean engine, I am choosing the engine for the current language I have selected. And again we are starting from the best to the worst. To the most accurate and most fastest to the last one."
 
 **Status:** saved first (17.11.2026); building in v39: renamed "Vox to Txt (Mantra)", one engine dropdown after the language choice.
+
+## 17.11.2026 (v40), Marko word for word (dictated in Croatian, via the coordinator; translated)
+> "Engine menu is not done, there is no engine menu, why do you say something is done when it's not. If I closed the blob, it does not open when I start the app, the only thing that opens is the menu bar item. Always [show it]."
+Meaning: v39 put the engine dropdown on the pill; he meant the drop-down menu of the MENU BAR ITEM (where he picks EN / HR / AUTO). Also: the blob must always show at launch.
+
+**Status:** saved first (17.11.2026); building in v40: Engine submenu in the menu bar item's menu after AUTO; the blob always shown at start.
