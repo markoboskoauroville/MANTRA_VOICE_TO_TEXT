@@ -318,3 +318,9 @@ From his English version of the same message (via the coordinator):
 3. "Transcribe again, put my wording": the button label is exactly "Re-transcribe".
 
 **Status:** saved first (17.11.2026); v46: no auto-undo after insert, every take in History, History re-run with engine/language/correction/styling models and Correction/Styling checkmarks, thumbs removed, "Re-transcribe".
+
+## 17.11.2026 (phase 2, after v46 ships), Marko word for word (via the coordinator)
+> "Please also, when you type any messages anywhere, check the spelling of the name. Usually, I mention the name of the person, especially in WhatsApp, and misspelling can be easily checked. What's the name of the person? ... And also, please, look at my TTT. I want you to copy algorithm for corrections to this app. So it corrects everything nicely from the database and copy database of TTT. I have on the phones installed this TTT and build into this transcription so it works with corrections and the right ones."
+Meaning: A) read the open chat's name and correct near-miss spellings of it in the take (Basil/Vasile -> Vasil), feed it to the engines as a keyword; B) port TTT's correction algorithm and its database to Vox, per language, in TTT's order.
+
+**Status:** saved first (17.11.2026); after the v46 insert fix and stress test.
