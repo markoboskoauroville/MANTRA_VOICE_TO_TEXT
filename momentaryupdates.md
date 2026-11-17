@@ -275,3 +275,8 @@ Context: the v33 grip was hidden while MENU BAR is on, which is how he runs it. 
 ## 16.11.2026 (v38), Marko word for word (dictated in Croatian, via the coordinator)
 > "Potrebno je od Voice to Text, aplikacija Voice to Text u menubaru. Potrebne su checkmarke za 4 opcije, Engleski, Hrvatski, Korekcija, Stilizacija."
 Meaning: in the Voice to Text menu-bar menu, checkmarks for 4 options: English, Croatian, Correction, Styling.
+
+## 17.11.2026 (v39), Marko word for word (via the master session)
+> "Let's debug our application voice to text. First rename it. Vox to txt yes it is Vox to txt Add drop down menu for the menu item for this box to text, which is selecting the engines. I need only one drop down menu because I already choose the language in this drop down menu and then after Auto or before correction there will be engine menu. And in the engine menu I am choosing the language, I mean engine, I am choosing the engine for the current language I have selected. And again we are starting from the best to the worst. To the most accurate and most fastest to the last one."
+
+**Status:** saved first (17.11.2026); building in v39: renamed "Vox to Txt (Mantra)", one engine dropdown after the language choice.
