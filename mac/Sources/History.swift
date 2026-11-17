@@ -10,7 +10,8 @@ import AppKit
 
 struct Version: Codable {
     let at: Date, hear: String, style: String, lang: String, heard: String, text: String
-    var rating: Int? = nil                 // v24: Marko's thumb on this version: 1 up, -1 down
+    var rating: Int? = nil                 // v24 rating (thumbs removed in v46, old entries keep the field)
+    var landed: String? = nil              // v46: where the take went: typed, pasted, did not land, not typed (test), cancelled, failed
 }
 
 struct Entry: Codable {
@@ -42,6 +43,14 @@ enum History {
         let e = Entry(id: id, versions: [v])
         save(e)
         return e
+    }
+
+    /// v46: where the take landed, written on its first version
+    static func mark(_ id: String, landed: String) {
+        let url = folder.appendingPathComponent(id).appendingPathComponent("entry.json")
+        guard let d = try? Data(contentsOf: url), var e = try? coder().1.decode(Entry.self, from: d), !e.versions.isEmpty else { return }
+        e.versions[0].landed = landed
+        save(e)
     }
 
     static func save(_ e: Entry) {
@@ -82,8 +91,11 @@ final class HistoryPane: NSObject, NSTableViewDataSource, NSTableViewDelegate, N
     let detail = NSTextView()
     let hear = NSPopUpButton()
     let hearLang = NSPopUpButton()
-    let style = NSPopUpButton()
-    let retranscribe = NSButton(title: "Transcribe again", target: nil, action: nil)
+    let style = NSPopUpButton()                // the correction model
+    let styling = NSPopUpButton()              // v46: the styling model
+    let useCorrection = NSButton(checkboxWithTitle: "Correction", target: nil, action: nil)
+    let useStyling = NSButton(checkboxWithTitle: "Styling", target: nil, action: nil)
+    let retranscribe = NSButton(title: "Re-transcribe", target: nil, action: nil)
     let status = NSTextField(labelWithString: "")
     let files = FilePanel()                    // v15: Transcribe a file…
     var everything: [Entry] = []
@@ -137,34 +149,60 @@ final class HistoryPane: NSObject, NSTableViewDataSource, NSTableViewDelegate, N
         hearLang.target = self; hearLang.action = #selector(langChanged)
         hearLang.toolTip = "The language for the new version"
         fillEngines()
-        for e in StyleEngine.allCases { style.addItem(withTitle: e.title); style.lastItem?.representedObject = e.rawValue }
-        hear.toolTip = "The ear (and language) for the new version"
-        style.toolTip = "The style for the new version"
+        // v46 (Marko, 17.11.2026: "I can change the model ... change the language ... change the auto-correction model ... but
+        // there is no model for styling. And I need checkmarks to re-transcribe with styling or correction."): a labelled table,
+        // engine, language, correction model, styling model, and the two checkmarks that decide what the new version gets
+        for e in StyleEngine.allCases where e != .off { style.addItem(withTitle: e.title); style.lastItem?.representedObject = e.rawValue }
+        for e in StyleButtonEngine.choices { styling.addItem(withTitle: e.title); styling.lastItem?.representedObject = e.rawValue }
+        hear.toolTip = "The engine that hears the stored audio again"
+        style.toolTip = "The Claude model that corrects spelling, grammar and misheard words"
+        styling.toolTip = "The Claude model that styles the text (repetitions, filler words, order)"
+        useCorrection.toolTip = "Correct the new version with the correction model"
+        useStyling.toolTip = "Style the new version with the styling model"
+        useCorrection.target = self; useCorrection.action = #selector(checksChanged)
+        useStyling.target = self; useStyling.action = #selector(checksChanged)
         retranscribe.target = self; retranscribe.action = #selector(again)
+        retranscribe.toolTip = "Transcribe the stored audio again with the choices above: a new version of this take"
+        retranscribe.setAccessibilityIdentifier("retranscribe")
         let copy = NSButton(title: "Copy", target: self, action: #selector(copySelected))
         let typeAgain = NSButton(title: "Type it", target: self, action: #selector(typeIt))
         typeAgain.toolTip = "Type the version shown into the app you were in"
         status.textColor = .secondaryLabelColor
-        status.lineBreakMode = .byTruncatingTail
-        let buttons = NSStackView(views: [hear, hearLang, style])
-        let up = NSButton(title: "👍", target: self, action: #selector(thumbUp))
-        let down = NSButton(title: "👎", target: self, action: #selector(thumbDown))
-        up.toolTip = "This engine heard this take well: counts in its quality stars"; down.toolTip = "This engine heard this take badly: counts in its quality stars"
-        up.setAccessibilityIdentifier("rateUp"); down.setAccessibilityIdentifier("rateDown")
-        up.setAccessibilityLabel("Good take"); down.setAccessibilityLabel("Bad take")
-        let buttons2 = NSStackView(views: [retranscribe, up, down, NSView(), copy, typeAgain])
+        status.lineBreakMode = .byWordWrapping
+        status.maximumNumberOfLines = 3
+        status.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        func label(_ t: String) -> NSTextField {
+            let l = NSTextField(labelWithString: t.uppercased())
+            l.font = .systemFont(ofSize: 10, weight: .semibold); l.textColor = .secondaryLabelColor
+            l.alignment = .right
+            return l
+        }
+        for p in [hear, hearLang, style, styling] { p.setContentCompressionResistancePriority(.defaultLow, for: .horizontal) }
+        let grid = NSGridView(views: [
+            [label("Engine"), hear],
+            [label("Language"), hearLang],
+            [label("Correction"), NSStackView(views: [useCorrection, style])],
+            [label("Styling"), NSStackView(views: [useStyling, styling])],
+        ])
+        grid.rowSpacing = 6; grid.columnSpacing = 8
+        grid.column(at: 0).xPlacement = .trailing
+        grid.rowAlignment = .firstBaseline
+        let buttons2 = NSStackView(views: [retranscribe, NSView(), copy, typeAgain])
         buttons2.orientation = .horizontal
-        buttons.orientation = .horizontal
-        let right = NSStackView(views: [detailScroll, buttons, buttons2, status])
+        let line = NSBox(); line.boxType = .separator
+        let right = NSStackView(views: [detailScroll, line, grid, buttons2, status])
         right.orientation = .vertical
         right.alignment = .leading
         detailScroll.translatesAutoresizingMaskIntoConstraints = false
-        buttons.translatesAutoresizingMaskIntoConstraints = false
+        grid.translatesAutoresizingMaskIntoConstraints = false
         buttons2.translatesAutoresizingMaskIntoConstraints = false
-        hear.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        status.translatesAutoresizingMaskIntoConstraints = false
+        line.translatesAutoresizingMaskIntoConstraints = false
         NSLayoutConstraint.activate([detailScroll.widthAnchor.constraint(equalTo: right.widthAnchor),
-                                     buttons.widthAnchor.constraint(equalTo: right.widthAnchor),
-                                     buttons2.widthAnchor.constraint(equalTo: right.widthAnchor)])
+                                     line.widthAnchor.constraint(equalTo: right.widthAnchor),
+                                     grid.widthAnchor.constraint(lessThanOrEqualTo: right.widthAnchor),
+                                     buttons2.widthAnchor.constraint(equalTo: right.widthAnchor),
+                                     status.widthAnchor.constraint(equalTo: right.widthAnchor)])
         let split = NSStackView(views: [tableScroll, right])
         split.orientation = .horizontal
         split.alignment = .top
@@ -237,10 +275,10 @@ final class HistoryPane: NSObject, NSTableViewDataSource, NSTableViewDelegate, N
         let f = DateFormatter(); f.dateFormat = "d.M. HH:mm"
         let l = NSTextField(labelWithString: "")
         l.lineBreakMode = .byTruncatingTail
-        let head = "\(f.string(from: e.versions.first!.at)) · \(v.lang.uppercased()) · \(Stats.decorate(hear: v.hear)) · \(v.style)\(v.rating == 1 ? " · 👍" : v.rating == -1 ? " · 👎" : "")\(History.hasAudio(e.id) ? "" : " · no audio")\n"
+        let head = "\(f.string(from: e.versions.first!.at)) · \(v.lang.uppercased()) · \(Stats.decorate(hear: v.hear)) · \(v.style)\(e.versions.first!.landed.map { " · " + $0 } ?? "")\(History.hasAudio(e.id) ? "" : " · no audio")\n"
         let s = NSMutableAttributedString(string: head, attributes: [.font: NSFont.systemFont(ofSize: 10), .foregroundColor: NSColor.secondaryLabelColor])
         if v.text.isEmpty {
-            s.append(NSAttributedString(string: "not transcribed: select it, Transcribe again", attributes: [.font: NSFont.systemFont(ofSize: 12), .foregroundColor: NSColor.systemRed]))
+            s.append(NSAttributedString(string: "not transcribed: select it, Re-transcribe", attributes: [.font: NSFont.systemFont(ofSize: 12), .foregroundColor: NSColor.systemRed]))
         } else {
             s.append(NSAttributedString(string: v.text.replacingOccurrences(of: "\n", with: " "), attributes: [.font: NSFont.systemFont(ofSize: 12)]))
         }
@@ -275,23 +313,41 @@ final class HistoryPane: NSObject, NSTableViewDataSource, NSTableViewDelegate, N
         }
         let f = DateFormatter(); f.dateFormat = "d.M.yyyy HH:mm:ss"
         detail.string = e.versions.enumerated().map { i, v in
-            "\(i == 0 ? "THE TAKE" : "VERSION \(i + 1)") · \(f.string(from: v.at)) · \(v.lang.uppercased()) · \(Stats.decorate(hear: v.hear)) · \(v.style)\(v.rating == 1 ? " · 👍" : v.rating == -1 ? " · 👎" : "")\n\n\(v.text)\n\nheard: \(v.heard)"
+            "\(i == 0 ? "THE TAKE" : "VERSION \(i + 1)") · \(f.string(from: v.at)) · \(v.lang.uppercased()) · \(Stats.decorate(hear: v.hear)) · \(v.style)\(v.landed.map { " · " + $0 } ?? "")\n\n\(v.text)\n\nheard: \(v.heard)"
         }.joined(separator: "\n\n────────\n\n")
         retranscribe.isEnabled = History.hasAudio(e.id)
         status.stringValue = History.hasAudio(e.id) ? "The audio is kept until \(f.string(from: e.versions.first!.at.addingTimeInterval(History.audioDays)))." : "The audio is gone (kept one day); the words stay."
         if let i = hearLang.itemArray.firstIndex(where: { $0.representedObject as? String == e.latest.lang }) { hearLang.selectItem(at: i); fillEngines() }
         if let sp = Catalog.all.first(where: { $0.short + " " + e.latest.lang.uppercased() == e.latest.hear }),
            let i = hear.itemArray.firstIndex(where: { $0.representedObject as? String == sp.id }), hear.itemArray[i].isEnabled { hear.selectItem(at: i) }
-        if let i = style.itemArray.firstIndex(where: { $0.title == StyleEngine.current.title }) { style.selectItem(at: i) }
+        // the checkmarks and models start as the take's language has them now (its slot), so Re-transcribe does what a take would
+        let d = UserDefaults.standard, sl = ["en", "hr", "auto"].contains(e.latest.lang) ? e.latest.lang : "auto"
+        let cm = StyleEngine(rawValue: d.string(forKey: Slot.key("style", sl)) ?? "") ?? .off
+        let tm = TextMode(rawValue: d.string(forKey: Slot.key("textMode", sl)) ?? "") ?? .styleCorrect
+        let lastOn = StyleEngine(rawValue: d.string(forKey: "styleLastOn") ?? "") ?? .haiku
+        let showC = cm == .off ? lastOn : cm
+        if let i = style.itemArray.firstIndex(where: { $0.representedObject as? String == showC.rawValue }) { style.selectItem(at: i) }
+        if let i = styling.itemArray.firstIndex(where: { $0.representedObject as? String == StyleButtonEngine.current.rawValue }) { styling.selectItem(at: i) }
+        useCorrection.state = cm != .off && (tm == .correct || tm == .styleCorrect) ? .on : .off
+        useStyling.state = cm != .off && (tm == .style || tm == .styleCorrect) ? .on : .off
+        checksChanged()
+    }
+    @objc func checksChanged() {
+        style.isEnabled = useCorrection.state == .on
+        styling.isEnabled = useStyling.state == .on
     }
 
     // TTT Mini's re-transcribe: the same audio, another ear or language, another style; the result is a new version.
     @objc func again() {
-        guard let e = selected, let eid = hear.selectedItem?.representedObject as? String, Catalog.byId(eid) != nil,
-              let st = StyleEngine(rawValue: style.selectedItem?.representedObject as? String ?? "") else { return }
+        guard let e = selected, let eid = hear.selectedItem?.representedObject as? String, Catalog.byId(eid) != nil else { return }
+        let cor = useCorrection.state == .on ? StyleEngine(rawValue: style.selectedItem?.representedObject as? String ?? "") : nil
+        let sty = useStyling.state == .on ? StyleEngine(rawValue: styling.selectedItem?.representedObject as? String ?? "") : nil
         let he = HearEngine(id: eid, lang: hearLang.selectedItem?.representedObject as? String ?? "auto")
+        // what the new version is called in the list: the models that touched it
+        let styleTitle = [cor.map { "correction " + $0.title }, sty.map { "styling " + $0.title }].compactMap { $0 }.joined(separator: " + ")
         retranscribe.isEnabled = false
-        status.stringValue = "transcribing again with \(he.title), \(st.title)…"
+        status.stringValue = "re-transcribing with \(he.title)" + (styleTitle.isEmpty ? ", words as heard…" : ", then \(styleTitle)…")
+        appendLog("history: re-transcribe \(e.id) with \(he.id) \(he.lang), \(styleTitle.isEmpty ? "as heard" : styleTitle)")
         DispatchQueue.global().async {
             let heard = Hear.run(he, wav: History.audio(e.id))
             var result: String
@@ -300,15 +356,34 @@ final class HistoryPane: NSObject, NSTableViewDataSource, NSTableViewDelegate, N
             case .failure(let err): result = "✗ " + err.message
             case .success(let w):
                 words = w
-                switch Style.run(st, text: w, lang: he.lang) {
-                case .success(let t): result = t
-                case .failure(let err): result = corrected(w); words += "  (style failed: \(err.message))"
+                let lang = he.lang == "auto" ? (Hear.lastLang.flatMap { ["en", "hr"].contains($0) ? $0 : nil } ?? "auto") : he.lang
+                result = corrected(w)
+                // correction first (its own model), then styling (its own model); both on and the same model: one call
+                if let c = cor, let s = sty, c == s {
+                    switch Style.run(c, text: w, lang: lang, mode: .styleCorrect) {
+                    case .success(let t): result = t
+                    case .failure(let err): words += "  (correction and styling failed: \(err.message))"
+                    }
+                } else {
+                    if let c = cor {
+                        switch Style.run(c, text: result, lang: lang, mode: .correct) {
+                        case .success(let t): result = t
+                        case .failure(let err): words += "  (correction failed: \(err.message))"
+                        }
+                    }
+                    if let s = sty {
+                        switch Style.run(s, text: result, lang: lang, mode: .style) {
+                        case .success(let t): result = t
+                        case .failure(let err): words += "  (styling failed: \(err.message))"
+                        }
+                    }
                 }
             }
             DispatchQueue.main.async {
                 if !result.hasPrefix("✗ ") {
                     var updated = e
-                    updated.versions.append(Version(at: Date(), hear: Hear.used ?? he.title, style: st.title, lang: he.lang, heard: words, text: result))
+                    updated.versions.append(Version(at: Date(), hear: Hear.used ?? he.title, style: styleTitle.isEmpty ? StyleEngine.off.title : styleTitle,
+                                                    lang: he.lang, heard: words, text: result))
                     History.save(updated)
                     if let i = self.everything.firstIndex(where: { $0.id == e.id }) { self.everything[i] = updated }
                     self.filter()
@@ -327,22 +402,6 @@ final class HistoryPane: NSObject, NSTableViewDataSource, NSTableViewDelegate, N
         NSPasteboard.general.setString(text, forType: .string)
         status.stringValue = "copied: ⌘V where you want it"
     }
-
-    /// v24: Marko's rating of the version shown: it counts in that engine's stars (Stats.rate); a second press replaces the first
-    func rate(_ r: Int) {
-        guard var e = selected, let (eid, lang) = Stats.engineId(hear: e.latest.hear) else { status.stringValue = "this version has no engine to rate"; return }
-        let last = e.versions.count - 1
-        if e.versions[last].rating == r { return }
-        e.versions[last].rating = r
-        Stats.rate(eid, lang, up: r == 1)
-        History.save(e)
-        if let i = everything.firstIndex(where: { $0.id == e.id }) { everything[i] = e }
-        filter()
-        status.stringValue = (r == 1 ? "👍" : "👎") + " counted for " + Stats.name(Catalog.byId(eid)!, lang)
-        stripe.settings?.refreshStats()
-    }
-    @objc func thumbUp() { rate(1) }
-    @objc func thumbDown() { rate(-1) }
 
     @objc func copySelected() { if let e = selected { copy(e.latest.text) } }
 

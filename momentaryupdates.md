@@ -330,3 +330,9 @@ Meaning: A) read the open chat's name and correct near-miss spellings of it in t
 Meaning: a phone-keyboard suggestion strip for his Mac typing with TTT's correction algorithm and database: 1-3 suggestions in the blob and the menu bar item, Option+Space applies the top one to the word at the caret; off in password fields and terminals; a "Typing suggestions" switch.
 
 **Status:** saved first (17.11.2026); after phases 1 and 2.
+
+## 17.11.2026 (phase 4, with phase 2), Marko word for word (via the coordinator)
+> "And please make phone and this app write to same GitHub data repository so the databases can be shared for corrections, and it learns from my mistakes."
+Meaning: one private data repo for the correction database, written by TTT on the phones and by Vox on the Mac; append-only learned entries, merge = union, newest/highest count wins; Vox pulls at start and every few minutes, pushes what it learns, queues when offline.
+
+**Status:** saved first (17.11.2026); with phase 2.
