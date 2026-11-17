@@ -310,6 +310,13 @@ final class Stripe: NSObject {
             if let l = u["lang"] as? String, let i = s.history.hearLang.itemArray.firstIndex(where: { $0.representedObject as? String == l }) {
                 s.history.hearLang.selectItem(at: i); s.history.langChanged()
             }
+            // v49: History's own controls, operated as a click does (the control's action), for the "global" test
+            let h = s.history!
+            if let e = u["engine"] as? String, let i = h.hear.itemArray.firstIndex(where: { $0.representedObject as? String == e }) {
+                h.hear.selectItem(at: i); h.engineChanged()
+            }
+            if let c = num("correction"), (h.useCorrection.state == .on) != (c != 0) { h.useCorrection.performClick(nil) }
+            if let c = num("styling"), (h.useStyling.state == .on) != (c != 0) { h.useStyling.performClick(nil) }
         }
         DistributedNotificationCenter.default().addObserver(forName: Notification.Name(prefix + ".escape"), object: nil, queue: .main) { [weak self] _ in
             if self?.recorder.recording == true { self?.cancel() } else { self?.cancelProcessing() }

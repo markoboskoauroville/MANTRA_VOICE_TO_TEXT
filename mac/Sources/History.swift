@@ -219,6 +219,7 @@ final class HistoryPane: NSObject, NSTableViewDataSource, NSTableViewDelegate, N
         grid.column(at: 1).xPlacement = .fill
         grid.column(at: 2).xPlacement = .center
         grid.column(at: 2).width = 20
+        grid.column(at: 0).width = 80           // v49: the labels' column never grows; the pop-ups take the rest
         for i in 0..<grid.numberOfRows { grid.row(at: i).height = 24 }
         grid.setContentHuggingPriority(.defaultLow, for: .horizontal)
         let line = NSBox(); line.boxType = .separator
@@ -370,6 +371,7 @@ final class HistoryPane: NSObject, NSTableViewDataSource, NSTableViewDelegate, N
         l.cell?.wraps = true
         l.cell?.truncatesLastVisibleLine = true
         l.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        l.setContentHuggingPriority(.init(1), for: .horizontal)     // v49: the words fill the row, Copy and the bin stand on one line at its right edge in every row
         let copy = NSButton(title: "Copy", target: self, action: #selector(copyRow(_:)))
         copy.controlSize = .small
         copy.bezelStyle = .rounded

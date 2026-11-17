@@ -56,6 +56,7 @@ final class SettingsWindow: NSObject, NSTextViewDelegate, NSTextFieldDelegate {
     var styleButtonRadios: [StyleEngine: NSButton] = [:]
     var whisperRow: NSStackView!
     var history: HistoryPane!
+    var fillWidth: [NSView] = []               // v49: the parts of a tab that take the page's whole width
     // v28: the TEXT selector, the typing target and its two ticks
     static let historyTab = 0          // v34: History is the first tab and the default one
     var modeRadios: [TextMode: NSButton] = [:]
@@ -160,7 +161,7 @@ final class SettingsWindow: NSObject, NSTextViewDelegate, NSTextFieldDelegate {
         orderPicker.setAccessibilityIdentifier("engineOrder"); orderPicker.setAccessibilityLabel("Engine order")
         let twoColumns = NSStackView(views: [column("hr", "H", "Croatian"), column("en", "E", "English")])
         twoColumns.orientation = .horizontal; twoColumns.distribution = .fillEqually; twoColumns.spacing = 16; twoColumns.alignment = .top
-        twoColumns.widthAnchor.constraint(equalToConstant: 840).isActive = true
+        fillWidth.append(twoColumns)          // v49: the two columns share the page's whole width
         frankfurtTick.target = self; frankfurtTick.action = #selector(frankfurtChanged)
         frankfurtTick.setAccessibilityIdentifier("frankfurt"); frankfurtTick.state = Frankfurt.on ? .on : .off
         frankfurtNote.font = .systemFont(ofSize: 11); frankfurtNote.textColor = Host.muted
@@ -168,6 +169,7 @@ final class SettingsWindow: NSObject, NSTextViewDelegate, NSTextFieldDelegate {
         frankfurtNote.stringValue = "Parakeet and Whisper on this Mac run here; the other eleven engines run in Frankfurt while the relay answers."
         testTick.target = self; testTick.action = #selector(testChanged); testTick.setAccessibilityIdentifier("statsTest")
         testField.stringValue = Stats.reference; testField.target = self; testField.action = #selector(testChanged)
+        fillWidth.append(testField)
         testField.setAccessibilityIdentifier("statsReference"); testField.lineBreakMode = .byWordWrapping
         testField.usesSingleLineMode = false; testField.cell?.wraps = true; testField.cell?.isScrollable = false
         testField.widthAnchor.constraint(equalToConstant: 640).isActive = true
@@ -205,7 +207,7 @@ final class SettingsWindow: NSObject, NSTextViewDelegate, NSTextFieldDelegate {
         scroll.documentView = extra
         scroll.translatesAutoresizingMaskIntoConstraints = false
         scroll.heightAnchor.constraint(equalToConstant: 120).isActive = true
-        scroll.widthAnchor.constraint(equalToConstant: 500).isActive = true
+        fillWidth.append(scroll)
 
         let note = label("Auto correct follows your style (normal capitals, no dashes, the language you spoke). Anything you write here is added to it.")
         note.lineBreakMode = .byWordWrapping
@@ -269,7 +271,7 @@ final class SettingsWindow: NSObject, NSTextViewDelegate, NSTextFieldDelegate {
         duckTick.setAccessibilityIdentifier("duck")
         namesField.stringValue = Prefs.names
         namesField.placeholderString = "names to spell right, e.g. Marko (never Marco), Auroville"
-        namesField.widthAnchor.constraint(equalToConstant: 500).isActive = true
+        namesField.setContentHuggingPriority(.init(1), for: .horizontal)
         namesField.target = self; namesField.action = #selector(namesChanged)
         namesField.delegate = self
         namesField.setAccessibilityIdentifier("names")
@@ -302,11 +304,12 @@ final class SettingsWindow: NSObject, NSTextViewDelegate, NSTextFieldDelegate {
                                     row([label("Language", bold: true), langRow]),
                                     row([label("Who writes down what you say, one engine per language (time · stars)", bold: true), orderPicker]),
                                     twoColumns, whisperRow!]
+        let namesRow = row([label("Names"), namesField]); fillWidth.append(namesRow)
         let textTab: [NSView] = [label("What auto correct and STYLE do (the second selector on the blob)", bold: true), modeCol,
                                  label("Auto correct after each take (Anthropic)", bold: true), styleRow, croatianTick,
                                  label("The STYLE button's Claude", bold: true), styleButtonRow, styleNote,
                                  label("Your additions to auto correct and to STYLE", bold: true), note,
-                                 row([label("Names"), namesField]), scroll]
+                                 namesRow, scroll]
         let typingNote = para("The text box you clicked into last, in any app: the words of a take are typed there, and STYLE restyles it (its selection, or all of it). Clicking the blob or STYLE never changes it. Accessibility first; if the box ignores that, its app comes to the front and the text is pasted (your clipboard is put back); COPY only when nothing else works.")
         let typingTab: [NSView] = [label("The keys that start and stop listening", bold: true),
                                    row([label("English"), hotkey, label("Croatian"), hotkeyHR]),
@@ -539,10 +542,6 @@ final class SettingsWindow: NSObject, NSTextViewDelegate, NSTextFieldDelegate {
         qDetail.setAccessibilityIdentifier("quickModels")
         // v34 (Marko, 16.11.2026: "the switch, macOS switch must become before the title"): switch first, then its word.
         // TEST left this row: it is the developer's accuracy scoring, it stays in the Test tab
-        let r1 = NSStackView(views: [qCorrect, word("CORRECTION"), qCorrectModel, qStyle, word("STYLING"), qStyleModel,
-                                     qFrankfurt, word("FRANKFURT")])
-        r1.setCustomSpacing(18, after: qCorrectModel); r1.setCustomSpacing(18, after: qStyleModel); r1.setCustomSpacing(18, after: r1.views[7])
-        r1.orientation = .horizontal; r1.spacing = 6; r1.alignment = .centerY
         device.setAccessibilityIdentifier("input"); device.setAccessibilityLabel("Input: the microphone Vox records from")
         output.setAccessibilityIdentifier("output"); output.setAccessibilityLabel("Output: the speaker of Vox's sounds")
         output.target = self; output.action = #selector(outputChanged)
@@ -559,9 +558,24 @@ final class SettingsWindow: NSObject, NSTextViewDelegate, NSTextFieldDelegate {
                 self?.fillDevices(); self?.fillOutputs()
             }
         }
-        let r2 = NSStackView(views: [word("INPUT"), device, word("   OUTPUT"), output])
-        r2.orientation = .horizontal; r2.spacing = 6; r2.alignment = .centerY
-        let col = NSStackView(views: [r1, r2, qDetail]); col.orientation = .vertical; col.alignment = .leading; col.spacing = 4
+        // v49 (Marko, 17.11.2026: "we always align the buttons perfectly"): the strip is ONE grid. Column 0 and 2 the names
+        // (switch before its word; INPUT / OUTPUT under them), ending on one line; columns 1 and 3 the pop-ups, one left
+        // edge and one width each; FRANKFURT after them.
+        func named(_ sw: NSSwitch, _ t: String) -> NSStackView {
+            let r = NSStackView(views: [sw, word(t)]); r.orientation = .horizontal; r.spacing = 6; r.alignment = .centerY; return r
+        }
+        let grid = NSGridView(views: [
+            [named(qCorrect, "CORRECTION"), qCorrectModel, named(qStyle, "STYLING"), qStyleModel, named(qFrankfurt, "FRANKFURT")],
+            [word("INPUT"), device, word("OUTPUT"), output, NSGridCell.emptyContentView],
+        ])
+        grid.rowSpacing = 4; grid.columnSpacing = 8
+        grid.rowAlignment = .none; grid.yPlacement = .center
+        for c in [0, 2] { grid.column(at: c).xPlacement = .trailing }
+        for c in [1, 3] { grid.column(at: c).xPlacement = .fill }
+        grid.column(at: 2).leadingPadding = 10; grid.column(at: 4).leadingPadding = 10
+        grid.column(at: 4).xPlacement = .leading
+        for i in 0..<grid.numberOfRows { grid.row(at: i).height = 22 }
+        let col = NSStackView(views: [grid, qDetail]); col.orientation = .vertical; col.alignment = .leading; col.spacing = 4
         paintQuick()
         return col
     }
@@ -688,7 +702,18 @@ final class SettingsWindow: NSObject, NSTextViewDelegate, NSTextFieldDelegate {
         col.translatesAutoresizingMaskIntoConstraints = false
         holder.addSubview(col)
         sc.documentView = holder
+        // v49 (Marko, 17.11.2026: "Please don't make these empty parts"; "we always align the buttons perfectly"): the page is as
+        // wide as the window; paragraphs wrap at the page's width and the wide parts (engine columns, text boxes) fill it,
+        // so a wide window has no empty column on the right and a narrow one cuts nothing
+        for v in views {
+            let wraps = (v as? NSTextField).map { !$0.isEditable && $0.lineBreakMode == .byWordWrapping } ?? false
+            guard wraps || fillWidth.contains(where: { $0 === v }) else { continue }
+            if let t = v as? NSTextField, wraps { t.preferredMaxLayoutWidth = 0; t.setContentCompressionResistancePriority(.defaultLow, for: .horizontal) }
+            v.translatesAutoresizingMaskIntoConstraints = false
+            v.widthAnchor.constraint(equalTo: col.widthAnchor, constant: -40).isActive = true
+        }
         NSLayoutConstraint.activate([col.leadingAnchor.constraint(equalTo: holder.leadingAnchor),
+                                     col.trailingAnchor.constraint(equalTo: holder.trailingAnchor),
                                      col.topAnchor.constraint(equalTo: holder.topAnchor),
                                      col.bottomAnchor.constraint(equalTo: holder.bottomAnchor),
                                      holder.widthAnchor.constraint(equalTo: sc.contentView.widthAnchor)])
