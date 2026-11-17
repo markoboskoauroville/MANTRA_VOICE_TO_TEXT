@@ -377,3 +377,9 @@ Meaning: History's ENGINE, LANGUAGE, correction and styling choices read and wri
 Meaning (the master's): for Vox to Txt only, no approval stop between the parts and none for the local model's download; each download still goes on the Download Monitor first, never twice, the smallest model that meets the goal.
 
 **Status:** saved first (17.11.2026); relayed, not heard from Marko directly by the worker.
+
+## 17.11.2026 (the bigger local model), Marko word for word (relayed by the master session)
+> "please get the biggest model and then test it"
+Meaning (the master's): download gemma-3-1b-it Q4_K_M (769 MB) and, if a per-word call can stay usable, gemma-3-4b-it Q4_K_M; the same 40-sentence benchmark, English and Croatian separately, on a larger Croatian set; the default is the biggest model that keeps a key under about 150 ms and improves the keystrokes saved; unused model files deleted; a model picker on the Typing tab if more than one is kept.
+
+**Status:** saved first (17.11.2026); relayed, not heard from Marko directly by the worker.
