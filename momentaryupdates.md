@@ -342,3 +342,9 @@ Meaning: one private data repo for the correction database, written by TTT on th
 Meaning: a local free offline model for completion in Croatian and English (reuse what is on disk first; any download approved by the master and on the Download Monitor), a personal layer learned from his own text kept on the Mac, ranking blended with TTT's corrections, Option+Space accepts; a benchmark on 20 of his sentences.
 
 **Status:** saved first (17.11.2026); after phase 3.
+
+## 17.11.2026 (v47), Marko word for word (via the coordinator)
+> "what we need to fix is user interface, look at user interface Vox to Txt Mantra. If you look now at the user interface, there is an empty column at the end. So something messed up. Please don't make these empty parts."
+Meaning (the master's look at his v46 screenshot): in History an empty column of ~400 pt right of the detail panel, while list rows, the engine and model pickers and the status line are cut. The panes fill the whole window, nothing cut, every tab checked at the minimum and a wide size.
+
+**Status:** saved first (17.11.2026); v47.
