@@ -35,7 +35,8 @@ final class BlobButton: NSView {
     var bracketed = false { didSet { if bracketed != oldValue { cache = nil } } }
     var fontSize: CGFloat = 11 { didSet { if fontSize != oldValue { cache = nil } } }
     // v39: a pressable control lights on hover and on press (MANTRA_MANIFEST workflow-interface.md)
-    private var hover = false, pressed = false { didSet { needsDisplay = true } }
+    private var hover = false { didSet { needsDisplay = true } }
+    private var pressed = false { didSet { needsDisplay = true } }
     private var area: NSTrackingArea?
     override func updateTrackingAreas() {
         super.updateTrackingAreas()
