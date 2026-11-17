@@ -1,5 +1,12 @@
 # Lessons
 
+## v56-v57 (17.11.2026): the biggest model
+- Measure before deciding by arithmetic: "4x the size = 4x the time" said the 4B model would miss 150 ms a word; measured it was 77 ms (1B: 28 ms). Bigger models run closer to the GPU's real speed.
+- Bigger was better at every step, but by one point each (40.5 → 41.4 → 42.6 % of keystrokes saved) for 3x and 10x the file and 5x the memory: say the price (2.9 GB while he types) with the gain, and leave a picker.
+- A Croatian test set must be built on purpose: 40 newest sentences held 86 Croatian words; all of History held 267. Takes made on AUTO count by what they are.
+- Test files go in a folder the app does not read (models-test): the app took the first .gguf by name, so a test download would have become the default by itself.
+- The model's weight in the ranking depends on its size: sweep it per model (270M best at 40, 1B and 4B at 60).
+
 ## v54-v55 (17.11.2026): the conservative Croatian fix, the local model
 - A 75,000-word dictionary does not know Croatian's word forms: "not in the dictionary" is not "wrong". Validity needs the spelling dictionary with its endings (Hunspell hr_HR: stem + suffix rules, two levels, the naj- prefix); 150 lines of Swift read it. macOS's own spell checker has no Croatian even with the files in ~/Library/Spelling.
 - A correction in dictation must be near certain: no change to a valid form, no edge letters, no ending vowels, a clear margin over the next candidate. Fewer fixes, none worse. "mesec" after "WhatsApp" was "message", not "mjesec": context decides, and without support a short word is left alone.
