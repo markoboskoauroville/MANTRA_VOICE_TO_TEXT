@@ -364,3 +364,9 @@ Meaning: F1 records a take in English, F2 in Croatian, each with its language's 
 ## 17.11.2026 (v47), Marko word for word (via the coordinator; "Alto" = AUTO)
 > "I don't want to use Auto in this F1 F2. Forget Auto. Auto is very buggy. This is only in, just for fun. I am not using Auto, please."
 So F1 = English always, F2 = Croatian always; AUTO only a menu choice.
+
+## 17.11.2026 (v48), Marko word for word (via the coordinator)
+> "Same rule applies everywhere, even in the history. When I have a transcription, I have two engines, and it needs to remember the setting of the engine per language. So if I'm choosing the language... the engines there, then I change the global settings. Everything is global, even this. Also ... buttons be aligned. The correction and styling check marks are not aligned. It's very ugly. So align things. If everything is aligned middle and these buttons need to be next to each other, then you need to move the check boxes next to the options for changing the Sonnet, Opus, or Haiku. So they are placed after that menu. So everything can be aligned. Also, Re-transcribe should be under the model's choice. So please work on this alignment. It's very important, write in the manifest: we always align the buttons perfectly."
+Meaning: History's ENGINE, LANGUAGE, correction and styling choices read and write the same per-language global settings; one label column and one control column, model pop-up first and its checkbox after it, Re-transcribe under the model choices.
+
+**Status:** saved first (17.11.2026); v48.
