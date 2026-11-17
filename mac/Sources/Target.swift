@@ -382,6 +382,13 @@ enum Writer {
            !CharacterSet.whitespacesAndNewlines.contains(prev), prev != "\u{00A0}", !"([{“‘\"'/-".unicodeScalars.contains(prev) {
             text = " " + text
         }
+        // v47 (stress test, 17.11.2026: "rehearsal.Existing"): a take put in front of a word gets a space after it too
+        if !isTerminal(el), let before, let at, at.length == 0, at.location < (before as NSString).length,
+           let last = text.unicodeScalars.last, !CharacterSet.whitespacesAndNewlines.contains(last),
+           let next = (before as NSString).substring(with: NSRange(location: at.location, length: 1)).unicodeScalars.first,
+           CharacterSet.alphanumerics.contains(next) || "([{“‘\"".unicodeScalars.contains(next) {
+            text += " "
+        }
         let snippet = plain(String(text.trimmingCharacters(in: .whitespaces).prefix(20)))
         func changed() -> Bool {
             guard let a = value(el) else { return false }

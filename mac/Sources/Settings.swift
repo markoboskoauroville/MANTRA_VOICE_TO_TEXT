@@ -9,6 +9,7 @@ final class SettingsWindow: NSObject, NSTextViewDelegate, NSTextFieldDelegate {
     let window: NSWindow
     let onChange: () -> Void
     let hotkey = NSPopUpButton()
+    let hotkeyHR = NSPopUpButton()             // v47: the Croatian key
     let extra = NSTextView()
     // v13: the engine panel (TTT's): one row per engine, its radio, its free/paid label and minutes, its numbered key
     var cards: [String: [String: EngineCard]] = [:]          // language -> engine id -> card (v17, TTT's two columns)
@@ -101,6 +102,9 @@ final class SettingsWindow: NSObject, NSTextViewDelegate, NSTextFieldDelegate {
         hotkey.addItems(withTitles: HotKey.keys.map(\.0))
         hotkey.selectItem(withTitle: HotKey.chosen)
         hotkey.target = self; hotkey.action = #selector(hotkeyChanged)
+        hotkeyHR.addItems(withTitles: HotKey.keys.map(\.0))
+        hotkeyHR.selectItem(withTitle: HotKey.chosenHR)
+        hotkeyHR.target = self; hotkeyHR.action = #selector(hotkeyChanged)
 
 
         modelButton.target = self; modelButton.action = #selector(modelPressed)
@@ -303,7 +307,8 @@ final class SettingsWindow: NSObject, NSTextViewDelegate, NSTextFieldDelegate {
                                  label("Your additions to auto correct and to STYLE", bold: true), note,
                                  row([label("Names"), namesField]), scroll]
         let typingNote = para("The text box you clicked into last, in any app: the words of a take are typed there, and STYLE restyles it (its selection, or all of it). Clicking the blob or STYLE never changes it. Accessibility first; if the box ignores that, its app comes to the front and the text is pasted (your clipboard is put back); COPY only when nothing else works.")
-        let typingTab: [NSView] = [label("The key that starts and stops listening", bold: true), hotkey,
+        let typingTab: [NSView] = [label("The keys that start and stop listening", bold: true),
+                                   row([label("English"), hotkey, label("Croatian"), hotkeyHR]),
                                    label("Where the words go", bold: true), typingNote,
                                    row([label("Last text box:"), targetLabel]), pasteTick, clickTick,
                                    label("After hide", bold: true), autoHide,
@@ -840,6 +845,7 @@ final class SettingsWindow: NSObject, NSTextViewDelegate, NSTextFieldDelegate {
 
     @objc func hotkeyChanged() {
         HotKey.chosen = hotkey.titleOfSelectedItem ?? "F1"
+        HotKey.chosenHR = hotkeyHR.titleOfSelectedItem ?? "F2"
         onChange()
     }
 

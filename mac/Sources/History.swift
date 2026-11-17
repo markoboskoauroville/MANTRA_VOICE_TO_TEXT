@@ -123,7 +123,9 @@ final class HistoryPane: NSObject, NSTableViewDataSource, NSTableViewDelegate, N
         let col = NSTableColumn(identifier: .init("t"))
         table.addTableColumn(col)
         table.headerView = nil
-        table.rowHeight = 54
+        table.rowHeight = 70                   // v47: the head on one line, the words on up to three
+        table.columnAutoresizingStyle = .uniformColumnAutoresizingStyle
+        col.resizingMask = .autoresizingMask
         table.intercellSpacing = NSSize(width: 0, height: 4)
         table.dataSource = self
         table.delegate = self
@@ -132,7 +134,11 @@ final class HistoryPane: NSObject, NSTableViewDataSource, NSTableViewDelegate, N
         tableScroll.hasVerticalScroller = true
         tableScroll.borderType = .bezelBorder
         tableScroll.translatesAutoresizingMaskIntoConstraints = false
-        tableScroll.widthAnchor.constraint(equalToConstant: 380).isActive = true
+        // v47 (Marko, 17.11.2026: "there is an empty column at the end ... Please don't make these empty parts."): the list and the
+        // take share the whole width (list 42 %, at least 300 pt); no fixed width, nothing left empty at any window size
+        tableScroll.widthAnchor.constraint(greaterThanOrEqualToConstant: 300).isActive = true
+        tableScroll.automaticallyAdjustsContentInsets = false
+        tableScroll.contentInsets = NSEdgeInsetsZero
 
         detail.isEditable = false
         detail.font = .systemFont(ofSize: 13)
@@ -178,11 +184,12 @@ final class HistoryPane: NSObject, NSTableViewDataSource, NSTableViewDelegate, N
             return l
         }
         for p in [hear, hearLang, style, styling] { p.setContentCompressionResistancePriority(.defaultLow, for: .horizontal) }
+        // the checkmark IS the row's title (no second word beside it)
         let grid = NSGridView(views: [
             [label("Engine"), hear],
             [label("Language"), hearLang],
-            [label("Correction"), NSStackView(views: [useCorrection, style])],
-            [label("Styling"), NSStackView(views: [useStyling, styling])],
+            [useCorrection, style],
+            [useStyling, styling],
         ])
         grid.rowSpacing = 6; grid.columnSpacing = 8
         grid.column(at: 0).xPlacement = .trailing
@@ -200,13 +207,20 @@ final class HistoryPane: NSObject, NSTableViewDataSource, NSTableViewDelegate, N
         line.translatesAutoresizingMaskIntoConstraints = false
         NSLayoutConstraint.activate([detailScroll.widthAnchor.constraint(equalTo: right.widthAnchor),
                                      line.widthAnchor.constraint(equalTo: right.widthAnchor),
-                                     grid.widthAnchor.constraint(lessThanOrEqualTo: right.widthAnchor),
+                                     grid.widthAnchor.constraint(equalTo: right.widthAnchor),
                                      buttons2.widthAnchor.constraint(equalTo: right.widthAnchor),
                                      status.widthAnchor.constraint(equalTo: right.widthAnchor)])
         let split = NSStackView(views: [tableScroll, right])
         split.orientation = .horizontal
         split.alignment = .top
         split.spacing = 12
+        split.distribution = .fill
+        right.setContentHuggingPriority(.defaultLow, for: .horizontal)
+        tableScroll.setContentHuggingPriority(.defaultLow - 1, for: .horizontal)
+        let share = tableScroll.widthAnchor.constraint(equalTo: split.widthAnchor, multiplier: 0.42)
+        share.priority = .defaultHigh
+        share.isActive = true
+        right.trailingAnchor.constraint(equalTo: split.trailingAnchor).isActive = true
         tableScroll.heightAnchor.constraint(equalTo: split.heightAnchor).isActive = true
         right.heightAnchor.constraint(equalTo: split.heightAnchor).isActive = true
 
@@ -273,8 +287,7 @@ final class HistoryPane: NSObject, NSTableViewDataSource, NSTableViewDelegate, N
     func tableView(_ t: NSTableView, viewFor c: NSTableColumn?, row: Int) -> NSView? {
         let e = entries[row], v = e.latest
         let f = DateFormatter(); f.dateFormat = "d.M. HH:mm"
-        let l = NSTextField(labelWithString: "")
-        l.lineBreakMode = .byTruncatingTail
+        let l = NSTextField(wrappingLabelWithString: "")
         let head = "\(f.string(from: e.versions.first!.at)) · \(v.lang.uppercased()) · \(Stats.decorate(hear: v.hear)) · \(v.style)\(e.versions.first!.landed.map { " · " + $0 } ?? "")\(History.hasAudio(e.id) ? "" : " · no audio")\n"
         let s = NSMutableAttributedString(string: head, attributes: [.font: NSFont.systemFont(ofSize: 10), .foregroundColor: NSColor.secondaryLabelColor])
         if v.text.isEmpty {
@@ -283,7 +296,9 @@ final class HistoryPane: NSObject, NSTableViewDataSource, NSTableViewDelegate, N
             s.append(NSAttributedString(string: v.text.replacingOccurrences(of: "\n", with: " "), attributes: [.font: NSFont.systemFont(ofSize: 12)]))
         }
         l.attributedStringValue = s
-        l.maximumNumberOfLines = 2
+        l.maximumNumberOfLines = 4
+        l.cell?.wraps = true
+        l.cell?.truncatesLastVisibleLine = true
         l.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
         let copy = NSButton(title: "Copy", target: self, action: #selector(copyRow(_:)))
         copy.controlSize = .small

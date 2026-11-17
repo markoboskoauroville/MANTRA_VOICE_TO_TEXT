@@ -152,6 +152,11 @@ final class HotKey {
         get { UserDefaults.standard.string(forKey: "hotkey") ?? "F1" }
         set { UserDefaults.standard.set(newValue, forKey: "hotkey") }
     }
+    // v47 (Marko, 17.11.2026: "F1 is English, F2 is Croatian by default."): the second key, a Croatian take
+    static var chosenHR: String {
+        get { UserDefaults.standard.string(forKey: "hotkeyHR") ?? "F2" }
+        set { UserDefaults.standard.set(newValue, forKey: "hotkeyHR") }
+    }
 
     init?(code: UInt32, id: UInt32, _ handler: @escaping () -> Void) {
         self.id = id
@@ -210,7 +215,11 @@ enum Typer {
 
     /// v28: the box of TextTarget (the focused one, else the last one he clicked or focused, never Vox), off the main thread:
     /// Accessibility, else pasted into it brought to the front, else nowhere (COPY). `done` on the main thread.
-    static func insert(_ text: String, _ done: @escaping (Landing) -> Void) {
+    /// v47: takes being typed right now (a build's quit waits for them: on 17.11.2026 a quit between the words and the typing lost a take)
+    static var inserting = 0
+    static func insert(_ text: String, _ whenDone: @escaping (Landing) -> Void) {
+        inserting += 1
+        let done: (Landing) -> Void = { l in inserting -= 1; whenDone(l) }
         DispatchQueue.global(qos: .userInitiated).async {
             guard let b = TextTarget.shared.resolve() else {
                 appendLog("typing: no text box (none focused, none clicked yet): COPY")

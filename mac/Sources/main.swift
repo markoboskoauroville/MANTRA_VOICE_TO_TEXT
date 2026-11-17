@@ -131,6 +131,7 @@ final class Stripe: NSObject {
     let dot = Dot()                            // the state's colour (green ready, red listening or failed, amber busy)
     let recorder = Recorder()
     var hotkey: HotKey?
+    var hotkeyHR: HotKey?                       // v47: F2, a Croatian take
     var escape: HotKey?
     var busy = false
     var cancelled = false                      // Esc while the take is written down or styled: nothing is typed
@@ -245,7 +246,7 @@ final class Stripe: NSObject {
         // writes down, so no take is lost
         DistributedNotificationCenter.default().addObserver(forName: Notification.Name(prefix + ".quit"), object: nil, queue: .main) { [weak self] _ in
             guard let self else { return }
-            if self.recorder.recording || self.busy { appendLog("quit asked from outside: refused, a take is in progress"); return }
+            if self.recorder.recording || self.busy || Typer.inserting > 0 { appendLog("quit asked from outside: refused, a take is in progress"); return }
             appendLog("quit asked from outside (a new build)")
             NSApp.terminate(nil)
         }
@@ -377,13 +378,30 @@ final class Stripe: NSObject {
     // MARK: the hotkey
 
     /// v16: F1 (and Esc) go back to the system, at quit and when Speechify takes over
-    func releaseKeys() { hotkey = nil; escape = nil; appendLog("F1 released") }
+    func releaseKeys() { hotkey = nil; hotkeyHR = nil; escape = nil; appendLog("F1 and F2 released") }
 
     func bindHotkey() {
         hotkey = nil
         let code = HotKey.keys.first { $0.0 == HotKey.chosen }?.1 ?? UInt32(kVK_F1)
-        hotkey = HotKey(code: code, id: 1) { [weak self] in self?.pressed() }
+        // v47 (Marko, 17.11.2026: "F1 is English, F2 is Croatian by default."): F1 starts an English take ALWAYS, F2 a Croatian
+        // one ALWAYS (AUTO is only a menu choice and never used by the keys); each take uses its language's own slot. A press while a take records only
+        // ends it: the language is never switched in the middle of a take.
+        hotkey = HotKey(code: code, id: 1) { [weak self] in self?.keyPressed(lang: "en") }
         if hotkey == nil { say("\(HotKey.chosen) is taken by another app: ⚙ to choose another", Ink.red) }
+        hotkeyHR = nil
+        if HotKey.chosenHR != HotKey.chosen, let c2 = HotKey.keys.first(where: { $0.0 == HotKey.chosenHR })?.1 {
+            hotkeyHR = HotKey(code: c2, id: 3) { [weak self] in self?.keyPressed(lang: "hr") }
+            if hotkeyHR == nil { appendLog("\(HotKey.chosenHR) (Croatian key) is taken by another app") }
+        }
+    }
+
+    func keyPressed(lang: String) {
+        if !recorder.recording && !busy {
+            let now = HearEngine.current.lang
+            let want = lang                 // Marko, 17.11.2026: "I don't want to use Auto in this F1 F2. Forget Auto."
+            if want != now { HearEngine.setLang(want); appendLog("key: \(want) take"); refresh(); ready(); settings?.paintChoices() }
+        }
+        pressed()
     }
 
     func pressed() {

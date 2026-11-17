@@ -360,3 +360,7 @@ Meaning: a bug hunt over the whole app; correction and completion improved by me
 Meaning: F1 records a take in English, F2 in Croatian, each with its language's own slot (engine, correction, styling); both keys changeable in Settings.
 
 **Status:** saved first (17.11.2026); v47.
+
+## 17.11.2026 (v47), Marko word for word (via the coordinator; "Alto" = AUTO)
+> "I don't want to use Auto in this F1 F2. Forget Auto. Auto is very buggy. This is only in, just for fun. I am not using Auto, please."
+So F1 = English always, F2 = Croatian always; AUTO only a menu choice.
