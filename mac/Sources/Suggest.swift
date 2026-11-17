@@ -622,12 +622,22 @@ enum LocalModel {
         get { UserDefaults.standard.object(forKey: "localModel") as? Bool ?? true }
         set { UserDefaults.standard.set(newValue, forKey: "localModel"); if !newValue { stop() } }
     }
+    static var folder: URL { appSupport.appendingPathComponent("models") }
+    /// the model files in the folder (Whisper's ggml .bin files are not these)
+    static var files: [String] { ((try? FileManager.default.contentsOfDirectory(atPath: folder.path)) ?? []).filter { $0.hasSuffix(".gguf") }.sorted() }
+    /// v56: the default when he has not picked one, in this order (as measured, see TAKEOVER); else the first file there
+    static let preferred = ["gemma-3-270m-it-Q4_K_M.gguf"]
     static var modelFile: URL? {
-        let dir = appSupport.appendingPathComponent("models")
-        let names = ((try? FileManager.default.contentsOfDirectory(atPath: dir.path)) ?? []).filter { $0.hasSuffix(".gguf") }.sorted()
-        // the one named in the defaults, else the first gguf there (Whisper's ggml .bin files are not this)
+        let names = files
         let want = UserDefaults.standard.string(forKey: "localModelFile")
-        return (names.first { $0 == want } ?? names.first).map { dir.appendingPathComponent($0) }
+        let pick = names.first { $0 == want } ?? preferred.first { names.contains($0) } ?? names.first
+        return pick.map { folder.appendingPathComponent($0) }
+    }
+    static func choose(_ name: String?) {
+        if let name { UserDefaults.standard.set(name, forKey: "localModelFile"); UserDefaults.standard.set(true, forKey: "localModel") }
+        else { UserDefaults.standard.set(false, forKey: "localModel") }
+        stop()                                   // the next word starts the helper with the new file
+        appendLog("local model: chosen \(name ?? "none")")
     }
     static var server: String? { ["/opt/homebrew/bin/llama-server", "/usr/local/bin/llama-server"].first { FileManager.default.isExecutableFile(atPath: $0) } }
     static var available: Bool { modelFile != nil && server != nil }
@@ -710,13 +720,22 @@ enum CompleteBench {
 
     /// --bench-complete [n]: n sentences from History (the newest, ten words or more), held out of the personal layer; the first
     /// half is the context, the second half is typed. Top-1 = Option+Space would put the word in; top-3 = it is on the strip.
-    static func run(_ n: Int) -> Int32 {
+    /// `croatian`: every Croatian sentence in History instead (eight words or more, up to 60 words each; a take made on AUTO
+    /// counts by what it is), so the Croatian figures stand on more than a handful of words
+    static func run(_ n: Int, croatian: Bool = false) -> Int32 {
         var seen = Set<String>(), picked: [(String, String, [String])] = []
+        _ = Lexicon.get("en"); _ = Lexicon.get("hr")
         for e in History.all().sorted(by: { $0.latest.at > $1.latest.at }) {
             let v = e.latest
             let words = Personal.sentences(v.text).flatMap { $0 }
+            let lang = v.lang == "en" || v.lang == "hr" ? v.lang : (CroatianFix.looksCroatian(v.text) ? "hr" : "en")
+            if croatian {
+                guard lang == "hr", words.count >= 8, seen.insert(v.text).inserted else { continue }
+                picked.append((e.id, lang, Array(words.prefix(60))))
+                continue
+            }
             guard words.count >= 10, seen.insert(v.text).inserted else { continue }
-            picked.append((e.id, v.lang, Array(words.prefix(40))))
+            picked.append((e.id, lang, Array(words.prefix(40))))
             if picked.count == n { break }
         }
         guard !picked.isEmpty else { print("no sentences in History"); return 1 }
@@ -732,7 +751,7 @@ enum CompleteBench {
         print("\(picked.count) sentences from History (\(picked.filter { $0.1 == "hr" }.count) Croatian), second halves typed key by key\n")
         func pct(_ a: Int, _ b: Int) -> Double { b == 0 ? 0 : (Double(a) / Double(b) * 1000).rounded() / 10 }
         for (name, opt, neural) in variants {
-            for group in ["all", "en", "hr"] {
+            for group in (croatian ? ["hr"] : ["all", "en", "hr"]) {
                 var words = 0, next1 = 0, in2top1 = 0, in2top3 = 0, keys = 0, used1 = 0, used3 = 0
                 var ms: [Double] = [], modelMs: [Double] = []
                 for (_, lang, sentence) in picked where group == "all" || lang == group {
@@ -781,7 +800,7 @@ enum CompleteBench {
                                           "latency_ms_p95": (percentile(ms, 0.95) * 100).rounded() / 100, "latency_ms_max": (percentile(ms, 1) * 100).rounded() / 100]
                 if neural { row["model_ms_mean"] = (modelMs.reduce(0, +) / Double(max(modelMs.count, 1)) * 10).rounded() / 10; row["model_ms_p95"] = (percentile(modelMs, 0.95) * 10).rounded() / 10; row["model_ms_max"] = (percentile(modelMs, 1) * 10).rounded() / 10 }
                 report.append(row)
-                if group == "all" { print(name) }
+                if group == "all" || croatian { print(name) }
                 print("  [\(group)] words \(words) · next word before any key \(row["next_word_top1_pct"]!) % · first right within 2 keys \(row["top1_within_2_keys_pct"]!) % · on the strip within 2 keys \(row["top3_within_2_keys_pct"]!) % · keystrokes saved \(row["keystrokes_saved_top1_pct"]!) % (Option+Space) / \(row["keystrokes_saved_top3_pct"]!) % (a pick) · per key mean \(row["latency_ms_mean"]!) ms, slowest \(row["latency_ms_max"]!) ms" + (neural ? " · the model once a word: mean \(row["model_ms_mean"]!) ms, p95 \(row["model_ms_p95"]!) ms, slowest \(row["model_ms_max"]!) ms" : ""))
             }
             print("")

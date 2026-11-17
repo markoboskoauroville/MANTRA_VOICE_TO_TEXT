@@ -1183,7 +1183,7 @@ if let i = CommandLine.arguments.firstIndex(of: "--learn"), i + 3 < CommandLine.
 // v51: --bench-complete [n] measures the typing suggestions on his own History sentences; --suggest <prefix> [words before...]
 // prints what the strip would show
 if let i = CommandLine.arguments.firstIndex(of: "--bench-complete") {
-    exit(CompleteBench.run(i + 1 < CommandLine.arguments.count ? Int(CommandLine.arguments[i + 1]) ?? 20 : 20))
+    exit(CompleteBench.run(i + 1 < CommandLine.arguments.count ? Int(CommandLine.arguments[i + 1]) ?? 20 : 20, croatian: CommandLine.arguments.contains("hr")))
 }
 if let i = CommandLine.arguments.firstIndex(of: "--suggest"), i + 1 < CommandLine.arguments.count {
     let a = CommandLine.arguments
