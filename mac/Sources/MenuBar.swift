@@ -50,7 +50,13 @@ final class MenuBar: NSObject, NSMenuDelegate {
         for (title, tag, sel) in [("English", 11, #selector(pickLang(_:))), ("Croatian", 12, #selector(pickLang(_:))),
                                   ("Auto (English and Croatian)", 13, #selector(pickLang(_:))),
                                   ("Correction", 14, #selector(toggleCorrection)), ("Styling", 15, #selector(toggleStyling))] {
-            if tag == 14 { menu.addItem(.separator()) }
+            if tag == 14 {
+                // v40 (Marko, 17.11.2026: the engine menu in the menu bar item's menu): an Engine submenu right after AUTO
+                let e = NSMenuItem(title: "Engine", action: nil, keyEquivalent: ""); e.tag = 16
+                let sub = NSMenu(title: "Engine"); sub.autoenablesItems = false; e.submenu = sub
+                menu.addItem(e)
+                menu.addItem(.separator())
+            }
             let m = NSMenuItem(title: title, action: sel, keyEquivalent: ""); m.target = self; m.tag = tag; menu.addItem(m)
         }
         menu.addItem(.separator())
@@ -77,6 +83,11 @@ final class MenuBar: NSObject, NSMenuDelegate {
             case 13: m.state = lang == "auto" ? .on : .off
             case 14: m.state = StyleEngine.current != .off ? .on : .off
             case 15: m.state = Prefs.styleButtonOn ? .on : .off
+            case 16:       // v40: the Engine submenu, rebuilt for the language chosen now (HearEngine.setEngine on a pick)
+                let l = HearEngine.current
+                m.title = "Engine: " + l.spec.short
+                m.submenu?.removeAllItems()
+                stripe.engineItems().forEach { m.submenu?.addItem($0) }
             default: break
             }
         }

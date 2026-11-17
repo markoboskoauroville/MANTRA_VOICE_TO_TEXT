@@ -225,12 +225,8 @@ final class Stripe: NSObject {
         }
         History.purge()
         Timer.scheduledTimer(withTimeInterval: 3600, repeats: true) { _ in History.purge() }
-        // with the stripe coming and going (request 10), it starts minimized: F1 brings it
-        if Prefs.autoHide && !VoiceWords.enabled && !CommandLine.arguments.contains("--take") {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) { [weak self] in
-                if Prefs.autoHide && self?.recorder.recording == false && self?.busy == false { self?.minimizeStripe() }
-            }
-        }
+        // v40 (Marko, 17.11.2026: "If I closed the blob, it does not open when I start the app ... Always"): a fresh start always
+        // shows the blob; it used to minimize itself 2.5 s after launch (auto hide). Closing it during a session is unchanged.
         // AT LOGIN (the star opens its apps hidden with --login): the stripe is this app's only face, so it comes back to its
         // place quietly, without taking the front.
         // Whenever macOS hides the app and "–" was not pressed (a hidden launch hides it after this init has run), it shows
@@ -468,13 +464,13 @@ final class Stripe: NSObject {
 
     // v39: the ENGINE dropdown: the engines of the language now chosen, best first. The pick is HearEngine.setEngine, the
     // same choice Settings' radio buttons make (engine_<lang>; AUTO shares the Croatian column), never a second copy.
-    func showEngineMenu(cancelAfter: Double? = nil) {
+    /// the items of the engine list (the pill's dropdown and the menu bar item's Engine submenu share this one builder)
+    func engineItems() -> [NSMenuItem] {
         let lang = HearEngine.current.lang, cur = HearEngine.current.id
-        let menu = NSMenu(title: "Engine")
-        menu.autoenablesItems = false
-        let head = NSMenuItem(title: "Engine for " + (lang == "auto" ? "AUTO (Croatian column)" : lang.uppercased()) + ", most accurate first", action: nil, keyEquivalent: "")
-        head.isEnabled = false; menu.addItem(head); menu.addItem(.separator())
         let l = lang == "auto" ? "hr" : lang
+        var out: [NSMenuItem] = []
+        let head = NSMenuItem(title: "Engine for " + (lang == "auto" ? "AUTO (Croatian column)" : lang.uppercased()) + ", most accurate first", action: nil, keyEquivalent: "")
+        head.isEnabled = false; out.append(head); out.append(.separator())
         for id in Catalog.menuOrder(lang) {
             guard let s = Catalog.byId(id) else { continue }
             var t = s.short
@@ -486,8 +482,14 @@ final class Stripe: NSObject {
             let it = NSMenuItem(title: t, action: ok ? #selector(engineChosen(_:)) : nil, keyEquivalent: "")
             it.target = self; it.representedObject = id; it.isEnabled = ok
             it.state = id == cur ? .on : .off
-            menu.addItem(it)
+            out.append(it)
         }
+        return out
+    }
+    func showEngineMenu(cancelAfter: Double? = nil) {
+        let menu = NSMenu(title: "Engine")
+        menu.autoenablesItems = false
+        engineItems().forEach { menu.addItem($0) }
         if let secs = cancelAfter {
             let tm = Timer(timeInterval: secs, repeats: false) { _ in menu.cancelTracking() }
             RunLoop.main.add(tm, forMode: .common)
