@@ -370,3 +370,10 @@ So F1 = English always, F2 = Croatian always; AUTO only a menu choice.
 Meaning: History's ENGINE, LANGUAGE, correction and styling choices read and write the same per-language global settings; one label column and one control column, model pop-up first and its checkbox after it, Re-transcribe under the model choices.
 
 **Status:** saved first (17.11.2026); v48.
+
+## 17.11.2026 (the plan A-E and the model download), Marko word for word (relayed by the master session)
+> "Plan approved go"
+> "Please don't ask for confirmation about download. Simply for this project, lift all the limitation and download everything you need without asking anything. Just go without breaks and checks."
+Meaning (the master's): for Vox to Txt only, no approval stop between the parts and none for the local model's download; each download still goes on the Download Monitor first, never twice, the smallest model that meets the goal.
+
+**Status:** saved first (17.11.2026); relayed, not heard from Marko directly by the worker.
