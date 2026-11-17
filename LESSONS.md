@@ -182,3 +182,9 @@ Poll the mouse (macOS draws a status item once per display, only one copy owns t
 - A submenu is rebuilt in the parent's menuNeedsUpdate, from one shared builder (Stripe.engineItems), so the pill and the menu bar cannot drift.
 - The blob did not come back at start because autoHide minimized it 2.5 s after launch: look for the timer, not for a saved state.
 - An AX press on a wrong index changes real settings (it set AUTO and opened Settings): restore the defaults afterwards.
+
+## v42-v43 (17.11.2026)
+- Per-language preferences: put the language into the key (`<name>_<lang>`) inside the one getter/setter every reader already uses, and migrate once before the first window exists; nothing else has to change.
+- DICTATION ONLY INSERTS. An Accessibility insert can leave the inserted text selected (Firefox); the next insert then replaces it. Collapse the selection before and after, verify prefix and suffix, undo on a mismatch. Rule: MANTRA_MANIFEST modules/dictation-insert-only.md.
+- A test of a typing path needs two takes in a row into a real box; a single take hides this bug. Simulate the app's quirk (select the first take through AX) when the real app cannot be used.
+- Test boxes steal the target (the last box focused): give his box the focus back (iTerm2 activate) and close the test documents.

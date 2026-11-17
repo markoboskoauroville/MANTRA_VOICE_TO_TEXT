@@ -82,3 +82,11 @@ Marko, for the MPA Lessons Analyzer: "I want to see this thing open up and it's 
 
 ## v40-v41 (17.11.2026)
 - "Menu item" = the menu bar item's menu. It has History first, then EN/HR/AUTO, then an Engine submenu (best first, same as the pill list; a pick = HearEngine.setEngine), then Correction, Styling. The blob always shows at launch.
+
+## v42-v43 (17.11.2026)
+- Engine, correction (style_<lang>), styling (styleButtonOn_<lang>) and text mode (textMode_<lang>) are remembered per language EN, HR, AUTO; AUTO has engine_auto. One getter for every reader.
+- Typing only INSERTS (collapse selection, verify, undo): modules/dictation-insert-only.md. Test: two takes in a row.
+
+## v42-v43 (17.11.2026)
+- Engine, correction (style_<lang>), styling (styleButtonOn_<lang>) and text mode (textMode_<lang>) are remembered per language EN, HR, AUTO; AUTO has engine_auto. One getter for every reader.
+- Typing only INSERTS (collapse selection, verify, undo): modules/dictation-insert-only.md. Test: two takes in a row.
