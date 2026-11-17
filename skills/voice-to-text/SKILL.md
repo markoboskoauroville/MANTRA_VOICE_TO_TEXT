@@ -90,3 +90,9 @@ Marko, for the MPA Lessons Analyzer: "I want to see this thing open up and it's 
 ## v42-v43 (17.11.2026)
 - Engine, correction (style_<lang>), styling (styleButtonOn_<lang>) and text mode (textMode_<lang>) are remembered per language EN, HR, AUTO; AUTO has engine_auto. One getter for every reader.
 - Typing only INSERTS (collapse selection, verify, undo): modules/dictation-insert-only.md. Test: two takes in a row.
+
+## v44-v45 (17.11.2026)
+- Takes are separated by a space (not at the start, after a newline or an opener). A take that did not land: the menu bar item's first click copies it, the next opens the menu (hook com.mantra.voicetotext.notlanded).
+
+## v44-v45 (17.11.2026)
+- Takes are separated by a space (not at the start, after a newline or an opener). A take that did not land: the menu bar item's first click copies it, the next opens the menu (hook com.mantra.voicetotext.notlanded).

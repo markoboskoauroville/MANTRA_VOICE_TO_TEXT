@@ -188,3 +188,8 @@ Poll the mouse (macOS draws a status item once per display, only one copy owns t
 - DICTATION ONLY INSERTS. An Accessibility insert can leave the inserted text selected (Firefox); the next insert then replaces it. Collapse the selection before and after, verify prefix and suffix, undo on a mismatch. Rule: MANTRA_MANIFEST modules/dictation-insert-only.md.
 - A test of a typing path needs two takes in a row into a real box; a single take hides this bug. Simulate the app's quirk (select the first take through AX) when the real app cannot be used.
 - Test boxes steal the target (the last box focused): give his box the focus back (iTerm2 activate) and close the test documents.
+
+## v44-v45 (17.11.2026)
+- A test that appends takes must read the box back each time: two takes in a row gave "minutes.Second" until the separator rule (space unless start, newline, opener) went into the one insert function.
+- A status item with a menu opens it on every click; to intercept a click, take the menu away (it.menu = nil) and use the button's target/action for as long as the state lasts, then give it back.
+- My TextEdit tests take the typing target: once his own dictation landed in the test box. Run them only when no take is near.
