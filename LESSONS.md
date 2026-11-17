@@ -175,3 +175,10 @@ Poll the mouse (macOS draws a status item once per display, only one copy owns t
 - One selection, two doors: the pill's dropdown and Settings both call `HearEngine.setEngine`; a test hook that sets the same default proves the path without a click.
 - A popUp menu from a non-activating panel keeps the target app's focus; `menu.cancelTracking()` on a .common-mode timer lets a test photograph it.
 - The pill sits on the MacBook screen (x 3200 here); check the window list before a shot.
+
+## v40-v41 (17.11.2026)
+- "The menu item" / "the drop down menu for the menu item" in Marko's words = the MENU BAR ITEM's dropdown (the status item's menu), not the pill. v39 built the wrong thing and called it done: when a UI word is ambiguous, check it against the screen he uses (menu bar) before building.
+- Proof for a menu: AXPress the status item (System Events, menu bar 1), AXPress the submenu item, list `name of every menu item`, screencapture the screen the menu opened on (it can be the other display). Separators count as items when addressing by index.
+- A submenu is rebuilt in the parent's menuNeedsUpdate, from one shared builder (Stripe.engineItems), so the pill and the menu bar cannot drift.
+- The blob did not come back at start because autoHide minimized it 2.5 s after launch: look for the timer, not for a saved state.
+- An AX press on a wrong index changes real settings (it set AUTO and opened Settings): restore the defaults afterwards.

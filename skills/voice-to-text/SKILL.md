@@ -76,3 +76,9 @@ Marko, for the MPA Lessons Analyzer: "I want to see this thing open up and it's 
 ## v39 (17.11.2026): renamed Vox to Txt (Mantra), the engine dropdown
 - App /Applications/Vox to Txt (Mantra).app (executable the same name); bundle id, data folder (Voice to Text (Mantra)), log and :8865 unchanged. The v38 updater cannot take this zip: install by hand once.
 - The pill: [EN] [ENGINE] [text mode]. The ENGINE list is best first for the language (accuracy, then speed; paid last, only when picked); the pick = HearEngine.setEngine = Settings' choice. Test hooks: `.engine` (lang, engine) and `.enginemenu` (seconds). Notification prefix com.mantra.voicetotext.
+
+## v40-v41 (17.11.2026)
+- "Menu item" = the menu bar item's menu. It has History first, then EN/HR/AUTO, then an Engine submenu (best first, same as the pill list; a pick = HearEngine.setEngine), then Correction, Styling. The blob always shows at launch.
+
+## v40-v41 (17.11.2026)
+- "Menu item" = the menu bar item's menu. It has History first, then EN/HR/AUTO, then an Engine submenu (best first, same as the pill list; a pick = HearEngine.setEngine), then Correction, Styling. The blob always shows at launch.
