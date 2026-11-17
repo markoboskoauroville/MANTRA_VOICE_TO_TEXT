@@ -68,3 +68,11 @@ Marko, for the MPA Lessons Analyzer: "I want to see this thing open up and it's 
 - One target box for typing and STYLE (Target.swift): last box clicked/focused in any app, never Vox; AX, then paste with the app in front, then COPY. Terminals are never pasted over by STYLE.
 - Two selectors on the pill: language EN/HR/AUTO x text ——— / COR / STY / S+C (12 modes). Settings: quick switches (CORRECTION, STYLING, FRANKFURT, TEST), INPUT/OUTPUT, tabs, engines best first (test of 15.11.2026). Display has TTT's hairline meter.
 - Test hooks: notifications .style / .typetext / .mode; defaults testStyleFake; --probe-box <App> [text]. Never open test windows while Marko is dictating (take-open exists).
+
+## v39 (17.11.2026): renamed Vox to Txt (Mantra), the engine dropdown
+- App /Applications/Vox to Txt (Mantra).app (executable the same name); bundle id, data folder (Voice to Text (Mantra)), log and :8865 unchanged. The v38 updater cannot take this zip: install by hand once.
+- The pill: [EN] [ENGINE] [text mode]. The ENGINE list is best first for the language (accuracy, then speed; paid last, only when picked); the pick = HearEngine.setEngine = Settings' choice. Test hooks: `.engine` (lang, engine) and `.enginemenu` (seconds). Notification prefix com.mantra.voicetotext.
+
+## v39 (17.11.2026): renamed Vox to Txt (Mantra), the engine dropdown
+- App /Applications/Vox to Txt (Mantra).app (executable the same name); bundle id, data folder (Voice to Text (Mantra)), log and :8865 unchanged. The v38 updater cannot take this zip: install by hand once.
+- The pill: [EN] [ENGINE] [text mode]. The ENGINE list is best first for the language (accuracy, then speed; paid last, only when picked); the pick = HearEngine.setEngine = Settings' choice. Test hooks: `.engine` (lang, engine) and `.enginemenu` (seconds). Notification prefix com.mantra.voicetotext.

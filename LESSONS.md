@@ -168,3 +168,10 @@ A stored property with an observer must be a declaration of its own: "var declar
 
 ## Lesson: hover card and pipes (16.11.2026)
 Poll the mouse (macOS draws a status item once per display, only one copy owns the button, so a tracking area misses the other display). The panel needs `titleVisibility = .hidden` for the one-title guard. A non-activating NSPanel at statusBar+1 never takes focus. Pipes for text items: attributed title; for icon items: pipedIcon + rightPipe; for view items: drawPipes or PipesView.
+
+## v39 (17.11.2026)
+- `var a = false, b = false { didSet }` fails to compile again (the third time): one `var` per observed property.
+- A rename keeps what lives on disk: the data folder, the log, the bundle id and the API are not the app's visible name. The self-updater matches the new .app by the OLD bundle name, so the rename version itself is installed by hand.
+- One selection, two doors: the pill's dropdown and Settings both call `HearEngine.setEngine`; a test hook that sets the same default proves the path without a click.
+- A popUp menu from a non-activating panel keeps the target app's focus; `menu.cancelTracking()` on a .common-mode timer lets a test photograph it.
+- The pill sits on the MacBook screen (x 3200 here); check the window list before a shot.
