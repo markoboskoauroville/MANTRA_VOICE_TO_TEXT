@@ -646,6 +646,11 @@ final class Stripe: NSObject {
             Hear.used = nil
             Chain.onStatus = { s in DispatchQueue.main.async { guard mine == self.take, !self.cancelled else { return }; self.say(s, Ink.amber) } }
             // v21: a take started or sent by voice has "listen" / "send" cut from its text (Whisper hears them too)
+            // v50: the open chat's name (WhatsApp Web's box says who it writes to): a keyword for the engine, and its spelling
+            // for the take; and what he corrected in the last take is learned before this one moves the box on (TTT: settle)
+            let chat = Fix.on ? ChatName.read(TextTarget.shared.resolve()) : nil
+            ChatName.last = chat
+            Learner.settle()
             let heard = byVoice ? Hear.run(hear, wav: wav).map(VoiceWords.strip) : Hear.run(hear, wav: wav)
             let tHear = Date().timeIntervalSince(t0)
             guard case .success(let words) = heard, !words.trimmingCharacters(in: .whitespaces).isEmpty else {
@@ -673,12 +678,17 @@ final class Stripe: NSObject {
             let usedTitle = Hear.used ?? hear.title
             if style != .off { DispatchQueue.main.async { self.say("auto correct (\(style.title))…", Ink.amber) } }
             let t1 = Date()
-            var final = corrected(words), warning: String?
-            switch Style.run(style, text: words, lang: lang, mode: textMode) {
+            // v50, TTT's order: Latin letters and the Croatian fix from the dictionary, then the Claude correction when it is on,
+            // then his names, spoken times, the spelling table, his learned corrections and the open chat's name
+            let pre = Fix.before(corrected(words), lang: lang)
+            var final = pre, warning: String?
+            switch Style.run(style, text: pre, lang: lang, mode: textMode) {
             case .success(let t): final = t
             case .failure(let e):
                 warning = "not auto corrected: " + e.message        // the words as heard still go in, he is never left with nothing
             }
+            final = Fix.after(final, lang: lang, chat: chat)
+            Fix.note(words, final, "take")
             let tStyle = Date().timeIntervalSince(t1)
             let moved = Ring.lastMove
             let route = Hear.route.map { " · " + $0 } ?? ""
@@ -713,6 +723,7 @@ final class Stripe: NSObject {
                     History.mark(entry.id, landed: landing == .typed ? "typed" : landing == .pasted ? "pasted" : "did not land")
                     if self.settings?.window.isVisible == true { self.settings?.history.reload() }
                     if landing == .nowhere { self.notLanded("\(n) words did not land"); return }
+                    if let el = Typer.lastField { Learner.note(final, element: el, lang: lang) }      // v50: what he corrects in it is learned
                     let how = landing == .typed ? "typed" : "pasted"
                     if let warning {
                         self.dot.color = Ink.amber
@@ -1067,6 +1078,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         Stats.seedOnce()             // v24: speed and quality in the engine names; the live test of 15.11.2026 goes in once
         Stats.seed28()               // v28: the engine test of 15.11.2026 (11 engines, 3 takes each)
         FileAPI.start()              // v15: the local API for Transcribe a file, 127.0.0.1:8865 only
+        Shared.start()               // v50: the shared correction database (pull now and every five minutes) and the learner
         DispatchQueue.global().async { KeyImporter.loadFamous(); Frankfurt.syncKeys() }     // v20: the keys go to the relay, write only
         Duck.up()                    // v3: speakers left at 6 % by a crash go back to their level
         Updater.checkAtStart()       // v16: asks "Do you want to update?" when a newer release is Latest
@@ -1129,6 +1141,26 @@ if CommandLine.arguments.contains("--retest-keys") { print(KeyImporter.retest())
 if CommandLine.arguments.contains("--keys") {
     for p in Provider.allCases { print("\(p.title): \(Keys.entries(p).count)") }
     exit(0)
+}
+
+// v50 tests without the app: --fix <en|hr|auto> <text> [chat name] prints the text as a take would be corrected;
+// --diff <written> <now> prints the corrections found between the two; --sync pulls and pushes the shared database once
+if let i = CommandLine.arguments.firstIndex(of: "--fix"), i + 2 < CommandLine.arguments.count {
+    let a = CommandLine.arguments, lang = a[i + 1]
+    let t0 = Date()
+    let out = Fix.after(Fix.before(corrected(a[i + 2]), lang: lang), lang: lang, chat: i + 3 < a.count ? a[i + 3] : nil)
+    print(out)
+    FileHandle.standardError.write(Data(String(format: "%.0f ms, %d rules, %d pairs\n", Date().timeIntervalSince(t0) * 1000, Shared.rules.count, Shared.table.pairs.count).utf8))
+    exit(0)
+}
+if let i = CommandLine.arguments.firstIndex(of: "--diff"), i + 2 < CommandLine.arguments.count {
+    for s in CorrectionRules.diff(CommandLine.arguments[i + 1], CommandLine.arguments[i + 2]) { print("\(s.wrong) => \(s.right)") }
+    exit(0)
+}
+if CommandLine.arguments.contains("--sync") { Shared.load(); Shared.sync(); print(Shared.status); exit(0) }
+if let i = CommandLine.arguments.firstIndex(of: "--learn"), i + 3 < CommandLine.arguments.count {
+    let a = CommandLine.arguments
+    Shared.learn([CorrectionRules.Swap(wrong: a[i + 2], right: a[i + 3])], lang: a[i + 1]); Shared.sync(); print(Shared.status); exit(0)
 }
 
 // --transcribe-file <path> [engine] [lang]: a file of any length, asked of the running app (it shows the window) or done here

@@ -430,10 +430,11 @@ final class HistoryPane: NSObject, NSTableViewDataSource, NSTableViewDelegate, N
             case .success(let w):
                 words = w
                 let lang = he.lang == "auto" ? (Hear.lastLang.flatMap { ["en", "hr"].contains($0) ? $0 : nil } ?? "auto") : he.lang
-                result = corrected(w)
+                let pre = Fix.before(corrected(w), lang: lang)        // v50: TTT's corrections, as a take gets them
+                result = pre
                 // correction first (its own model), then styling (its own model); both on and the same model: one call
                 if let c = cor, let s = sty, c == s {
-                    switch Style.run(c, text: w, lang: lang, mode: .styleCorrect) {
+                    switch Style.run(c, text: pre, lang: lang, mode: .styleCorrect) {
                     case .success(let t): result = t
                     case .failure(let err): words += "  (correction and styling failed: \(err.message))"
                     }
@@ -452,6 +453,7 @@ final class HistoryPane: NSObject, NSTableViewDataSource, NSTableViewDelegate, N
                     }
                 }
             }
+            if !result.hasPrefix("✗ ") { result = Fix.after(result, lang: he.lang == "auto" ? "auto" : he.lang) }
             DispatchQueue.main.async {
                 if !result.hasPrefix("✗ ") {
                     var updated = e

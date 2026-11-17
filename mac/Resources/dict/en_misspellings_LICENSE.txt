@@ -1,0 +1,5 @@
+en_misspellings.txt is derived from "Wikipedia:Lists of common misspellings/For machines"
+(https://en.wikipedia.org/wiki/Wikipedia:Lists_of_common_misspellings/For_machines),
+licensed CC BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0/). Fetched 7.11.2026.
+Format changed to one "wrong<TAB>right|right2" per line; four entries that are also real words removed
+(thru, toke, strat, dum).

@@ -19,8 +19,19 @@ struct Multipart {
 }
 
 enum Adapters {
-    static func names() -> [String] {
+    static func ownNames() -> [String] {
         Prefs.names.components(separatedBy: CharacterSet(charactersIn: ",;\n")).map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
+    }
+    /// the engines' keywords: the open chat's name first (v50), then his own list, then TTT's table and the right forms of
+    /// his learned corrections (TTT: MaSpelling.keyterms + MaDictationCorrections.glossary)
+    static func names() -> [String] {
+        var out: [String] = [], seen = Set<String>()
+        var all: [String] = []
+        if Fix.on, let c = ChatName.last { all += [c] + NameFix.parts(c) }
+        all += ownNames()
+        if Fix.on { all += Shared.table.terms + CorrectionRules.glossary(Shared.rules, HearEngine.current.lang) }
+        for n in all where seen.insert(n.lowercased()).inserted { out.append(n) }
+        return out
     }
     static func nameList() -> String { String(names().joined(separator: ", ").prefix(600)) }
 
