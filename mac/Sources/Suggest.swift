@@ -131,6 +131,16 @@ enum Predictor {
     /// what the benchmark compares: the dictionary alone (frequency), then with word pairs and triples, then with his own layer
     struct Options { var context = true; var personal = true; var corrections = true }
 
+    /// the weights of the ranking; measured on his own sentences (--bench-complete), and changeable for a measurement without
+    /// a new build: VOX_W="bi=40,tri=40,pu=30,pb=70,pt=70,next=90,lean=14,len=0"
+    static var w: [String: Double] = {
+        var d: [String: Double] = ["bi": 40, "tri": 40, "pu": 30, "pb": 70, "pt": 70, "next": 90, "lean": 14, "len": 0, "su": 4, "sb": 6, "st": 8]
+        for part in (ProcessInfo.processInfo.environment["VOX_W"] ?? "").split(separator: ",") {
+            let kv = part.split(separator: "=")
+            if kv.count == 2, let v = Double(kv[1]) { d[String(kv[0])] = v }
+        }
+        return d
+    }()
     static let rows = ["qwertyuiop", "asdfghjkl", "zxcvbnm"].map { Array($0) }
     static let neighbours: [Character: Set<Character>] = {
         var m: [Character: Set<Character>] = [:]
@@ -178,16 +188,18 @@ enum Predictor {
         let me = Personal.shared
         let p1 = options.context ? prev.last : nil
         let p2 = options.context && prev.count > 1 ? prev[prev.count - 2] : nil
-        func lean(_ l: Lexicon) -> Double { (l.lang == "hr" ? 14 : -14) * bias }
+        let W = Predictor.w
+        let wBi = W["bi"]!, wTri = W["tri"]!, pu = W["pu"]!, pb = W["pb"]!, pt = W["pt"]!, su = W["su"]!, sb = W["sb"]!, st = W["st"]!
+        func lean(_ l: Lexicon) -> Double { (l.lang == "hr" ? 1 : -1) * W["lean"]! * bias }
         func context(_ l: Lexicon, _ w: String) -> Double {
             var s = 0.0
-            if let p1 { s += 40 * lg(Double(l.bigrams[p1 + " " + w] ?? 0)); if let p2 { s += 40 * lg(Double(l.trigrams[p2 + " " + p1 + " " + w] ?? 0)) } }
+            if let p1 { s += wBi * lg(Double(l.bigrams[p1 + " " + w] ?? 0)); if let p2 { s += wTri * lg(Double(l.trigrams[p2 + " " + p1 + " " + w] ?? 0)) } }
             return s
         }
         func own(_ w: String) -> Double {
             guard options.personal else { return 0 }
-            var s = 30 * lg((me.uni[w] ?? 0) * 4)
-            if let p1 { s += 70 * lg((me.bi[p1 + " " + w] ?? 0) * 6); if let p2 { s += 70 * lg((me.tri[p2 + " " + p1 + " " + w] ?? 0) * 8) } }
+            var s = pu * lg((me.uni[w] ?? 0) * su)
+            if let p1 { s += pb * lg((me.bi[p1 + " " + w] ?? 0) * sb); if let p2 { s += pt * lg((me.tri[p2 + " " + p1 + " " + w] ?? 0) * st) } }
             return s
         }
         var scores: [String: (Double, Suggestion.Kind)] = [:]
@@ -213,7 +225,7 @@ enum Predictor {
             for w in cands {
                 let (b, l) = base(w)
                 let c = (l.map { context($0, w) } ?? 0) + own(w)
-                if c >= 90 { offer(w, max(b, 150) * 0.3 + c, .next) }      // only what the words before clearly lead to
+                if c >= W["next"]! { offer(w, max(b, 150) * 0.3 + c, .next) }      // only what the words before clearly lead to
             }
         } else {
             let fp = Lexicon.fold(p)
@@ -230,16 +242,19 @@ enum Predictor {
             }
             if options.personal { for w in me.completions(p) { pool[w] = max(pool[w] ?? -1, max(base(w).0, 150)) } }
             let top = pool.sorted { $0.value > $1.value }.prefix(300)
+            var strong = 0
             for (w, f) in top where w != p {
                 let l = base(w).1
-                // a longer word must earn the keys it saves: short endings of the typed word come first only when they are common
-                offer(w, f + (l.map { context($0, w) } ?? 0) + own(w), .completion)
+                if f >= 170 { strong += 1 }
+                // "len": a word that saves more keys may be worth a little more
+                offer(w, f + (l.map { context($0, w) } ?? 0) + own(w) + W["len"]! * Double(min(w.count - p.count, 6)), .completion)
             }
             // corrections: only for a word nobody knows, never for his own words or a name (a capital inside a sentence)
             let name = prefix.first?.isUppercase == true && !sentenceStart
             if options.corrections, !known, !name, p.count >= 3 {
                 if let en = lex.first(where: { $0.lang == "en" }), let right = en.misspellings[p] { offer(right, 400, .correction) }
-                for (e, cost) in edits(fp) {
+                // while common words still begin like this he is simply not finished: no "corrections" of a word half typed
+                for (e, cost) in (strong >= 3 ? [:] : edits(fp)) {
                     for l in lex {
                         let hit: (String, Int)? = l.lang == "hr" ? l.folded[e] : l.words[e].map { (e, $0) }
                         guard let (w, f) = hit, f >= 150 else { continue }
@@ -421,7 +436,11 @@ final class TypingSuggest {
     private func handle(_ type: CGEventType, _ event: CGEvent) -> Bool {
         if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput { if let t = tap { CGEvent.tapEnable(tap: t, enable: true) }; return false }
         if event.getIntegerValueField(.eventSourceUserData) == TypingSuggest.mark { return false }
-        if type != .keyDown { reset(place: true); return false }
+        if type != .keyDown {
+            // a click ON a suggestion (the strip, or the menu bar item) must find it still there; any other click moves the caret
+            if !shown.isEmpty, ownClick(event.location) { return false }
+            reset(place: true); return false
+        }
         if quiet { if !word.isEmpty || !shown.isEmpty || !prev.isEmpty { reset(place: true) }; return false }
         let flags = event.flags
         let code = event.getIntegerValueField(.keyboardEventKeycode)
@@ -455,6 +474,14 @@ final class TypingSuggest {
         } else {
             reset(place: false)            // arrows, Esc, function keys: the caret may be anywhere now
         }
+        return false
+    }
+
+    private func ownClick(_ p: CGPoint) -> Bool {
+        guard let top = NSScreen.screens.first?.frame.maxY else { return false }
+        let c = NSPoint(x: p.x, y: top - p.y)                    // the event's point has its origin at the top left
+        if strip.panel.isVisible, strip.panel.frame.insetBy(dx: -2, dy: -2).contains(c) { return true }
+        if let f = MenuDisplay.shared.itemFrame, f.insetBy(dx: -2, dy: -2).contains(c) { return true }
         return false
     }
 

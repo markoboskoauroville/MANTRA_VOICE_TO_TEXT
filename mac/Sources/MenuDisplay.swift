@@ -63,6 +63,8 @@ final class MenuDisplay: NSObject {
     }
 
     private let pipes = HoverCard.PipesView(frame: .zero)
+    /// where the item is on the screen (v52: a click on it while suggestions show must not count as a click elsewhere)
+    var itemFrame: NSRect? { item?.button?.window?.frame }
 
     /// the hover card (kit menubar-hover)
     func hoverContent() -> HoverCard.Content {
