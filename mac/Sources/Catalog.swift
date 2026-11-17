@@ -231,14 +231,14 @@ struct HearEngine: Equatable {
                 for l in langs { d.set(id, forKey: "engine_" + l) }
             }
             let lang = d.string(forKey: "hearLang") ?? "auto"
-            // v17: AUTO (Croatian and English) uses the Croatian column's engine; EN and HR each their own
-            var id = d.string(forKey: "engine_" + (lang == "auto" ? "hr" : lang)) ?? "assemblyai"
+            // v42: AUTO has its own engine slot (engine_auto, seeded from engine_hr); EN and HR each their own
+            var id = d.string(forKey: "engine_" + lang) ?? d.string(forKey: "engine_hr") ?? "assemblyai"
             if Catalog.byId(id) == nil || (id == "parakeet" && !Ears.serverHere) { id = "assemblyai" }
             return HearEngine(id: id, lang: lang)
         }
         set {
             UserDefaults.standard.set(newValue.lang, forKey: "hearLang")
-            UserDefaults.standard.set(newValue.id, forKey: "engine_" + (newValue.lang == "auto" ? "hr" : newValue.lang))
+            UserDefaults.standard.set(newValue.id, forKey: "engine_" + newValue.lang)
         }
     }
 

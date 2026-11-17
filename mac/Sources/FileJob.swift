@@ -557,7 +557,7 @@ enum FileAPI {
         }
         guard HearEngine.langs.contains(lang) else { return (400, ["error": "lang is en, hr or auto"]) }
         guard body.count > 44 else { return (400, ["error": "send the audio (WAV) as the body"]) }
-        var id = UserDefaults.standard.string(forKey: "engine_" + (lang == "auto" ? "hr" : lang)) ?? HearEngine.current.id
+        var id = UserDefaults.standard.string(forKey: "engine_" + lang) ?? HearEngine.current.id
         if Catalog.byId(id) == nil || (id == "parakeet" && !Ears.serverHere) { id = "assemblyai" }
         let e = HearEngine(id: id, lang: lang)
         let url = FileManager.default.temporaryDirectory.appendingPathComponent("api-hear-\(UUID().uuidString).wav")

@@ -702,6 +702,7 @@ final class SettingsWindow: NSObject, NSTextViewDelegate, NSTextFieldDelegate {
 
     // v12: the round buttons
     func paintChoices() {
+        croatianTick.state = Prefs.correctCroatian ? .on : .off      // v42: it is the HR slot's correction
         let h = HearEngine.current
         for (l, byId) in cards {
             let chosen = UserDefaults.standard.string(forKey: "engine_" + l) ?? "assemblyai"

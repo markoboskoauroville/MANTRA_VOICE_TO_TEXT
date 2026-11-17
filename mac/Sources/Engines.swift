@@ -8,7 +8,7 @@
 // does each is a choice on the stripe, remembered.
 import Foundation
 
-let appVersion = 41
+let appVersion = 42
 let VERSION = appVersion              // the Updater kit reads these two
 let APP_NAME = "Vox to Txt (Mantra)"
 
@@ -30,6 +30,31 @@ let APP_NAME = "Vox to Txt (Mantra)"
 // v13: the engine is one of the 13 of Catalog.swift (TTT's list), with a language; see HearEngine there.
 
 // the correction: a Claude model at Anthropic, by its family (the newest of it, asked once a day), or none
+// v42 (Marko, 17.11.2026: "styling or correction ... must be thought per language. You have three options, English, Croatian
+// and Auto. Whatever I choose is saved, attached to the language itself."): the text mode, the correction model and the
+// STYLING switch each have three slots, one for EN, HR and AUTO (<name>_<lang>); every reader (menu bar menu, pill, Settings,
+// the API) goes through StyleEngine.current / TextMode.current / Prefs.styleButtonOn, which use the language chosen now.
+enum Slot {
+    static var lang: String { let l = UserDefaults.standard.string(forKey: "hearLang") ?? "auto"; return ["en", "hr", "auto"].contains(l) ? l : "auto" }
+    static func key(_ base: String, _ lang: String = Slot.lang) -> String { base + "_" + lang }
+    /// once: the global choices become the three slots; Croatian's correction off unless the old Croatian tick was on (it is the HR slot now);
+    /// AUTO gets its own engine, seeded from the Croatian one
+    static func migrate() {
+        let d = UserDefaults.standard
+        guard !d.bool(forKey: "v42slots") else { return }
+        d.set(true, forKey: "v42slots")
+        let tm = d.string(forKey: "textMode") ?? TextMode.styleCorrect.rawValue
+        let st = d.string(forKey: "style") ?? (Keys.get(.anthropic).isEmpty ? "off" : "haiku")
+        let sb = d.object(forKey: "styleButtonOn") as? Bool ?? true
+        for l in ["en", "hr", "auto"] {
+            d.set(tm, forKey: key("textMode", l))
+            d.set(l == "hr" && !d.bool(forKey: "correctCroatian") ? "off" : st, forKey: key("style", l))
+            d.set(sb, forKey: key("styleButtonOn", l))
+        }
+        if let hr = d.string(forKey: "engine_hr") { d.set(hr, forKey: "engine_auto") }
+    }
+}
+
 enum StyleEngine: String, CaseIterable {
     case off, haiku, sonnet, opus
 
@@ -51,9 +76,9 @@ enum StyleEngine: String, CaseIterable {
     }
 
     static var current: StyleEngine {
-        get { StyleEngine(rawValue: UserDefaults.standard.string(forKey: "style") ?? "") ?? (Keys.get(.anthropic).isEmpty ? .off : .haiku) }
+        get { StyleEngine(rawValue: UserDefaults.standard.string(forKey: Slot.key("style")) ?? "") ?? (Keys.get(.anthropic).isEmpty ? .off : .haiku) }
         set {
-            UserDefaults.standard.set(newValue.rawValue, forKey: "style")
+            UserDefaults.standard.set(newValue.rawValue, forKey: Slot.key("style"))
             if newValue != .off { UserDefaults.standard.set(newValue.rawValue, forKey: "styleLastOn") }   // v28: the quick switch turns this back on
         }
     }
@@ -108,8 +133,8 @@ enum TextMode: String, CaseIterable {
         }
     }
     static var current: TextMode {
-        get { TextMode(rawValue: UserDefaults.standard.string(forKey: "textMode") ?? "") ?? .styleCorrect }
-        set { UserDefaults.standard.set(newValue.rawValue, forKey: "textMode") }
+        get { TextMode(rawValue: UserDefaults.standard.string(forKey: Slot.key("textMode")) ?? "") ?? .styleCorrect }
+        set { UserDefaults.standard.set(newValue.rawValue, forKey: Slot.key("textMode")) }
     }
     /// ——— → COR → STY → S+C → ——— (the pill's button)
     static func cycle() {
@@ -129,8 +154,8 @@ enum Prefs {
     static var barInMenu: Bool { true }
     // v28: the STYLING quick switch: off, the STYLE button says so and does nothing
     static var styleButtonOn: Bool {
-        get { UserDefaults.standard.object(forKey: "styleButtonOn") as? Bool ?? true }
-        set { UserDefaults.standard.set(newValue, forKey: "styleButtonOn") }
+        get { UserDefaults.standard.object(forKey: Slot.key("styleButtonOn")) as? Bool ?? true }
+        set { UserDefaults.standard.set(newValue, forKey: Slot.key("styleButtonOn")) }
     }
     // v28: when a box ignores Accessibility writing, its app is brought to the front and the text pasted (else: COPY)
     static var pasteFallback: Bool {
@@ -149,8 +174,12 @@ enum Prefs {
     }
     // v13 (TTT, maAiCorrectDictation): auto correct after a Croatian take is OFF by default, the words go in as the engine heard them
     static var correctCroatian: Bool {
-        get { UserDefaults.standard.bool(forKey: "correctCroatian") }
-        set { UserDefaults.standard.set(newValue, forKey: "correctCroatian") }
+        // v42: no switch of its own any more: it IS the HR slot's correction (on = the last model used, else Haiku)
+        get { (StyleEngine(rawValue: UserDefaults.standard.string(forKey: Slot.key("style", "hr")) ?? "") ?? .off) != .off }
+        set {
+            let last = StyleEngine(rawValue: UserDefaults.standard.string(forKey: "styleLastOn") ?? "") ?? .haiku
+            UserDefaults.standard.set(newValue ? last.rawValue : "off", forKey: Slot.key("style", "hr"))
+        }
     }
     static var names: String {                       // v3: names the correction spells right (Marko's came over)
         get { UserDefaults.standard.string(forKey: "names") ?? "" }

@@ -463,13 +463,13 @@ final class Stripe: NSObject {
     }
 
     // v39: the ENGINE dropdown: the engines of the language now chosen, best first. The pick is HearEngine.setEngine, the
-    // same choice Settings' radio buttons make (engine_<lang>; AUTO shares the Croatian column), never a second copy.
+    // same choice Settings' radio buttons make (engine_<lang>; AUTO has its own slot since v42), never a second copy.
     /// the items of the engine list (the pill's dropdown and the menu bar item's Engine submenu share this one builder)
     func engineItems() -> [NSMenuItem] {
         let lang = HearEngine.current.lang, cur = HearEngine.current.id
         let l = lang == "auto" ? "hr" : lang
         var out: [NSMenuItem] = []
-        let head = NSMenuItem(title: "Engine for " + (lang == "auto" ? "AUTO (Croatian column)" : lang.uppercased()) + ", most accurate first", action: nil, keyEquivalent: "")
+        let head = NSMenuItem(title: "Engine for " + lang.uppercased() + ", most accurate first", action: nil, keyEquivalent: "")
         head.isEnabled = false; out.append(head); out.append(.separator())
         for id in Catalog.menuOrder(lang) {
             guard let s = Catalog.byId(id) else { continue }
@@ -616,7 +616,8 @@ final class Stripe: NSObject {
             let lang = hear.lang == "auto" ? (Hear.lastLang.flatMap { ["en", "hr"].contains($0) ? $0 : nil } ?? "auto") : hear.lang
             // v13 (TTT: "AI correction off for Croatian dictation"): Croatian goes in as the engine heard it, unless ⚙ asks for the
             // correction there too; the STYLE button is not touched by this
-            let style: StyleEngine = (lang == "hr" && !Prefs.correctCroatian) || textMode == .plain ? .off : styleChosen
+            // v42: the correction is the choice of the language chosen on the pill (its own slot; the HR slot is off by default)
+            let style: StyleEngine = textMode == .plain ? .off : styleChosen
             let usedTitle = Hear.used ?? hear.title
             if style != .off { DispatchQueue.main.async { self.say("auto correct (\(style.title))…", Ink.amber) } }
             let t1 = Date()
@@ -1325,6 +1326,7 @@ if CommandLine.arguments.contains("--duck-test") {
     exit(0)
 }
 
+Slot.migrate()                   // v42: engine, correction and styling per language, once
 Merge.once()                     // v3: Transcribe Voice to Text RT's settings, keys and history, once
 Crash.install()
 Crash.testIfAsked()
