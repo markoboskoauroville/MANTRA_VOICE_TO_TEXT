@@ -96,3 +96,9 @@ Marko, for the MPA Lessons Analyzer: "I want to see this thing open up and it's 
 
 ## v44-v45 (17.11.2026)
 - Takes are separated by a space (not at the start, after a newline or an opener). A take that did not land: the menu bar item's first click copies it, the next opens the menu (hook com.mantra.voicetotext.notlanded).
+
+## v46-v47 (17.11.2026): the take that went away, History, F1/F2
+- v43's read-back after typing pressed ⌘Z in WhatsApp Web (Firefox) and removed the take just dictated. Since v46: NO undo or delete after typing; web apps (`Writer.webApps`) get one paste at the caret, native boxes Accessibility; a mismatch is only logged. modules/dictation-insert-only.md rule 3.
+- History saves every take (failed, cancelled, quiet ≥1.5 s too) with where it landed; per take: ENGINE, LANGUAGE, [ ] Correction + model, [ ] Styling + model, "Re-transcribe" (correction first, then styling). Thumbs removed; ★ are the engine quality display.
+- v47: F1 = English always, F2 = Croatian always (`hotkeyHR`), AUTO never used by the keys; History fills the window; space after a take put before a word; a build's quit waits for the typing (`Typer.inserting`).
+- Stress test kit (scratchpad tools of 17.11.2026, rebuild when needed): `say` clips played with afplay through the ADAM into the real microphone; the key as an HID event WITH the fn flag (`CGEventSetFlags(e, kCGEventFlagMaskSecondaryFn)`; Macro Recorder's Send and a plain HID F1 do not reach the Carbon hotkey); the WhatsApp Web box clicked with BiDi real pointer input (a `macro do Click` is undone by the guard's focus restore); box read back by BiDi after 5 s. Turn `duck` off during the test (defaults), `testStyleFake` for the text modes without spending; restore both.
