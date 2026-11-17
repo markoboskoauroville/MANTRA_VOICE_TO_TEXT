@@ -324,3 +324,9 @@ From his English version of the same message (via the coordinator):
 Meaning: A) read the open chat's name and correct near-miss spellings of it in the take (Basil/Vasile -> Vasil), feed it to the engines as a keyword; B) port TTT's correction algorithm and its database to Vox, per language, in TTT's order.
 
 **Status:** saved first (17.11.2026); after the v46 insert fix and stress test.
+
+## 17.11.2026 (phase 3, after phases 1 and 2 ship), Marko word for word (via the coordinator)
+> "Also, in correction algorithm to my typing with the same engine. It detects if I'm typing text, and then it offers me corrected words or finishing what I'm typing. Actually finishing, it will be available in blob and also in the menu bar. And when I'm typing, every time I press alt space, it's going to apply correction automatically. It is going to correct or finish my work, and it's just listing their same as my phone is doing."
+Meaning: a phone-keyboard suggestion strip for his Mac typing with TTT's correction algorithm and database: 1-3 suggestions in the blob and the menu bar item, Option+Space applies the top one to the word at the caret; off in password fields and terminals; a "Typing suggestions" switch.
+
+**Status:** saved first (17.11.2026); after phases 1 and 2.

@@ -335,26 +335,41 @@ enum Writer {
         usleep(40_000)
         return (caret(el)?.length ?? 1) == 0
     }
-    /// everything that was in the box before is still in it, only text added at the caret (when both can be read)
+    /// web pages and Electron: their boxes are DOM editors (WhatsApp Web's is Lexical). Accessibility reads them back late or
+    /// differently (non-breaking spaces, paragraphs), so a take goes in there by ONE paste at the caret, which the page's own
+    /// editor handles like his own ⌘V
+    static let webApps: Set<String> = ["org.mozilla.firefox", "org.mozilla.firefoxdeveloperedition", "org.mozilla.nightly",
+                                       "com.google.Chrome", "com.google.Chrome.canary", "com.apple.Safari", "com.microsoft.edgemac",
+                                       "com.brave.Browser", "company.thebrowser.Browser", "com.operasoftware.Opera", "com.vivaldi.Vivaldi",
+                                       "com.anthropic.claudefordesktop", "com.tinyspeck.slackmacgap", "com.hnc.Discord", "ru.keepcoder.Telegram"]
+    static func isWeb(_ el: AXUIElement) -> Bool {
+        webApps.contains(NSRunningApplication(processIdentifier: TextTarget.pid(el))?.bundleIdentifier ?? "")
+    }
+    static func plain(_ s: String) -> String {
+        s.replacingOccurrences(of: "\u{00A0}", with: " ").replacingOccurrences(of: "\u{200B}", with: "").replacingOccurrences(of: "\r", with: "")
+    }
+    /// everything that was in the box before is still in it, only text added at the caret (when both can be read). v46: only
+    /// for the log; it never undoes anything
     static func intact(before: String?, after: String?, at: CFRange?) -> Bool {
-        guard let b = before, let a = after else { return true }
+        guard let b0 = before, let a0 = after else { return true }
+        let b = plain(b0), a = plain(a0)
         if let at, at.location >= 0, at.location <= (b as NSString).length {
             let ns = b as NSString
             return a.hasPrefix(ns.substring(to: at.location)) && a.hasSuffix(ns.substring(from: at.location))
         }
         return (a as NSString).length >= (b as NSString).length
     }
-    private static func undoReplace(_ el: AXUIElement, before: String?) {
-        guard let before, focus(el) else { return }
-        _ = keys(el, kVK_ANSI_Z); usleep(150_000)
-        appendLog("typing: a replaced text was undone (box " + (value(el) == before ? "as before" : "NOT as before, check it") + ")")
-    }
 
-    /// a take's words at the caret of the box: INSERTED, never replacing anything (v43)
+    // v46 (Marko, 17.11.2026: "my message is transcribed and then it goes away. That's a huge problem."): v43 read the box back
+    // after inserting and, when the read-back did not match (WhatsApp Web in Firefox reads back unreliably), pressed ⌘Z, which
+    // UNDID THE TAKE HE HAD JUST DICTATED, then pasted, read back again, and pressed ⌘Z a second time. Now: NEVER AN UNDO,
+    // never a delete. The selection is collapsed, the take goes in ONCE (web boxes: one paste; native boxes: Accessibility,
+    // a paste only when the box visibly did not change), and a read-back that looks wrong is only written in the log.
     static func insert(_ typed: String, into b: TextTarget.Box) -> Landing {
         let el = b.element
         var text = typed
         AXUIElementSetMessagingTimeout(el, 0.6)
+        let web = isWeb(el)
         let before = value(el)
         let sure = collapse(el)
         let at = caret(el)
@@ -364,38 +379,42 @@ enum Writer {
         if !isTerminal(el), let before, let at, at.length == 0, at.location > 0, at.location <= (before as NSString).length,
            let first = text.unicodeScalars.first, !CharacterSet.whitespacesAndNewlines.contains(first),
            let prev = (before as NSString).substring(with: NSRange(location: at.location - 1, length: 1)).unicodeScalars.first,
-           !CharacterSet.whitespacesAndNewlines.contains(prev), !"([{“‘\"'/-".unicodeScalars.contains(prev) {
+           !CharacterSet.whitespacesAndNewlines.contains(prev), prev != "\u{00A0}", !"([{“‘\"'/-".unicodeScalars.contains(prev) {
             text = " " + text
         }
-        let snippet = String(text.prefix(20))
-        var replaced = false
-        if TextTarget.settable(el, kAXSelectedTextAttribute),
+        let snippet = plain(String(text.trimmingCharacters(in: .whitespaces).prefix(20)))
+        func changed() -> Bool {
+            guard let a = value(el) else { return false }
+            return plain(a) != plain(before ?? "") && plain(a).contains(snippet)
+        }
+        func note(_ how: String) {
+            if !intact(before: before, after: value(el), at: at) {
+                appendLog("typing: note: \(b.app) \(b.role) reads back differently than expected after \(how) (nothing undone, the take stays)")
+            }
+        }
+        if !web, TextTarget.settable(el, kAXSelectedTextAttribute),
            AXUIElementSetAttributeValue(el, kAXSelectedTextAttribute as CFString, text as CFTypeRef) == .success {
-            for _ in 0..<4 {
-                if let a = value(el), a != (before ?? ""), a.contains(snippet) {
-                    if intact(before: before, after: a, at: at) {
-                        collapse(el)             // the inserted text is left selected by some apps: the next take must not replace it
-                        appendLog("typing: Accessibility into \(b.app) \(b.role)"); return .typed
-                    }
-                    replaced = true; break
+            for _ in 0..<8 {
+                if changed() {
+                    collapse(el)             // the inserted text is left selected by some apps: the next take must not replace it
+                    note("Accessibility")
+                    appendLog("typing: Accessibility into \(b.app) \(b.role)"); return .typed
                 }
                 usleep(60_000)
             }
+            // Accessibility said yes but nothing can be seen in the box: it may still have gone in where it cannot be read.
+            // A box that cannot be read at all is believed (a paste on top would write it twice).
+            if before == nil && value(el) == nil { appendLog("typing: Accessibility into \(b.app) \(b.role) (cannot be read back)"); return .typed }
         }
-        if replaced { undoReplace(el, before: before) }
         guard paste(text, into: el, selectAll: false) else {
             appendLog("typing: \(b.app) \(b.role) took no writing and could not be brought to the front: COPY")
             return .nowhere
         }
-        if let a = value(el), a == (before ?? ""), !a.contains(snippet) {
+        if !web, value(el) != nil, !changed() {
             appendLog("typing: pasted into \(b.app) \(b.role) but the box did not change: COPY"); return .nowhere
         }
-        if !intact(before: before, after: value(el), at: at) {
-            undoReplace(el, before: before)
-            appendLog("typing: \(b.app) \(b.role) replaced text on insert: undone, COPY"); return .nowhere
-        }
-        collapse(el)
-        appendLog("typing: pasted into \(b.app) \(b.role)")
+        if !web { collapse(el); note("paste") }
+        appendLog("typing: pasted into \(b.app) \(b.role)" + (web ? " (web box: one paste at the caret)" : ""))
         return .pasted
     }
 }
