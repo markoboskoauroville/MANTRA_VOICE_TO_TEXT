@@ -304,3 +304,7 @@ Meaning: v39 put the engine dropdown on the pill; he meant the drop-down menu of
 
 ## 17.11.2026 (v44), the master's check
 Two takes in a row were glued ("minutes.Second"): v44 puts a space before a take when the character before the caret is not whitespace (none at the start of a box or after a newline). The real path is the same function as the test hook (Writer.insert), so it glued too.
+
+## 17.11.2026 (v45), Marko word for word (via the coordinator)
+> "So if the text do not land, you say up there in the menu bar, please copy, it didn't land. Great. But I want to then click on menu bar item, and then it copies the text, and second click lands as normal click. Please make this action button when something doesn't land to be able to click on the menu bar item, and then copy the thing."
+Behaviour: while the item says the take did not land, the first click copies that take's text (item shows COPIED ~1.5 s), the next click opens the normal menu.
