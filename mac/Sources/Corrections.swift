@@ -232,46 +232,54 @@ enum CroatianFix {
             return 0
         }
 
+        // v54 (the master, 17.11.2026, after the measurement on his own takes: "a third of its changes being worse is not acceptable
+        // in dictation ... never change a word that is itself a valid Croatian word form ... target zero worse"). TTT's fixWord
+        // also replaced rare known words by commoner neighbours and unknown but VALID forms (opciji → opcija): the dictionary
+        // has 75,000 words and Croatian has many more forms. Here:
+        //   1. a word the dictionaries know, or that the Croatian spelling dictionary (Hunspell hr_HR, when it is on this Mac)
+        //      accepts as a form, is never changed;
+        //   2. a word that is not one gets its diacritics back when exactly one known word is spelled like it without them;
+        //   3. one edit is made only with high confidence: a common target (170 or more, 165 for a long word), clearly ahead of
+        //      the next best (15 points), in a word of six letters or more (five when the words around it support the target),
+        //      never by dropping or adding the first or last letter and never by changing a vowel of the ending.
+        //   Without the spelling dictionary only 1 and 2 run.
         func fixWord(_ w: String, _ prev2: String?, _ prev: String?, _ next: String?) -> String {
-            let h = hr.words, folded = hr.folded
+            let folded = hr.folded
             let l = w.lowercased()
             let f = Lexicon.fold(l)
-            let known = h[l]
-            if let known, known < CroatianFix.rare, f.count >= 3 {
-                let here = ctx(prev2, prev, next, l)
-                var best: String?, bestScore = -Double.infinity
-                for c in edits(f) {
-                    guard c.count == f.count, let (d, df) = folded[c] else { continue }
-                    if df < known + CroatianFix.rareMargin { continue }
-                    let there = ctx(prev2, prev, next, d)
-                    if there <= here { continue }
-                    if Double(df) + there > bestScore { best = d; bestScore = Double(df) + there }
-                }
-                if let best { return best }
-            }
-            if let known {
-                guard let (d, df) = folded[f] else { return l }
-                if d == l || df < known + CroatianFix.diacriticMargin { return l }
-                let there = ctx(prev2, prev, next, d), here = ctx(prev2, prev, next, l)
-                return (there > here || (there == here && known < CroatianFix.common)) ? d : l
-            }
+            if hr.words[l] != nil || en.words[l] != nil { return l }
+            let spell = Hunspell.hr
+            if spell?.valid(l) == true { return l }
             if let hit = folded[f] { return hit.0 }
-            if f.count < 4 || en.words[l] != nil { return l }
-            var best: String?, bestScore = -Double.infinity
-            var candidates = edits(f)
+            guard spell != nil, f.count >= 5 else { return l }
             let fa = Array(f)
-            for (i, ch) in fa.enumerated() where ch == "i" {
-                candidates.insert(String(fa[..<i]) + "ije" + String(fa[(i + 1)...]))
-                candidates.insert(String(fa[..<i]) + "je" + String(fa[(i + 1)...]))
-            }
-            for c in candidates {
+            var cands: [(Double, String, Double)] = []
+            for c in edits(f) {
                 guard let (d, df) = folded[c] else { continue }
-                let same = c.count == f.count
-                if df < (same ? CroatianFix.minFreqSameLength : CroatianFix.minFreq) { continue }
-                let score = Double(df) + ctx(prev2, prev, next, d) - (same ? 0 : CroatianFix.lengthChangeCost) + shape(f, c)
-                if score > bestScore { best = d; bestScore = score }
+                let ca = Array(c)
+                var support = 0.0
+                if ca.count < fa.count {
+                    // which letter went: not the first, not the last
+                    var i = 0
+                    while i < ca.count, ca[i] == fa[i] { i += 1 }
+                    if i == 0 || i >= fa.count - 1 { continue }
+                } else if ca.count > fa.count {
+                    var i = 0
+                    while i < fa.count, ca[i] == fa[i] { i += 1 }
+                    if i == 0 || i >= fa.count { continue }
+                } else {
+                    let diff = fa.indices.filter { fa[$0] != ca[$0] }
+                    if diff.count == 1, diff[0] >= fa.count - 2, CroatianFix.vowels.contains(fa[diff[0]]), CroatianFix.vowels.contains(ca[diff[0]]) { continue }
+                }
+                support = ctx(prev2, prev, next, d)
+                if df < (fa.count >= 7 ? 165 : 170) { continue }
+                cands.append((Double(df) + support - (ca.count == fa.count ? 0 : CroatianFix.lengthChangeCost), d, support))
             }
-            return best ?? l
+            cands.sort { $0.0 > $1.0 }
+            guard let best = cands.first else { return l }
+            if cands.count > 1, best.0 - cands[1].0 < 15 { return l }
+            if fa.count < 6, best.2 < 30 { return l }
+            return best.1
         }
 
         /// "adres u restorana": an unknown word and a short next piece that together make a known word
@@ -279,7 +287,8 @@ enum CroatianFix {
             text.replacing(CroatianFix.mergeRe) { m, ns in
                 let a = ns.substring(with: m.range(at: 1)), b = ns.substring(with: m.range(at: 2))
                 let al = a.lowercased()
-                if hr.words[al] == nil, en.words[al] == nil, hr.folded[Lexicon.fold((a + b).lowercased())] != nil { return a + b }
+                // v54: only a word that is no valid form by the spelling dictionary is glued to its neighbour
+                if hr.words[al] == nil, en.words[al] == nil, Hunspell.hr?.valid(al) == false, hr.folded[Lexicon.fold((a + b).lowercased())] != nil { return a + b }
                 return ns.substring(with: m.range)
             }
         }
@@ -315,7 +324,7 @@ enum CroatianFix {
             var i = 0
             while i < toks.count {
                 let c = core(toks[i])
-                if !c.isEmpty, plain(toks[i]), hr.words[c] == nil, hr.folded[Lexicon.fold(c)] == nil, en.words[c] == nil {
+                if !c.isEmpty, plain(toks[i]), hr.words[c] == nil, hr.folded[Lexicon.fold(c)] == nil, en.words[c] == nil, Hunspell.hr?.valid(c) == false {
                     var changed = false
                     for (a, b) in [(i - 2, i), (i - 1, i), (i, i + 1), (i - 1, i + 1)] {
                         if a < 0 || b >= toks.count { continue }
@@ -359,6 +368,117 @@ enum CroatianFix {
             }
             return toks.joined()
         }
+    }
+}
+
+// MARK: the Croatian spelling dictionary (Hunspell hr_HR), read where it is on this Mac: is this a valid word form?
+
+final class Hunspell {
+    struct Rule { let flag: String; let strip: String; let cond: NSRegularExpression?; let cont: Set<String> }
+    private var sfx: [String: [Rule]] = [:]
+    private var pfx: [String: [Rule]] = [:]
+    private var dic: [String: Set<String>] = [:]
+    private var maxAdd = 0
+
+    /// ~/Library/Spelling/hr_HR.aff and .dic (or the same two files in the app's own dict folder); nil when they are not there
+    static let hr: Hunspell? = {
+        let fm = FileManager.default
+        let places = [fm.homeDirectoryForCurrentUser.appendingPathComponent("Library/Spelling"), appSupport.appendingPathComponent("dict")] + (Lexicon.folder.map { [$0] } ?? [])
+        for dir in places {
+            let aff = dir.appendingPathComponent("hr_HR.aff"), dic = dir.appendingPathComponent("hr_HR.dic")
+            if let a = try? String(contentsOf: aff, encoding: .utf8), let d = try? String(contentsOf: dic, encoding: .utf8) {
+                let t0 = Date()
+                let h = Hunspell(aff: a, dic: d)
+                appendLog(String(format: "Croatian spelling dictionary: %d stems, %d endings, %.0f ms", h.dic.count, h.sfx.values.reduce(0) { $0 + $1.count }, Date().timeIntervalSince(t0) * 1000))
+                return h
+            }
+        }
+        return nil
+    }()
+
+    private static func flags(_ s: Substring) -> Set<String> {
+        let a = Array(s)
+        var out = Set<String>()
+        var i = 0
+        while i + 1 < a.count { out.insert(String(a[i...i + 1])); i += 2 }
+        return out
+    }
+
+    init(aff: String, dic text: String) {
+        var alias: [Set<String>] = [[]]
+        var conds: [String: NSRegularExpression] = [:]
+        func set(_ f: Substring) -> Set<String> {
+            if let n = Int(f) { return n < alias.count ? alias[n] : [] }
+            return Hunspell.flags(f)
+        }
+        for line in aff.split(separator: "\n") {
+            let p = line.split(whereSeparator: { $0 == " " || $0 == "\t" })
+            guard p.count >= 2 else { continue }
+            if p[0] == "AF", Int(p[1]) == nil { alias.append(Hunspell.flags(p[1])) }
+            else if (p[0] == "SFX" || p[0] == "PFX"), p.count >= 5 {
+                let suffix = p[0] == "SFX"
+                let strip = p[2] == "0" ? "" : String(p[2])
+                let parts = p[3].split(separator: "/", maxSplits: 1)
+                let add = parts.first.map { $0 == "0" ? "" : String($0) } ?? ""
+                let cont = parts.count > 1 ? set(parts[1]) : []
+                var re: NSRegularExpression?
+                if p[4] != "." {
+                    let pat = suffix ? String(p[4]) + "$" : "^" + String(p[4])
+                    if let c = conds[pat] { re = c } else { re = try? NSRegularExpression(pattern: pat); conds[pat] = re }
+                }
+                let rule = Rule(flag: String(p[1]), strip: strip, cond: re, cont: cont)
+                if suffix { sfx[add, default: []].append(rule); maxAdd = max(maxAdd, add.count) } else { pfx[add, default: []].append(rule) }
+            }
+        }
+        for line in text.split(separator: "\n").dropFirst() {
+            let parts = line.split(separator: "/", maxSplits: 1)
+            guard let w = parts.first else { continue }
+            let f = parts.count > 1 ? set(parts[1].split(whereSeparator: { $0 == " " || $0 == "\t" }).first ?? "") : []
+            dic[String(w), default: []].formUnion(f)
+            dic[w.lowercased(), default: []].formUnion(f)
+        }
+    }
+
+    private func fits(_ r: Rule, _ stem: String) -> Bool {
+        guard let re = r.cond else { return true }
+        return re.firstMatch(in: stem, range: NSRange(location: 0, length: (stem as NSString).length)) != nil
+    }
+
+    /// a stem that carries `flag` and reaches `w` through a suffix whose continuation allows it (the second level)
+    private func second(_ w: String, _ flag: String) -> Bool {
+        let a = Array(w)
+        for n in 0...min(maxAdd, a.count) {
+            guard let rules = sfx[String(a[(a.count - n)...])] else { continue }
+            for r in rules where r.cont.contains(flag) {
+                let stem = String(a[..<(a.count - n)]) + r.strip
+                if !stem.isEmpty, fits(r, stem), dic[stem]?.contains(r.flag) == true { return true }
+            }
+        }
+        return false
+    }
+
+    private func form(_ w: String) -> Bool {
+        if let f = dic[w], !f.contains("ZZ") { return true }
+        let a = Array(w)
+        for n in 0...min(maxAdd, a.count) {
+            guard let rules = sfx[String(a[(a.count - n)...])] else { continue }
+            for r in rules {
+                let stem = String(a[..<(a.count - n)]) + r.strip
+                guard !stem.isEmpty, fits(r, stem) else { continue }
+                if dic[stem]?.contains(r.flag) == true || second(stem, r.flag) { return true }
+            }
+        }
+        return false
+    }
+
+    /// is `word` a form the dictionary accepts (a stem, a stem with one or two endings, with or without a prefix)
+    func valid(_ word: String) -> Bool {
+        let w = word.lowercased()
+        if form(w) { return true }
+        for (add, rules) in pfx where !add.isEmpty && w.hasPrefix(add) {
+            for r in rules { if form(r.strip + String(w.dropFirst(add.count))) { return true } }
+        }
+        return false
     }
 }
 

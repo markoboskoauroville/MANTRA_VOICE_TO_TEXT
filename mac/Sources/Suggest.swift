@@ -136,7 +136,8 @@ enum Predictor {
     static var w: [String: Double] = {
         // measured 17.11.2026 on 40 held-out History sentences (625 words): keystrokes saved 35.4 % → 36.5 % (Option+Space only),
         // on the strip within two keys 69.6 % → 72.0 %, against the first guess (bi 40, tri 40, pu 30, pb 70, pt 70, lean 14, len 0, su 4, sb 6, st 8)
-        var d: [String: Double] = ["bi": 30, "tri": 30, "pu": 45, "pb": 90, "pt": 90, "next": 90, "lean": 25, "len": 3, "su": 8, "sb": 12, "st": 16]
+        var d: [String: Double] = ["bi": 30, "tri": 30, "pu": 45, "pb": 90, "pt": 90, "next": 90, "lean": 25, "len": 3, "su": 8, "sb": 12, "st": 16,
+                                   "llm": 12, "llmfloor": -9]
         for part in (ProcessInfo.processInfo.environment["VOX_W"] ?? "").split(separator: ",") {
             let kv = part.split(separator: "=")
             if kv.count == 2, let v = Double(kv[1]) { d[String(kv[0])] = v }
@@ -183,7 +184,8 @@ enum Predictor {
 
     /// up to three suggestions for the word being typed (`prefix`, as typed) after `prev` (lower case, the newest last);
     /// `bias` leans the ranking towards Croatian (+1) or English (-1) from the words just typed
-    static func suggest(_ prefix: String, prev: [String], sentenceStart: Bool = false, bias: Double = 0, options: Options = Options()) -> [Suggestion] {
+    static func suggest(_ prefix: String, prev: [String], sentenceStart: Bool = false, bias: Double = 0, options: Options = Options(),
+                        model: [(String, Double)]? = nil) -> [Suggestion] {
         let p = prefix.lowercased()
         let lex = ["en", "hr"].compactMap { Lexicon.get($0) }
         guard !lex.isEmpty else { return [] }
@@ -205,7 +207,16 @@ enum Predictor {
             return s
         }
         var scores: [String: (Double, Suggestion.Kind)] = [:]
-        func offer(_ w: String, _ s: Double, _ k: Suggestion.Kind) { if s > (scores[w]?.0 ?? -.infinity) { scores[w] = (s, k) } }
+        // v54: the local model's guess for the next word (its likeliest first pieces, with their log probability) moves the
+        // ranking: a candidate that begins with a likely piece gains, one the model does not expect at all loses
+        let floor = W["llmfloor"] ?? -9, lam = W["llm"] ?? 0
+        func neural(_ w: String) -> Double {
+            guard let model, lam != 0 else { return 0 }
+            var best = floor
+            for (t, lp) in model where lp > best && (t.count >= 2 || t == w) && w.hasPrefix(t) { best = lp }
+            return lam * (best - floor)
+        }
+        func offer(_ w: String, _ s0: Double, _ k: Suggestion.Kind) { let s = s0 + neural(w); if s > (scores[w]?.0 ?? -.infinity) { scores[w] = (s, k) } }
         func base(_ w: String) -> (Double, Lexicon?) {
             var best: (Double, Lexicon?) = (-1, nil)
             for l in lex { if let f = l.words[w], Double(f) + lean(l) > best.0 { best = (Double(f) + lean(l), l) } }
@@ -567,6 +578,37 @@ final class TypingSuggest {
     }
 }
 
+// MARK: the local model (llama.cpp's server on this Mac): what word comes next, as its likeliest first pieces
+
+enum LocalModel {
+    /// the server's address: VOX_LLM_URL for a measurement, else the app's own helper (port 8869) when it runs
+    static var url: String? = ProcessInfo.processInfo.environment["VOX_LLM_URL"]
+
+    /// the likeliest first pieces of the next word after `context` (lower case, no leading space) with their log probability
+    static func next(_ context: String, pieces: Int = 150) -> [(String, Double)]? {
+        guard let base = url, let u = URL(string: base + "/completion") else { return nil }
+        var r = URLRequest(url: u, timeoutInterval: 3)
+        r.httpMethod = "POST"
+        r.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        r.httpBody = try? JSONSerialization.data(withJSONObject: ["prompt": context, "n_predict": 1, "n_probs": pieces, "cache_prompt": true, "temperature": 0])
+        let sem = DispatchSemaphore(value: 0)
+        var out: [(String, Double)]?
+        URLSession.shared.dataTask(with: r) { d, _, _ in
+            if let d, let o = try? JSONSerialization.jsonObject(with: d) as? [String: Any],
+               let cp = (o["completion_probabilities"] as? [[String: Any]])?.first, let top = cp["top_logprobs"] as? [[String: Any]] {
+                out = top.compactMap { t in
+                    guard let tok = t["token"] as? String, let lp = (t["logprob"] as? NSNumber)?.doubleValue, tok.hasPrefix(" ") else { return nil }
+                    let w = tok.dropFirst().lowercased()
+                    return w.isEmpty || !w.allSatisfy({ $0.isLetter || $0 == "'" }) ? nil : (w, lp)
+                }
+            }
+            sem.signal()
+        }.resume()
+        _ = sem.wait(timeout: .now() + 3)
+        return out
+    }
+}
+
 // MARK: the benchmark: his own sentences cut halfway, the second half typed key by key
 
 enum CompleteBench {
@@ -586,57 +628,69 @@ enum CompleteBench {
         guard !picked.isEmpty else { print("no sentences in History"); return 1 }
         Personal.shared.build(excluding: Set(picked.map { $0.0 }))
         _ = Lexicon.get("en"); _ = Lexicon.get("hr")
-        let variants: [(String, Predictor.Options)] = [
-            ("dictionary only (word frequency)", Predictor.Options(context: false, personal: false, corrections: false)),
-            ("+ word pairs and triples", Predictor.Options(context: true, personal: false, corrections: false)),
-            ("+ his own layer (History)", Predictor.Options(context: true, personal: true, corrections: true)),
+        var variants: [(String, Predictor.Options, Bool)] = [
+            ("dictionary only (word frequency)", Predictor.Options(context: false, personal: false, corrections: false), false),
+            ("+ word pairs and triples", Predictor.Options(context: true, personal: false, corrections: false), false),
+            ("+ his own layer (History)", Predictor.Options(context: true, personal: true, corrections: true), false),
         ]
+        if LocalModel.url != nil { variants.append(("+ the local model", Predictor.Options(context: true, personal: true, corrections: true), true)) }
         var report: [[String: Any]] = []
         print("\(picked.count) sentences from History (\(picked.filter { $0.1 == "hr" }.count) Croatian), second halves typed key by key\n")
-        for (name, opt) in variants {
-            var words = 0, next1 = 0, in2top1 = 0, in2top3 = 0, keys = 0, used1 = 0, used3 = 0
-            var ms: [Double] = []
-            for (_, _, sentence) in picked {
-                let half = sentence.count / 2
-                var prev: [String] = [], bias = 0.0
-                func push(_ w: String) {
-                    let l = w.lowercased()
-                    if let hr = Lexicon.get("hr"), let en = Lexicon.get("en") {
-                        let h = hr.words[l] != nil || hr.folded[Lexicon.fold(l)] != nil, e = en.words[l] != nil
-                        bias = max(-1, min(1, bias * 0.8 + (h && !e ? 0.35 : e && !h ? -0.35 : 0)))
+        func pct(_ a: Int, _ b: Int) -> Double { b == 0 ? 0 : (Double(a) / Double(b) * 1000).rounded() / 10 }
+        for (name, opt, neural) in variants {
+            for group in ["all", "en", "hr"] {
+                var words = 0, next1 = 0, in2top1 = 0, in2top3 = 0, keys = 0, used1 = 0, used3 = 0
+                var ms: [Double] = [], modelMs: [Double] = []
+                for (_, lang, sentence) in picked where group == "all" || lang == group {
+                    let half = sentence.count / 2
+                    var prev: [String] = [], bias = 0.0
+                    func push(_ w: String) {
+                        let l = w.lowercased()
+                        if let hr = Lexicon.get("hr"), let en = Lexicon.get("en") {
+                            let h = hr.words[l] != nil || hr.folded[Lexicon.fold(l)] != nil, e = en.words[l] != nil
+                            bias = max(-1, min(1, bias * 0.8 + (h && !e ? 0.35 : e && !h ? -0.35 : 0)))
+                        }
+                        prev.append(l); if prev.count > 2 { prev.removeFirst() }
                     }
-                    prev.append(l); if prev.count > 2 { prev.removeFirst() }
-                }
-                for w in sentence[..<half] { push(w) }
-                for w in sentence[half...] {
-                    let cs = Array(w), target = w.lowercased()
-                    let full = cs.count + 1
-                    var u1 = full, u3 = full, got1 = false, got3 = false
-                    for k in 0..<cs.count {
-                        let t0 = Date()
-                        let s = Predictor.suggest(String(cs[..<k]), prev: prev, bias: bias, options: opt).map { $0.text.lowercased() }
-                        ms.append(Date().timeIntervalSince(t0) * 1000)
-                        if k == 0, s.first == target { next1 += 1 }
-                        if k <= 2 { if s.first == target { got1 = true }; if s.contains(target) { got3 = true } }
-                        if u1 == full, s.first == target { u1 = k + 1 }
-                        if u3 == full, s.contains(target) { u3 = k + 1 }
+                    for w in sentence[..<half] { push(w) }
+                    var typed = Array(sentence[..<half])
+                    for w in sentence[half...] {
+                        let cs = Array(w), target = w.lowercased()
+                        let full = cs.count + 1
+                        var u1 = full, u3 = full, got1 = false, got3 = false
+                        // the model is asked once a word, when the word before it ends (while he types it is already there)
+                        var model: [(String, Double)]?
+                        if neural {
+                            let t0 = Date()
+                            model = LocalModel.next(typed.suffix(40).joined(separator: " "))
+                            modelMs.append(Date().timeIntervalSince(t0) * 1000)
+                        }
+                        for k in 0..<cs.count {
+                            let t0 = Date()
+                            let s = Predictor.suggest(String(cs[..<k]), prev: prev, bias: bias, options: opt, model: model).map { $0.text.lowercased() }
+                            ms.append(Date().timeIntervalSince(t0) * 1000)
+                            if k == 0, s.first == target { next1 += 1 }
+                            if k <= 2 { if s.first == target { got1 = true }; if s.contains(target) { got3 = true } }
+                            if u1 == full, s.first == target { u1 = k + 1 }
+                            if u3 == full, s.contains(target) { u3 = k + 1 }
+                        }
+                        words += 1; keys += full; used1 += u1; used3 += u3
+                        if got1 { in2top1 += 1 }
+                        if got3 { in2top3 += 1 }
+                        push(w); typed.append(w)
                     }
-                    words += 1; keys += full; used1 += u1; used3 += u3
-                    if got1 { in2top1 += 1 }
-                    if got3 { in2top3 += 1 }
-                    push(w)
                 }
+                var row: [String: Any] = ["variant": name, "group": group, "words": words, "next_word_top1_pct": pct(next1, words), "top1_within_2_keys_pct": pct(in2top1, words),
+                                          "top3_within_2_keys_pct": pct(in2top3, words), "keystrokes_saved_top1_pct": pct(keys - used1, keys),
+                                          "keystrokes_saved_top3_pct": pct(keys - used3, keys),
+                                          "latency_ms_mean": (ms.reduce(0, +) / Double(max(ms.count, 1)) * 100).rounded() / 100,
+                                          "latency_ms_p95": (percentile(ms, 0.95) * 100).rounded() / 100, "latency_ms_max": (percentile(ms, 1) * 100).rounded() / 100]
+                if neural { row["model_ms_mean"] = (modelMs.reduce(0, +) / Double(max(modelMs.count, 1)) * 10).rounded() / 10; row["model_ms_p95"] = (percentile(modelMs, 0.95) * 10).rounded() / 10; row["model_ms_max"] = (percentile(modelMs, 1) * 10).rounded() / 10 }
+                report.append(row)
+                if group == "all" { print(name) }
+                print("  [\(group)] words \(words) · next word before any key \(row["next_word_top1_pct"]!) % · first right within 2 keys \(row["top1_within_2_keys_pct"]!) % · on the strip within 2 keys \(row["top3_within_2_keys_pct"]!) % · keystrokes saved \(row["keystrokes_saved_top1_pct"]!) % (Option+Space) / \(row["keystrokes_saved_top3_pct"]!) % (a pick) · per key mean \(row["latency_ms_mean"]!) ms, slowest \(row["latency_ms_max"]!) ms" + (neural ? " · the model once a word: mean \(row["model_ms_mean"]!) ms, p95 \(row["model_ms_p95"]!) ms, slowest \(row["model_ms_max"]!) ms" : ""))
             }
-            func pct(_ a: Int, _ b: Int) -> Double { b == 0 ? 0 : (Double(a) / Double(b) * 1000).rounded() / 10 }
-            let row: [String: Any] = ["variant": name, "words": words, "next_word_top1_pct": pct(next1, words), "top1_within_2_keys_pct": pct(in2top1, words),
-                                      "top3_within_2_keys_pct": pct(in2top3, words), "keystrokes_saved_top1_pct": pct(keys - used1, keys),
-                                      "keystrokes_saved_top3_pct": pct(keys - used3, keys),
-                                      "latency_ms_mean": (ms.reduce(0, +) / Double(max(ms.count, 1)) * 100).rounded() / 100,
-                                      "latency_ms_p95": (percentile(ms, 0.95) * 100).rounded() / 100, "latency_ms_max": (percentile(ms, 1) * 100).rounded() / 100]
-            report.append(row)
-            print(name)
-            print("  words typed \(words) · next word right before any key \(row["next_word_top1_pct"]!) % · first suggestion right within 2 keys \(row["top1_within_2_keys_pct"]!) % · on the strip within 2 keys \(row["top3_within_2_keys_pct"]!) %")
-            print("  keystrokes saved: \(row["keystrokes_saved_top1_pct"]!) % with Option+Space only, \(row["keystrokes_saved_top3_pct"]!) % with a pick from the strip · time per key mean \(row["latency_ms_mean"]!) ms, p95 \(row["latency_ms_p95"]!) ms, slowest \(row["latency_ms_max"]!) ms\n")
+            print("")
         }
         if let d = try? JSONSerialization.data(withJSONObject: ["at": Shared.stamp(), "sentences": picked.count, "results": report], options: [.prettyPrinted, .sortedKeys]) {
             try? d.write(to: appSupport.appendingPathComponent("bench/completion.json"), options: .atomic)
