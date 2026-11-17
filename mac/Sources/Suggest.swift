@@ -137,7 +137,7 @@ enum Predictor {
         // measured 17.11.2026 on 40 held-out History sentences (625 words): keystrokes saved 35.4 % → 36.5 % (Option+Space only),
         // on the strip within two keys 69.6 % → 72.0 %, against the first guess (bi 40, tri 40, pu 30, pb 70, pt 70, lean 14, len 0, su 4, sb 6, st 8)
         var d: [String: Double] = ["bi": 30, "tri": 30, "pu": 45, "pb": 90, "pt": 90, "next": 90, "lean": 25, "len": 3, "su": 8, "sb": 12, "st": 16,
-                                   "llm": 40, "llmfloor": -9]      // llm 40: the best of 6, 12, 25, 40, 60 on 40 held-out sentences (17.11.2026)
+                                   "llmfloor": -9]                 // "llm" (the model's weight) comes from the model chosen: LocalModel.weight
         for part in (ProcessInfo.processInfo.environment["VOX_W"] ?? "").split(separator: ",") {
             let kv = part.split(separator: "=")
             if kv.count == 2, let v = Double(kv[1]) { d[String(kv[0])] = v }
@@ -209,7 +209,7 @@ enum Predictor {
         var scores: [String: (Double, Suggestion.Kind)] = [:]
         // v54: the local model's guess for the next word (its likeliest first pieces, with their log probability) moves the
         // ranking: a candidate that begins with a likely piece gains, one the model does not expect at all loses
-        let floor = W["llmfloor"] ?? -9, lam = W["llm"] ?? 0
+        let floor = W["llmfloor"] ?? -9, lam = W["llm"] ?? LocalModel.weight
         func neural(_ w: String) -> Double {
             guard let model, lam != 0 else { return 0 }
             var best = floor
@@ -626,12 +626,21 @@ enum LocalModel {
     /// the model files in the folder (Whisper's ggml .bin files are not these)
     static var files: [String] { ((try? FileManager.default.contentsOfDirectory(atPath: folder.path)) ?? []).filter { $0.hasSuffix(".gguf") }.sorted() }
     /// v56: the default when he has not picked one, in this order (as measured, see TAKEOVER); else the first file there
-    static let preferred = ["gemma-3-270m-it-Q4_K_M.gguf"]
+    // measured 17.11.2026 (40 held-out sentences, 626 words; Croatian on all 22 Croatian sentences, 267 words), keystrokes
+    // saved with the first suggestion, all / English / Croatian set: no model 36.6 / 39.1 / 16.5 %; 270M 40.5 / 43.6 / 17.4 %
+    // (14 ms a word); 1B 41.4 / 44.4 / 17.9 % (28 ms); 4B 42.6 / 45.5 / 19.3 % (77 ms, about 2.9 GB of memory while it runs)
+    static let preferred = ["gemma-3-4b-it-Q4_K_M.gguf", "gemma-3-1b-it-Q4_K_M.gguf", "gemma-3-270m-it-Q4_K_M.gguf"]
     static var modelFile: URL? {
         let names = files
         let want = UserDefaults.standard.string(forKey: "localModelFile")
         let pick = names.first { $0 == want } ?? preferred.first { names.contains($0) } ?? names.first
         return pick.map { folder.appendingPathComponent($0) }
+    }
+    /// how much the model's guess moves the ranking, as measured for each size on 40 held-out sentences (17.11.2026):
+    /// the 270M model is best at 40 (of 6, 12, 25, 40, 60), the 1B model at 60 (of 25, 40, 60, 80), the 4B model at 60 (of 60, 100)
+    static var weight: Double {
+        let n = modelFile?.lastPathComponent.lowercased() ?? ""
+        return n.contains("270m") ? 40 : 60
     }
     static func choose(_ name: String?) {
         if let name { UserDefaults.standard.set(name, forKey: "localModelFile"); UserDefaults.standard.set(true, forKey: "localModel") }
@@ -676,7 +685,7 @@ enum LocalModel {
             p.standardOutput = FileHandle.nullDevice; p.standardError = FileHandle.nullDevice
             guard (try? p.run()) != nil else { appendLog("local model: llama-server did not start"); return }
             process = p
-            for _ in 0..<40 { if healthy() { break }; usleep(250_000) }
+            for _ in 0..<120 { if healthy() { break }; usleep(250_000) }      // a 2.4 GB file takes a few seconds to load
             if healthy() { url = "http://127.0.0.1:\(port)"; appendLog("local model: \(model.lastPathComponent) ready on 127.0.0.1:\(port)") }
             else { p.terminate(); process = nil; appendLog("local model: the helper did not answer, stopped") }
         }
