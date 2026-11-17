@@ -45,6 +45,9 @@ final class MenuBar: NSObject, NSMenuDelegate {
     /// v33: the same menu for the VT icon and for the display in the menu bar (MenuDisplay)
     func makeMenu() -> NSMenu {
         let menu = NSMenu()
+        // v41 (Marko, 17.11.2026: "I want to see history at the top of the drop down menu in menu bar"): History first
+        let hist = NSMenuItem(title: "History", action: #selector(history), keyEquivalent: ""); hist.target = self; menu.addItem(hist)
+        menu.addItem(.separator())
         // v38 (Marko, 16.11.2026: "checkmarks for 4 options: English, Croatian, Correction, Styling"): the dictation language
         // (the same hearLang as the blob's [EN], with AUTO because the app has it) and the two quick switches of ⚙
         for (title, tag, sel) in [("English", 11, #selector(pickLang(_:))), ("Croatian", 12, #selector(pickLang(_:))),
@@ -60,8 +63,7 @@ final class MenuBar: NSObject, NSMenuDelegate {
             let m = NSMenuItem(title: title, action: sel, keyEquivalent: ""); m.target = self; m.tag = tag; menu.addItem(m)
         }
         menu.addItem(.separator())
-        for (title, sel) in [("Show the blob", #selector(showBlob)), ("Settings…", #selector(settings)),
-                             ("Transcription history", #selector(history))] {
+        for (title, sel) in [("Show the blob", #selector(showBlob)), ("Settings…", #selector(settings))] {
             let m = NSMenuItem(title: title, action: sel, keyEquivalent: ""); m.target = self; menu.addItem(m)
         }
         menu.addItem(.separator())
