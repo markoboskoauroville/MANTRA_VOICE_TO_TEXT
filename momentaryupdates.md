@@ -291,3 +291,8 @@ Meaning: v39 put the engine dropdown on the pill; he meant the drop-down menu of
 > "I actually need drop down menu to change engine in the menu bar item, not just display, and I want to see history at the top of the drop down menu in menu bar, so I click on the menu bar and I click on the history and then normal history window is opening up."
 
 **Status:** saved first (17.11.2026); v40 (Engine submenu, blob at start) was already pushed, so this is v41: the Engine items change the engine (HearEngine.setEngine), History is the first item of the menu bar item's menu and opens the History tab.
+
+## 17.11.2026 (v42), Marko word for word (dictated in Croatian, via the coordinator; translated)
+> "What you need to do is styling or correction. It must be thought per language. You have three options, English, Croatian and Auto. Whatever I choose is saved, attached to the language itself."
+
+**Status:** saved first (17.11.2026); v42: engine, correction and styling remembered per language (EN, HR, AUTO), one source for menu bar, pill and Settings.
