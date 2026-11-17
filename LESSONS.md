@@ -1,5 +1,14 @@
 # Lessons
 
+## v54-v55 (17.11.2026): the conservative Croatian fix, the local model
+- A 75,000-word dictionary does not know Croatian's word forms: "not in the dictionary" is not "wrong". Validity needs the spelling dictionary with its endings (Hunspell hr_HR: stem + suffix rules, two levels, the naj- prefix); 150 lines of Swift read it. macOS's own spell checker has no Croatian even with the files in ~/Library/Spelling.
+- A correction in dictation must be near certain: no change to a valid form, no edge letters, no ending vowels, a clear margin over the next candidate. Fewer fixes, none worse. "mesec" after "WhatsApp" was "message", not "mjesec": context decides, and without support a short word is left alone.
+- Prototype the rule in Python on his real takes first (ten minutes, no build), then write the Swift once.
+- A 270M model as a RE-RANKER (one call a word for the next word's likeliest first pieces, added to the n-gram score) gave +4 points of keystrokes saved in English at 14 ms a word; as a generator it would be slow and wrong. Its Croatian is weak: measure the languages separately, the sum hides it.
+- llama.cpp's server with cache_prompt answers an extended context in 14-25 ms; the first call is 100-200 ms. Ask when the word ENDS, not at each key.
+- brew install llama.cpp switched the unversioned openssl links to openssl@4: say so when a brew install changes links.
+- `osascript … close document` can hang behind an app's popup: run it in the background and kill it after a few seconds, then check the window list.
+
 ## v48-v53 (17.11.2026): one grid, TTT's corrections, the shared database, typing suggestions
 - A group of controls is ONE NSGridView, never rows built one by one: a check box with its own title beside a labelled pop-up can never line up. Fix the label column's width, or the grid gives the free width to the labels and the pop-ups stay narrow at a wide window (v48 did).
 - "Global" has to be read from the code: the menu's Styling tick is the STYLE button's switch (styleButtonOn_<lang>), not the text mode. History now shows the same tick, so Re-transcribe with it on calls the styling Claude.
