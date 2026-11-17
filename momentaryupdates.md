@@ -296,3 +296,8 @@ Meaning: v39 put the engine dropdown on the pill; he meant the drop-down menu of
 > "What you need to do is styling or correction. It must be thought per language. You have three options, English, Croatian and Auto. Whatever I choose is saved, attached to the language itself."
 
 **Status:** saved first (17.11.2026); v42: engine, correction and styling remembered per language (EN, HR, AUTO), one source for menu bar, pill and Settings.
+
+## 17.11.2026 (v42/v43), Marko word for word (via the coordinator) — URGENT bug
+> "There is a strange bug appearing. I am now transcribing WhatsApp message with this Vox engine and every sentence is replacing the old sentence. I want to work in insert mode all the time. Wherever my cursor is, sentence is inserted. It's not replacing the old transcription. That's a huge bug. Please write in the manifest that never do this again. So I'm talking two minutes, then I stop, I talk next two minutes and then it deletes my own two minutes. This is unacceptable."
+
+**Status:** saved first (17.11.2026); root cause hunted in Target.swift / Typer.
