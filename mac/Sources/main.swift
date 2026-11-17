@@ -564,7 +564,13 @@ final class Stripe: NSObject {
         endListening()
         Chime.play(start: false)
         if secs < 0.7 || loudest < -40 {
-            recorder.stop { _ in }
+            // v46: a quiet take of some length still goes in History with its audio (he may have spoken softly)
+            let quiet = loudest, hear = HearEngine.current
+            recorder.stop { wav in
+                guard let wav, secs >= 1.5 else { return }
+                let e = History.add(wav: wav, Version(at: Date(), hear: hear.title, style: String(format: "dropped: quiet (%.0f dB)", quiet), lang: hear.lang, heard: "", text: ""))
+                History.mark(e.id, landed: "dropped (quiet)")
+            }
             say(String(format: "nothing said (%.1f s, %.0f dB): not sent", secs, loudest), Ink.dim)
             dot.color = Ink.green
             hideSoon()
@@ -607,12 +613,12 @@ final class Stripe: NSObject {
                     guard mine == self.take, !self.cancelled else { return }
                     self.escape = nil
                     self.busy = false; self.sending(false); self.dot.color = Ink.red
-                    self.say(why, Ink.red, tip: "⚙ → History: this take waits there with its audio for Transcribe again")
+                    self.say(why, Ink.red, tip: "⚙ → History: this take waits there with its audio for Re-transcribe")
                     appendLog("failed (\(hear.title)): \(why)")
                     // the audio is not lost: the take goes in the history without words, to be transcribed again there
-                    if !why.hasPrefix("nothing heard") {
-                        History.add(wav: wav, Version(at: Date(), hear: hear.title, style: "failed: " + why, lang: hear.lang, heard: "", text: ""))
-                    }
+                    // v46 (Marko, 17.11.2026: "All future takes must be written in History."): "nothing heard" too
+                    let e = History.add(wav: wav, Version(at: Date(), hear: hear.title, style: "failed: " + why, lang: hear.lang, heard: "", text: ""))
+                    History.mark(e.id, landed: "failed")
                     self.hideSoon(after: 5)
                 }
                 return
@@ -636,14 +642,19 @@ final class Stripe: NSObject {
             let moved = Ring.lastMove
             let route = Hear.route.map { " · " + $0 } ?? ""
             DispatchQueue.main.async {
-                guard mine == self.take, !self.cancelled else { appendLog("cancelled (Esc), not typed: \(final)"); return }
+                guard mine == self.take, !self.cancelled else {
+                    appendLog("cancelled (Esc), not typed: \(final)")
+                    let e = History.add(wav: wav, Version(at: Date(), hear: usedTitle, style: style.title, lang: hear.lang, heard: words, text: final))
+                    History.mark(e.id, landed: "cancelled (Esc)")
+                    return
+                }
                 self.escape = nil
                 self.sending(false)
                 Toast.show(Toast.line(hear, seconds: tHear), good: Toast.good)       // v22: the route, 2 s
                 self.lastText = final
                 self.lastLang = lang
                 self.busy = false
-                History.add(wav: wav, Version(at: Date(), hear: usedTitle, style: style.title, lang: hear.lang, heard: words,
+                let entry = History.add(wav: wav, Version(at: Date(), hear: usedTitle, style: style.title, lang: hear.lang, heard: words,
                                               text: final))
                 if self.settings?.window.isVisible == true { self.settings?.history.reload(); self.settings?.refreshStats() }
                 let n = final.split(whereSeparator: { $0 == " " || $0 == "\n" }).count
@@ -653,10 +664,13 @@ final class Stripe: NSObject {
                     self.dot.color = Ink.green
                     self.say(String(format: "test: %d words, not typed · %.1f + %.1f s", n, tHear, tStyle) + route + (moved.map { " · key moved: \($0)" } ?? ""), Ink.green)
                     appendLog("test, not typed: \(final)")
+                    History.mark(entry.id, landed: "not typed (test)")
                     self.settleIdle()
                     return
                 }
                 Typer.insert(final) { landing in
+                    History.mark(entry.id, landed: landing == .typed ? "typed" : landing == .pasted ? "pasted" : "did not land")
+                    if self.settings?.window.isVisible == true { self.settings?.history.reload() }
                     if landing == .nowhere { self.notLanded("\(n) words did not land"); return }
                     let how = landing == .typed ? "typed" : "pasted"
                     if let warning {

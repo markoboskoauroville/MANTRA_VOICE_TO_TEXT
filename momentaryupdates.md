@@ -336,3 +336,9 @@ Meaning: a phone-keyboard suggestion strip for his Mac typing with TTT's correct
 Meaning: one private data repo for the correction database, written by TTT on the phones and by Vox on the Mac; append-only learned entries, merge = union, newest/highest count wins; Vox pulls at start and every few minutes, pushes what it learns, queues when offline.
 
 **Status:** saved first (17.11.2026); with phase 2.
+
+## 17.11.2026 (phase 5, after phase 3), Marko word for word (via the coordinator)
+> "And here on the Mac, because it's more powerful computer, you can bring some free model, AI model, to work with auto completion on Croatian and English, understanding and learning about my sentences and my habits, and then auto complete them automatically. Even better than SwiftKey, working with local engine."
+Meaning: a local free offline model for completion in Croatian and English (reuse what is on disk first; any download approved by the master and on the Download Monitor), a personal layer learned from his own text kept on the Mac, ranking blended with TTT's corrections, Option+Space accepts; a benchmark on 20 of his sentences.
+
+**Status:** saved first (17.11.2026); after phase 3.
