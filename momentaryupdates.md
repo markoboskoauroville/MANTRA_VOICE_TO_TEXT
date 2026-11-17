@@ -348,3 +348,9 @@ Meaning: a local free offline model for completion in Croatian and English (reus
 Meaning (the master's look at his v46 screenshot): in History an empty column of ~400 pt right of the detail panel, while list rows, the engine and model pickers and the status line are cut. The panes fill the whole window, nothing cut, every tab checked at the minimum and a wide size.
 
 **Status:** saved first (17.11.2026); v47.
+
+## 17.11.2026 (final phase, after the others ship), Marko word for word (via the coordinator)
+> "And then one more time, do a quick test of the app and try to find bugs and make algorithm for auto correction and auto completion of my sentences improved and better. With the best industry practices and ... best free models which can work on my Mac with 10 cores."
+Meaning: a bug hunt over the whole app; correction and completion improved by measured industry practice (noisy channel, keyboard adjacency, personal n-grams, Croatian diacritics, confidence threshold), top-1/top-3 and keystrokes saved before vs after; the best free local models for this Mac compared by latency and hit rate (downloads approved by the master, through the Nothing Phone line, on the Download Monitor).
+
+**Status:** saved first (17.11.2026).
