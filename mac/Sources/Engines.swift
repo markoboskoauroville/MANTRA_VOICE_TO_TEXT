@@ -8,7 +8,7 @@
 // does each is a choice on the stripe, remembered.
 import Foundation
 
-let appVersion = 47
+let appVersion = 48
 let VERSION = appVersion              // the Updater kit reads these two
 let APP_NAME = "Vox to Txt (Mantra)"
 
@@ -37,6 +37,28 @@ let APP_NAME = "Vox to Txt (Mantra)"
 enum Slot {
     static var lang: String { let l = UserDefaults.standard.string(forKey: "hearLang") ?? "auto"; return ["en", "hr", "auto"].contains(l) ? l : "auto" }
     static func key(_ base: String, _ lang: String = Slot.lang) -> String { base + "_" + lang }
+    // v48 (Marko, 17.11.2026: "Everything is global, even this."): one slot of a NAMED language, read and written by every
+    // surface (menu bar menu, pill, Settings, History) through these; the "current" getters are these with the language chosen now
+    static func engine(_ lang: String) -> String {
+        let d = UserDefaults.standard
+        var id = d.string(forKey: "engine_" + lang) ?? d.string(forKey: "engine_hr") ?? "assemblyai"
+        if Catalog.byId(id) == nil || (id == "parakeet" && !Ears.serverHere) { id = "assemblyai" }
+        return id
+    }
+    static func setEngine(_ id: String, _ lang: String) { UserDefaults.standard.set(id, forKey: "engine_" + lang) }
+    static var lastCorrection: StyleEngine {
+        let e = StyleEngine(rawValue: UserDefaults.standard.string(forKey: "styleLastOn") ?? "") ?? .haiku
+        return e == .off ? .haiku : e
+    }
+    static func correction(_ lang: String) -> StyleEngine {
+        StyleEngine(rawValue: UserDefaults.standard.string(forKey: key("style", lang)) ?? "") ?? (Keys.get(.anthropic).isEmpty ? .off : .haiku)
+    }
+    static func setCorrection(_ e: StyleEngine, _ lang: String) {
+        UserDefaults.standard.set(e.rawValue, forKey: key("style", lang))
+        if e != .off { UserDefaults.standard.set(e.rawValue, forKey: "styleLastOn") }
+    }
+    static func stylingOn(_ lang: String) -> Bool { UserDefaults.standard.object(forKey: key("styleButtonOn", lang)) as? Bool ?? true }
+    static func setStylingOn(_ on: Bool, _ lang: String) { UserDefaults.standard.set(on, forKey: key("styleButtonOn", lang)) }
     /// once: the global choices become the three slots; Croatian's correction off unless the old Croatian tick was on (it is the HR slot now);
     /// AUTO gets its own engine, seeded from the Croatian one
     static func migrate() {

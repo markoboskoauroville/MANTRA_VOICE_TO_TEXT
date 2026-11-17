@@ -93,8 +93,11 @@ final class HistoryPane: NSObject, NSTableViewDataSource, NSTableViewDelegate, N
     let hearLang = NSPopUpButton()
     let style = NSPopUpButton()                // the correction model
     let styling = NSPopUpButton()              // v46: the styling model
-    let useCorrection = NSButton(checkboxWithTitle: "Correction", target: nil, action: nil)
-    let useStyling = NSButton(checkboxWithTitle: "Styling", target: nil, action: nil)
+    // v48: the check box comes AFTER its model's pop-up and has no word of its own (the row's label names it)
+    let useCorrection = NSButton(checkboxWithTitle: "", target: nil, action: nil)
+    let useStyling = NSButton(checkboxWithTitle: "", target: nil, action: nil)
+    var onChange: () -> Void = {}              // v48: a choice made here is the global one: the menu bar, pill and Settings follow
+    private var painting = false
     let retranscribe = NSButton(title: "Re-transcribe", target: nil, action: nil)
     let status = NSTextField(labelWithString: "")
     let files = FilePanel()                    // v15: Transcribe a file…
@@ -154,7 +157,9 @@ final class HistoryPane: NSObject, NSTableViewDataSource, NSTableViewDelegate, N
         for l in HearEngine.langs { hearLang.addItem(withTitle: l == "auto" ? "AUTO" : l.uppercased()); hearLang.lastItem?.representedObject = l }
         hearLang.target = self; hearLang.action = #selector(langChanged)
         hearLang.toolTip = "The language for the new version"
-        fillEngines()
+        hear.target = self; hear.action = #selector(engineChanged)
+        style.target = self; style.action = #selector(correctionModelChanged)
+        styling.target = self; styling.action = #selector(stylingModelChanged)
         // v46 (Marko, 17.11.2026: "I can change the model ... change the language ... change the auto-correction model ... but
         // there is no model for styling. And I need checkmarks to re-transcribe with styling or correction."): a labelled table,
         // engine, language, correction model, styling model, and the two checkmarks that decide what the new version gets
@@ -165,8 +170,12 @@ final class HistoryPane: NSObject, NSTableViewDataSource, NSTableViewDelegate, N
         styling.toolTip = "The Claude model that styles the text (repetitions, filler words, order)"
         useCorrection.toolTip = "Correct the new version with the correction model"
         useStyling.toolTip = "Style the new version with the styling model"
-        useCorrection.target = self; useCorrection.action = #selector(checksChanged)
-        useStyling.target = self; useStyling.action = #selector(checksChanged)
+        useCorrection.target = self; useCorrection.action = #selector(correctionToggled)
+        useStyling.target = self; useStyling.action = #selector(stylingToggled)
+        useCorrection.setAccessibilityLabel("Correction"); useCorrection.setAccessibilityIdentifier("history-correction")
+        useStyling.setAccessibilityLabel("Styling"); useStyling.setAccessibilityIdentifier("history-styling")
+        hear.setAccessibilityIdentifier("history-engine"); hearLang.setAccessibilityIdentifier("history-language")
+        style.setAccessibilityIdentifier("history-correction-model"); styling.setAccessibilityIdentifier("history-styling-model")
         retranscribe.target = self; retranscribe.action = #selector(again)
         retranscribe.toolTip = "Transcribe the stored audio again with the choices above: a new version of this take"
         retranscribe.setAccessibilityIdentifier("retranscribe")
@@ -183,32 +192,46 @@ final class HistoryPane: NSObject, NSTableViewDataSource, NSTableViewDelegate, N
             l.alignment = .right
             return l
         }
-        for p in [hear, hearLang, style, styling] { p.setContentCompressionResistancePriority(.defaultLow, for: .horizontal) }
-        // the checkmark IS the row's title (no second word beside it)
+        // v48 (Marko, 17.11.2026: "The correction and styling check marks are not aligned. It's very ugly ... move the check boxes
+        // next to the options for changing the Sonnet, Opus, or Haiku, so they are placed after that menu ... Re-transcribe should be
+        // under the model's choice ... we always align the buttons perfectly."): ONE grid. Column 0 the labels, right-aligned;
+        // column 1 the four pop-ups, one left edge and one width, and under them on the same two edges Re-transcribe, then
+        // Copy | Type it; column 2 the two check boxes, one above the other. Every row the same height.
+        for p in [hear, hearLang, style, styling] {
+            p.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+            p.setContentHuggingPriority(.defaultLow, for: .horizontal)
+        }
+        for b in [retranscribe, copy, typeAgain] { b.setContentHuggingPriority(.defaultLow, for: .horizontal) }
+        let pair = NSStackView(views: [copy, typeAgain])
+        pair.orientation = .horizontal; pair.distribution = .fillEqually; pair.spacing = 8
         let grid = NSGridView(views: [
-            [label("Engine"), hear],
-            [label("Language"), hearLang],
-            [useCorrection, style],
-            [useStyling, styling],
+            [label("Engine"), hear, NSGridCell.emptyContentView],
+            [label("Language"), hearLang, NSGridCell.emptyContentView],
+            [label("Correction"), style, useCorrection],
+            [label("Styling"), styling, useStyling],
+            [NSGridCell.emptyContentView, retranscribe, NSGridCell.emptyContentView],
+            [NSGridCell.emptyContentView, pair, NSGridCell.emptyContentView],
         ])
-        grid.rowSpacing = 6; grid.columnSpacing = 8
+        grid.rowSpacing = 8; grid.columnSpacing = 8
+        grid.rowAlignment = .none
+        grid.yPlacement = .center
         grid.column(at: 0).xPlacement = .trailing
-        grid.rowAlignment = .firstBaseline
-        let buttons2 = NSStackView(views: [retranscribe, NSView(), copy, typeAgain])
-        buttons2.orientation = .horizontal
+        grid.column(at: 1).xPlacement = .fill
+        grid.column(at: 2).xPlacement = .center
+        grid.column(at: 2).width = 20
+        for i in 0..<grid.numberOfRows { grid.row(at: i).height = 24 }
+        grid.setContentHuggingPriority(.defaultLow, for: .horizontal)
         let line = NSBox(); line.boxType = .separator
-        let right = NSStackView(views: [detailScroll, line, grid, buttons2, status])
+        let right = NSStackView(views: [detailScroll, line, grid, status])
         right.orientation = .vertical
         right.alignment = .leading
         detailScroll.translatesAutoresizingMaskIntoConstraints = false
         grid.translatesAutoresizingMaskIntoConstraints = false
-        buttons2.translatesAutoresizingMaskIntoConstraints = false
         status.translatesAutoresizingMaskIntoConstraints = false
         line.translatesAutoresizingMaskIntoConstraints = false
         NSLayoutConstraint.activate([detailScroll.widthAnchor.constraint(equalTo: right.widthAnchor),
                                      line.widthAnchor.constraint(equalTo: right.widthAnchor),
                                      grid.widthAnchor.constraint(equalTo: right.widthAnchor),
-                                     buttons2.widthAnchor.constraint(equalTo: right.widthAnchor),
                                      status.widthAnchor.constraint(equalTo: right.widthAnchor)])
         let split = NSStackView(views: [tableScroll, right])
         split.orientation = .horizontal
@@ -233,6 +256,7 @@ final class HistoryPane: NSObject, NSTableViewDataSource, NSTableViewDelegate, N
         top.translatesAutoresizingMaskIntoConstraints = false
         split.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(page)
+        paintSlot()
         NSLayoutConstraint.activate([
             page.leadingAnchor.constraint(equalTo: view.leadingAnchor), page.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             page.topAnchor.constraint(equalTo: view.topAnchor), page.bottomAnchor.constraint(equalTo: view.bottomAnchor),
@@ -242,10 +266,12 @@ final class HistoryPane: NSObject, NSTableViewDataSource, NSTableViewDelegate, N
         ])
     }
 
-    // the engines with their accuracy in the language chosen for the new version, and a note for the ones that cannot run now
+    /// the language whose slot the controls show and change (History's LANGUAGE)
+    var slotLang: String { hearLang.selectedItem?.representedObject as? String ?? "auto" }
+
+    // the engines with their accuracy in the language chosen, and a note for the ones that cannot run now
     func fillEngines() {
-        let lang = hearLang.selectedItem?.representedObject as? String ?? "auto"
-        let keep = hear.selectedItem?.representedObject as? String ?? HearEngine.current.id
+        let lang = slotLang
         hear.removeAllItems()
         hear.menu?.autoenablesItems = false
         for s in Catalog.all {
@@ -253,9 +279,53 @@ final class HistoryPane: NSObject, NSTableViewDataSource, NSTableViewDelegate, N
             hear.lastItem?.representedObject = s.id
             hear.lastItem?.isEnabled = Catalog.available(s)
         }
-        if let i = hear.itemArray.firstIndex(where: { $0.representedObject as? String == keep && $0.isEnabled }) { hear.selectItem(at: i) }
     }
-    @objc func langChanged() { fillEngines() }
+    /// v48: the four controls show the GLOBAL slot of the language chosen here (engine_<lang>, style_<lang>, styleButtonOn_<lang>,
+    /// the styling model): the same values the menu bar menu, the pill and Settings show for that language
+    func paintSlot() {
+        painting = true; defer { painting = false }
+        let l = slotLang
+        fillEngines()
+        let id = Slot.engine(l)
+        if let i = hear.itemArray.firstIndex(where: { $0.representedObject as? String == id }) { hear.selectItem(at: i) }
+        let cm = Slot.correction(l)
+        let showC = cm == .off ? Slot.lastCorrection : cm
+        if let i = style.itemArray.firstIndex(where: { $0.representedObject as? String == showC.rawValue }) { style.selectItem(at: i) }
+        if let i = styling.itemArray.firstIndex(where: { $0.representedObject as? String == StyleButtonEngine.current.rawValue }) { styling.selectItem(at: i) }
+        useCorrection.state = cm != .off ? .on : .off
+        useStyling.state = Slot.stylingOn(l) ? .on : .off
+    }
+    @objc func langChanged() { paintSlot() }
+    @objc func engineChanged() {
+        guard !painting, let id = hear.selectedItem?.representedObject as? String, Catalog.byId(id) != nil else { return }
+        Slot.setEngine(id, slotLang)
+        appendLog("history: engine \(id) for \(slotLang) (global)")
+        onChange()
+    }
+    private func picked(_ p: NSPopUpButton) -> StyleEngine { StyleEngine(rawValue: p.selectedItem?.representedObject as? String ?? "") ?? .haiku }
+    @objc func correctionToggled() {
+        Slot.setCorrection(useCorrection.state == .on ? picked(style) : .off, slotLang)
+        appendLog("history: correction \(Slot.correction(slotLang).title) for \(slotLang) (global)")
+        onChange()
+    }
+    @objc func correctionModelChanged() {
+        guard !painting else { return }
+        if useCorrection.state == .on { Slot.setCorrection(picked(style), slotLang) }
+        else { UserDefaults.standard.set(picked(style).rawValue, forKey: "styleLastOn") }       // the model the switch turns on next
+        appendLog("history: correction model \(picked(style).title) for \(slotLang) (global)")
+        onChange()
+    }
+    @objc func stylingToggled() {
+        Slot.setStylingOn(useStyling.state == .on, slotLang)
+        appendLog("history: styling \(useStyling.state == .on ? "on" : "off") for \(slotLang) (global)")
+        onChange()
+    }
+    @objc func stylingModelChanged() {
+        guard !painting else { return }
+        StyleButtonEngine.current = picked(styling)
+        appendLog("history: styling model \(StyleButtonEngine.current.title) (global)")
+        onChange()
+    }
 
     func reload() {
         History.purge()
@@ -332,24 +402,10 @@ final class HistoryPane: NSObject, NSTableViewDataSource, NSTableViewDelegate, N
         }.joined(separator: "\n\n────────\n\n")
         retranscribe.isEnabled = History.hasAudio(e.id)
         status.stringValue = History.hasAudio(e.id) ? "The audio is kept until \(f.string(from: e.versions.first!.at.addingTimeInterval(History.audioDays)))." : "The audio is gone (kept one day); the words stay."
-        if let i = hearLang.itemArray.firstIndex(where: { $0.representedObject as? String == e.latest.lang }) { hearLang.selectItem(at: i); fillEngines() }
-        if let sp = Catalog.all.first(where: { $0.short + " " + e.latest.lang.uppercased() == e.latest.hear }),
-           let i = hear.itemArray.firstIndex(where: { $0.representedObject as? String == sp.id }), hear.itemArray[i].isEnabled { hear.selectItem(at: i) }
-        // the checkmarks and models start as the take's language has them now (its slot), so Re-transcribe does what a take would
-        let d = UserDefaults.standard, sl = ["en", "hr", "auto"].contains(e.latest.lang) ? e.latest.lang : "auto"
-        let cm = StyleEngine(rawValue: d.string(forKey: Slot.key("style", sl)) ?? "") ?? .off
-        let tm = TextMode(rawValue: d.string(forKey: Slot.key("textMode", sl)) ?? "") ?? .styleCorrect
-        let lastOn = StyleEngine(rawValue: d.string(forKey: "styleLastOn") ?? "") ?? .haiku
-        let showC = cm == .off ? lastOn : cm
-        if let i = style.itemArray.firstIndex(where: { $0.representedObject as? String == showC.rawValue }) { style.selectItem(at: i) }
-        if let i = styling.itemArray.firstIndex(where: { $0.representedObject as? String == StyleButtonEngine.current.rawValue }) { styling.selectItem(at: i) }
-        useCorrection.state = cm != .off && (tm == .correct || tm == .styleCorrect) ? .on : .off
-        useStyling.state = cm != .off && (tm == .style || tm == .styleCorrect) ? .on : .off
-        checksChanged()
-    }
-    @objc func checksChanged() {
-        style.isEnabled = useCorrection.state == .on
-        styling.isEnabled = useStyling.state == .on
+        // v48: the take's language picks the slot; the controls then show that language's GLOBAL choices
+        let sl = ["en", "hr", "auto"].contains(e.latest.lang) ? e.latest.lang : "auto"
+        if let i = hearLang.itemArray.firstIndex(where: { $0.representedObject as? String == sl }) { hearLang.selectItem(at: i) }
+        paintSlot()
     }
 
     // TTT Mini's re-transcribe: the same audio, another ear or language, another style; the result is a new version.

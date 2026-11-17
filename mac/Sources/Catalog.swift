@@ -232,9 +232,7 @@ struct HearEngine: Equatable {
             }
             let lang = d.string(forKey: "hearLang") ?? "auto"
             // v42: AUTO has its own engine slot (engine_auto, seeded from engine_hr); EN and HR each their own
-            var id = d.string(forKey: "engine_" + lang) ?? d.string(forKey: "engine_hr") ?? "assemblyai"
-            if Catalog.byId(id) == nil || (id == "parakeet" && !Ears.serverHere) { id = "assemblyai" }
-            return HearEngine(id: id, lang: lang)
+            return HearEngine(id: Slot.engine(lang), lang: lang)
         }
         set {
             UserDefaults.standard.set(newValue.lang, forKey: "hearLang")

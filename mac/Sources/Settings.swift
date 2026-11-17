@@ -89,6 +89,7 @@ final class SettingsWindow: NSObject, NSTextViewDelegate, NSTextFieldDelegate {
             self?.paintChoices(); self?.onChange()
         }
         history = HistoryPane(typeText: typeText) { [weak self] in self?.window.orderOut(nil); NSApp.hide(nil) }
+        history.onChange = { [weak self] in self?.paintChoices(); self?.onChange() }     // v48: its choices are the global ones
 
         func label(_ s: String, bold: Bool = false) -> NSTextField {
             let l = NSTextField(labelWithString: s)
@@ -719,6 +720,7 @@ final class SettingsWindow: NSObject, NSTextViewDelegate, NSTextFieldDelegate {
         for (e, b) in styleButtonRadios { b.state = e == StyleButtonEngine.current ? .on : .off }
         for (m, b) in modeRadios { b.state = m == TextMode.current ? .on : .off }
         paintQuick()
+        history?.paintSlot()                                         // v48: History shows the same slots
         whisperRow?.isHidden = Ears.current == .server
     }
     @objc func langPicked(_ b: NSButton) {

@@ -295,6 +295,22 @@ final class Stripe: NSObject {
         DistributedNotificationCenter.default().addObserver(forName: Notification.Name(prefix + ".flipline"), object: nil, queue: .main) { [weak self] _ in self?.statusClicked() }
         DistributedNotificationCenter.default().addObserver(forName: Notification.Name(prefix + ".history"), object: nil, queue: .main) { [weak self] _ in self?.openHistory() }
         DistributedNotificationCenter.default().addObserver(forName: Notification.Name(prefix + ".settings"), object: nil, queue: .main) { [weak self] _ in self?.openSettingsTab() }
+        // v48 test hook (no mouse): the Settings window on a tab, at a size (and place), a History row selected, History's LANGUAGE
+        // set: userInfo tab, w, h, x, y, row, lang (numbers or strings). For the screenshots of every tab at two sizes.
+        DistributedNotificationCenter.default().addObserver(forName: Notification.Name(prefix + ".window"), object: nil, queue: .main) { [weak self] n in
+            guard let self, let u = n.userInfo else { return }
+            func num(_ k: String) -> Double? { (u[k] as? NSNumber)?.doubleValue ?? (u[k] as? String).flatMap(Double.init) }
+            self.openSettings(tab: Int(num("tab") ?? 0))
+            guard let s = self.settings else { return }
+            var f = s.window.frame
+            if let w = num("w"), let h = num("h") { f.size = NSSize(width: w, height: h) }
+            if let x = num("x"), let y = num("y") { f.origin = NSPoint(x: x, y: y) }
+            if f != s.window.frame { s.window.setFrame(f, display: true) }
+            if let r = num("row"), Int(r) < s.history.entries.count { s.history.table.selectRowIndexes([Int(r)], byExtendingSelection: false) }
+            if let l = u["lang"] as? String, let i = s.history.hearLang.itemArray.firstIndex(where: { $0.representedObject as? String == l }) {
+                s.history.hearLang.selectItem(at: i); s.history.langChanged()
+            }
+        }
         DistributedNotificationCenter.default().addObserver(forName: Notification.Name(prefix + ".escape"), object: nil, queue: .main) { [weak self] _ in
             if self?.recorder.recording == true { self?.cancel() } else { self?.cancelProcessing() }
         }
