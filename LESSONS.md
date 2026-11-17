@@ -1,5 +1,34 @@
 # Lessons
 
+## v46-v47 (17.11.2026): the take that went away
+- NEVER auto-undo after typing. A read-back of a web box (WhatsApp Web's Lexical editor in Firefox, any contenteditable) is late and normalised (NBSP, paragraphs), so "the box is not what I expected" is not evidence that something was replaced. v43 pressed ⌘Z on that guess and removed the take Marko had just dictated, twice per take. A check after inserting may log or warn, never delete.
+- Web pages get one paste at the caret: the page's own editor handles ⌘V like his own; Accessibility writes into a DOM editor behind its back.
+- A test that only uses the test hook (`.typetext`) misses timing and focus; the real path is F1, the microphone, the engine, then typing. The stress test now plays `say` clips through the ADAM into the real microphone.
+- Synthetic keys: Macro Recorder's `Send "{F1}"` does not reach a Carbon hotkey (it posts to the app); an HID F1 without the fn flag is not caught either; with `kCGEventFlagMaskSecondaryFn` it is (fnState = 1 on this Mac).
+- `macro do` restores his app, field and caret after it runs: a `Click` into a box through the guard is undone right after; click inside Firefox with BiDi real pointer input instead.
+- A build's quit must also wait for the typing, not only the recording and the engine: `busy` was false between the words and the paste.
+- NSStackView's default distribution leaves room at the trailing end: two panes that must fill a window need `.fill`, a low hugging priority on the wide one and a share constraint, never a fixed width.
+
+| take | app | lang | mode | key | landed | still there after 5 s |
+|---|---|---|---|---|---|---|
+| 1 | WhatsApp Web (Firefox) | EN | none | F1 | yes (pasted) | yes |
+| 2 | WhatsApp Web | EN | COR | F1 | yes, space before | yes |
+| 3 | WhatsApp Web (back to back) | EN | STY | F1 | yes | yes |
+| 4 | WhatsApp Web | HR | none | F1 | yes | yes |
+| 5 | WhatsApp Web | HR | S+C | F1 | yes | yes |
+| 6 | WhatsApp Web | HR | COR | F1 | yes | yes |
+| 7 | WhatsApp Web | HR | STY | F1 | yes | yes |
+| 8 | WhatsApp Web, caret in the middle | EN | none | F1 | yes, inserted there | yes |
+| 9 | WhatsApp Web, a word selected | EN | none | F1 | yes, the word kept | yes |
+| 10 | TextEdit, caret at the start | EN | none | F1 | yes, glued ("rehearsal.Existing", fixed v47) | yes |
+| 11 | TextEdit | EN | COR | F1 | yes (Accessibility) | yes |
+| 12 | TextEdit (back to back) | HR | none | F1 | yes | yes |
+| 13 | WhatsApp Web, v47 | EN | none | F1 (stored HR) | yes, Deepgram EN | yes |
+| 14 | WhatsApp Web, v47 (back to back) | HR | none | F2 | yes, Groq HR | yes |
+| 15 | TextEdit before a word, v47 | EN | none | F1 | yes, "dog. We" | yes |
+COR/STY/S+C ran with testStyleFake (no Claude call). Not tested: a second native app (a click without the guard was refused), Claude desktop and Chrome boxes, Marko's own voice and fingers.
+
+
 ## v28-v31 (15.11.2026)
 
 - The front app's focused element is the wrong question once Vox has been clicked or its Settings is in front: remember the last box from the focus observer and the clicks of other apps (a global monitor never sees clicks on Vox itself, which is exactly right).
