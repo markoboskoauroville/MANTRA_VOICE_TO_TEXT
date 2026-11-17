@@ -46,6 +46,8 @@ final class MenuBar: NSObject, NSMenuDelegate {
     func makeMenu() -> NSMenu {
         let menu = NSMenu()
         // v41 (Marko, 17.11.2026: "I want to see history at the top of the drop down menu in menu bar"): History first
+        let cp = NSMenuItem(title: "Copy the text that didn't land", action: #selector(copyUnlanded), keyEquivalent: ""); cp.target = self; cp.tag = 17; cp.isHidden = true
+        menu.addItem(cp)
         let hist = NSMenuItem(title: "History", action: #selector(history), keyEquivalent: ""); hist.target = self; menu.addItem(hist)
         menu.addItem(.separator())
         // v38 (Marko, 16.11.2026: "checkmarks for 4 options: English, Croatian, Correction, Styling"): the dictation language
@@ -85,6 +87,7 @@ final class MenuBar: NSObject, NSMenuDelegate {
             case 13: m.state = lang == "auto" ? .on : .off
             case 14: m.state = StyleEngine.current != .off ? .on : .off
             case 15: m.state = Prefs.styleButtonOn ? .on : .off
+            case 17: m.isHidden = !(stripe.unlanded && !stripe.lastText.isEmpty)      // v45
             case 16:       // v40: the Engine submenu, rebuilt for the language chosen now (HearEngine.setEngine on a pick)
                 let l = HearEngine.current
                 m.title = "Engine: " + l.spec.short
@@ -165,6 +168,7 @@ final class MenuBar: NSObject, NSMenuDelegate {
         appendLog("menu: styling \(Prefs.styleButtonOn ? "on" : "off")")
         changed()
     }
+    @objc func copyUnlanded() { stripe.copyLast() }
     @objc func settings() { stripe.openSettingsTab() }
     @objc func history() { stripe.openHistory() }
     @objc func quit() {

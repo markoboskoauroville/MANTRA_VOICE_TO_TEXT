@@ -14,6 +14,8 @@ final class MenuDisplay: NSObject {
     private var visObs: NSKeyValueObservation?
     private var timer: Timer?
     private var shownWidth: CGFloat = 0
+    private var savedMenu: NSMenu?
+    private var copyMode = false
     private weak var stripe: Stripe?
 
     func setup(_ s: Stripe) {
@@ -31,7 +33,8 @@ final class MenuDisplay: NSObject {
         it.autosaveName = MenuDisplay.name
         it.isVisible = true
         it.button?.setAccessibilityLabel("Vox to Txt (Mantra) display")
-        it.menu = menuBar.makeMenu()
+        savedMenu = menuBar.makeMenu()
+        it.menu = savedMenu
         item = it
         // always there: if it is taken out of the bar, it comes back
         visObs = it.observe(\.isVisible, options: [.new]) { i, _ in
@@ -74,8 +77,29 @@ final class MenuDisplay: NSObject {
         return HoverCard.Content(name: "Vox to Txt (Mantra)", what: "Press F1, talk, the text is typed at the cursor", state: st, stateColor: col, lines: lines)
     }
 
+    // v45 (Marko, 17.11.2026: "if the text do not land ... I want to then click on menu bar item, and then it copies the text, and
+    // second click lands as normal click"): while the take did not land the item has no menu and its click copies that take's
+    // text; once copied (or a new take lands) the menu is back and the next click opens it
+    private func syncCopyMode() {
+        guard let s = stripe, let it = item, let b = it.button else { return }
+        let want = s.unlanded && !s.lastText.isEmpty
+        guard want != copyMode else { return }
+        copyMode = want
+        if want {
+            it.menu = nil
+            b.target = self; b.action = #selector(copyClicked)
+            b.sendAction(on: .leftMouseDown)
+            appendLog("menu bar: the take did not land: the first click copies it")
+        } else {
+            b.target = nil; b.action = nil
+            it.menu = savedMenu
+        }
+    }
+    @objc func copyClicked() { stripe?.copyLast() }
+
     /// the item is as wide as the words (the band is the words plus 16 pt), the band 18 pt high in the 22 pt bar
     private func layout() {
+        syncCopyMode()
         guard let s = stripe, let it = item, let button = it.button else { return }
         let line = s.face.line
         let words = line.stringValue.isEmpty ? 0 : ceil(line.attributedStringValue.size().width) + 16

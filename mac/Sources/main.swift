@@ -282,6 +282,11 @@ final class Stripe: NSObject {
             appendLog("engine test hook: \(HearEngine.current.id) \(HearEngine.current.lang)")
             self?.refresh(); self?.ready(); self?.settings?.paintChoices()
         }
+        // v45 test hook: a take that did not land (object = its text)
+        DistributedNotificationCenter.default().addObserver(forName: Notification.Name(prefix + ".notlanded"), object: nil, queue: .main) { [weak self] n in
+            guard let self, let t = n.object as? String, !t.isEmpty else { return }
+            self.lastText = t; self.notLanded("test: did not land")
+        }
         DistributedNotificationCenter.default().addObserver(forName: Notification.Name(prefix + ".enginemenu"), object: nil, queue: .main) { [weak self] n in
             let secs = Double(n.object as? String ?? "") ?? 8
             DispatchQueue.main.async { self?.showEngineMenu(cancelAfter: secs) }
