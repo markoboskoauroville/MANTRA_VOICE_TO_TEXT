@@ -301,3 +301,6 @@ Meaning: v39 put the engine dropdown on the pill; he meant the drop-down menu of
 > "There is a strange bug appearing. I am now transcribing WhatsApp message with this Vox engine and every sentence is replacing the old sentence. I want to work in insert mode all the time. Wherever my cursor is, sentence is inserted. It's not replacing the old transcription. That's a huge bug. Please write in the manifest that never do this again. So I'm talking two minutes, then I stop, I talk next two minutes and then it deletes my own two minutes. This is unacceptable."
 
 **Status:** saved first (17.11.2026); root cause hunted in Target.swift / Typer.
+
+## 17.11.2026 (v44), the master's check
+Two takes in a row were glued ("minutes.Second"): v44 puts a space before a take when the character before the caret is not whitespace (none at the start of a box or after a newline). The real path is the same function as the test hook (Writer.insert), so it glued too.

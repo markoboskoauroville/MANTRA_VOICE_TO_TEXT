@@ -351,13 +351,22 @@ enum Writer {
     }
 
     /// a take's words at the caret of the box: INSERTED, never replacing anything (v43)
-    static func insert(_ text: String, into b: TextTarget.Box) -> Landing {
+    static func insert(_ typed: String, into b: TextTarget.Box) -> Landing {
         let el = b.element
+        var text = typed
         AXUIElementSetMessagingTimeout(el, 0.6)
         let before = value(el)
         let sure = collapse(el)
         let at = caret(el)
         if !sure && (at?.length ?? 0) > 0 { appendLog("typing: \(b.app) \(b.role) kept a selection I could not collapse") }
+        // v44 (the master's check, 17.11.2026): two takes in a row must not glue ("minutes.Second"): a space first when the
+        // character before the caret is not whitespace (nothing at the start of an empty box or after a newline)
+        if !isTerminal(el), let before, let at, at.length == 0, at.location > 0, at.location <= (before as NSString).length,
+           let first = text.unicodeScalars.first, !CharacterSet.whitespacesAndNewlines.contains(first),
+           let prev = (before as NSString).substring(with: NSRange(location: at.location - 1, length: 1)).unicodeScalars.first,
+           !CharacterSet.whitespacesAndNewlines.contains(prev), !"([{“‘\"'/-".unicodeScalars.contains(prev) {
+            text = " " + text
+        }
         let snippet = String(text.prefix(20))
         var replaced = false
         if TextTarget.settable(el, kAXSelectedTextAttribute),
