@@ -26,7 +26,7 @@ final class MenuBar: NSObject, NSMenuDelegate {
     override init() {
         super.init()
         item.autosaveName = "voicetotext"
-        item.button?.setAccessibilityLabel("Voice to Text (Mantra)")
+        item.button?.setAccessibilityLabel("Vox to Txt (Mantra)")
         item.menu = makeMenu()
         show(.idle)
         item.isVisible = false                           // v37: the display item carries the menu
@@ -62,7 +62,7 @@ final class MenuBar: NSObject, NSMenuDelegate {
         menu.delegate = self
         for l in ["en", "hr"] { let m = NSMenuItem(title: "", action: nil, keyEquivalent: ""); m.isEnabled = false; m.tag = l == "en" ? 1 : 2; menu.addItem(m) }
         menu.addItem(.separator())
-        let quit = NSMenuItem(title: "Quit Voice to Text (Mantra)", action: #selector(quit), keyEquivalent: "")
+        let quit = NSMenuItem(title: "Quit Vox to Txt (Mantra)", action: #selector(quit), keyEquivalent: "")
         quit.target = self; menu.addItem(quit)
         return menu
     }
@@ -113,7 +113,7 @@ final class MenuBar: NSObject, NSMenuDelegate {
             out.append(NSAttributedString(string: String(format: " %d:%02d", t / 60, t % 60), attributes: [
                 .font: NSFont.monospacedDigitSystemFont(ofSize: 13, weight: .bold), .foregroundColor: colour]))
             b.attributedTitle = out
-            b.toolTip = paused ? "Voice to Text: paused" : "Voice to Text: recording"
+            b.toolTip = paused ? "Vox to Txt: paused" : "Vox to Txt: recording"
         case .idle, .processing:
             let colour: NSColor = s == .processing ? MenuBar.yellow : MenuBar.red
             let t = NSMutableAttributedString(string: "VT", attributes: [
@@ -121,8 +121,8 @@ final class MenuBar: NSObject, NSMenuDelegate {
             t.append(NSAttributedString(string: " " + badge, attributes: [
                 .font: NSFont.systemFont(ofSize: 9, weight: .bold), .foregroundColor: badge == "FRA" ? Host.green : Host.gold, .baselineOffset: 1]))
             b.attributedTitle = t
-            b.setAccessibilityLabel("Voice to Text (Mantra), route " + (badge == "FRA" ? "Frankfurt" : "direct"))
-            b.toolTip = (s == .processing ? "Voice to Text: writing it down" : "Voice to Text: ready (F1)") + (badge == "FRA" ? " · route: Frankfurt" : " · route: direct")
+            b.setAccessibilityLabel("Vox to Txt (Mantra), route " + (badge == "FRA" ? "Frankfurt" : "direct"))
+            b.toolTip = (s == .processing ? "Vox to Txt: writing it down" : "Vox to Txt: ready (F1)") + (badge == "FRA" ? " · route: Frankfurt" : " · route: direct")
         }
     }
 

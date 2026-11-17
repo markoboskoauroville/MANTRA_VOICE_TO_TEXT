@@ -1,4 +1,4 @@
-// ⚙ of Voice to Text (Mantra), two tabs (request 14): Settings (the hotkey, the keys (a file picker; only how many were
+// ⚙ of Vox to Txt (Mantra), two tabs (request 14): Settings (the hotkey, the keys (a file picker; only how many were
 // found is ever shown), and his own additions to the style: "you can write the style prompt automatically,
 // but in settings I can also add some things to it") and Transcription history (History.swift).
 import AppKit
@@ -24,7 +24,7 @@ final class SettingsWindow: NSObject, NSTextViewDelegate, NSTextFieldDelegate {
     let anthropicLabel = NSTextField(labelWithString: "")
     let croatianTick = NSButton(checkboxWithTitle: "Auto correct Croatian takes too (off: Croatian goes in as the engine heard it)", target: nil, action: nil)
     let importResult = NSTextField(wrappingLabelWithString: "")
-    // Voice to Text (Mantra): the model downloaded from here, and a key pasted (never shown again)
+    // Vox to Txt (Mantra): the model downloaded from here, and a key pasted (never shown again)
     let modelButton = NSButton(title: "", target: nil, action: nil)
     let modelBar = NSProgressIndicator()
     let modelLabel = NSTextField(labelWithString: "")
@@ -77,7 +77,7 @@ final class SettingsWindow: NSObject, NSTextViewDelegate, NSTextFieldDelegate {
         self.onChange = onChange
         window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 900, height: 900), styleMask: [.titled, .closable, .resizable],
                           backing: .buffered, defer: false)
-        window.title = "Voice to Text (Mantra) v\(appVersion)"
+        window.title = "Vox to Txt (Mantra) v\(appVersion)"
         window.isReleasedWhenClosed = false
         window.minSize = NSSize(width: 900, height: 560)
         window.appearance = NSAppearance(named: .darkAqua)      // v17: TTT's host look
@@ -320,7 +320,7 @@ final class SettingsWindow: NSObject, NSTextViewDelegate, NSTextFieldDelegate {
         addTab("History", history.view)           // v34 (Marko, 16.11.2026: "History first, please")
         for (title, views) in tabsContent { addTab(title, page(views)) }
         let about: [NSView] = [
-            label("Voice to Text (Mantra) · Vox · version \(appVersion)", bold: true),
+            label("Vox to Txt (Mantra) · version \(appVersion)", bold: true),
             para("F1 talks; the words are typed into the text box you clicked into last. Two selectors on the blob: the language (EN · HR · AUTO) and the text mode (STY · S+C · COR)."),
             para("Local API on 127.0.0.1:8865: GET /status, GET /engines, POST /hear?lang=, POST /mode, GET /target, POST /transcribe, GET /job/<id>."),
             para("Log: ~/Library/Logs/voice-to-text-mantra.log"),
@@ -342,7 +342,7 @@ final class SettingsWindow: NSObject, NSTextViewDelegate, NSTextFieldDelegate {
         // v33 (Marko, 16.11.2026: "ON-OFF needs to go out of this application ... this X is actually becoming OFF button ... it
         // closes application completely. On the left side ... small speakers which is green when I select it ... gray"):
         // the ✕ quits the app (not while a take is open); the speaker is the start and stop sounds on or off
-        let x = closeX(self, #selector(offPressed), tip: "Quit Voice to Text (Mantra) completely (not while a take is open)")
+        let x = closeX(self, #selector(offPressed), tip: "Quit Vox to Txt (Mantra) completely (not while a take is open)")
         x.setAccessibilityIdentifier("close"); x.setAccessibilityLabel("Quit")
         let on = NSButton(title: "", target: self, action: #selector(soundsPressed))
         on.isBordered = false; on.imagePosition = .imageOnly
@@ -351,7 +351,7 @@ final class SettingsWindow: NSObject, NSTextViewDelegate, NSTextFieldDelegate {
         let off = on
         topWord = rowWord("TOP", Ink.grey, id: "top", label: "Top", #selector(topPressed))
         paintTop()
-        let name = NSTextField(labelWithString: "Voice to Text (Mantra)")
+        let name = NSTextField(labelWithString: "Vox to Txt (Mantra)")
         name.font = .systemFont(ofSize: 13, weight: .bold)
         offNote.font = .systemFont(ofSize: 11); offNote.textColor = Ink.amber
         for v in [x, on, topWord!, name, offNote] as [NSView] { v.translatesAutoresizingMaskIntoConstraints = false; box.addSubview(v) }

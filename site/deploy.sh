@@ -31,7 +31,7 @@ for link in 'href="download/VoiceToText-mac.zip"' "$GH/VoiceToText-win-x64.zip" 
   grep -qF "$link" $P/index.html || { echo "index.html does not link $link"; exit 1; }
 done
 # every page with the donation bowl is search-engine optimised (Marko, 31.10.2026)
-python3 ~/Developer/MANTRA_MANIFEST/kits/seo/seo_app_page.py site/public --url https://mantravoicetotext.pages.dev --name "Voice to Text (Mantra)" --version "$V" --download "download/VoiceToText-mac.zip" --keywords "voice to text, dictation app, speech to text mac, speech to text windows, whisper offline, voice typing, dictate prompts, free dictation" --image img/life-prompt.jpg --os "macOS, Windows"
+python3 ~/Developer/MANTRA_MANIFEST/kits/seo/seo_app_page.py site/public --url https://mantravoicetotext.pages.dev --name "Vox to Txt (Mantra)" --version "$V" --download "download/VoiceToText-mac.zip" --keywords "voice to text, dictation app, speech to text mac, speech to text windows, whisper offline, voice typing, dictate prompts, free dictation" --image img/life-prompt.jpg --os "macOS, Windows"
 if grep -qE 'VoiceToTextMantra-v[0-9]+|releases/download/v[0-9]+' $P/index.html; then echo "index.html still has a versioned download address"; exit 1; fi
 eval "$(python3 - <<'PY'
 import re,os

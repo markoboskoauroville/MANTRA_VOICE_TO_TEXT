@@ -17,7 +17,7 @@ enum Crash {
     static func install() {
         lastTime()
         crashFD = open(crashFile.path, O_WRONLY | O_APPEND | O_CREAT, 0o644)
-        let head = "\n=== CRASH (signal) · Voice to Text (Mantra) v\(appVersion) · launched \(stamp()) · pid \(getpid()) · signal "
+        let head = "\n=== CRASH (signal) · Vox to Txt (Mantra) v\(appVersion) · launched \(stamp()) · pid \(getpid()) · signal "
         _ = head.withCString { strlcpy(&crashHeader, $0, crashHeader.count) }
         for s in [SIGABRT, SIGSEGV, SIGBUS, SIGILL, SIGTRAP, SIGFPE] {
             signal(s) { n in
@@ -67,7 +67,7 @@ enum Crash {
 private func crashOnException(_ e: NSException) {
     let text = """
 
-    === CRASH (exception) · Voice to Text (Mantra) v\(appVersion) · \(Crash.stamp())
+    === CRASH (exception) · Vox to Txt (Mantra) v\(appVersion) · \(Crash.stamp())
     \(e.name.rawValue): \(e.reason ?? "no reason")
     the pill said: \(crashCrumb)
     \(e.callStackSymbols.joined(separator: "\n"))

@@ -30,7 +30,7 @@ final class MenuDisplay: NSObject {
         let it = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         it.autosaveName = MenuDisplay.name
         it.isVisible = true
-        it.button?.setAccessibilityLabel("Voice to Text (Mantra) display")
+        it.button?.setAccessibilityLabel("Vox to Txt (Mantra) display")
         it.menu = menuBar.makeMenu()
         item = it
         // always there: if it is taken out of the bar, it comes back
@@ -43,7 +43,7 @@ final class MenuDisplay: NSObject {
         line.passThrough = true; line.restrictHit = false
         button.addSubview(pipes, positioned: .below, relativeTo: nil)
         button.addSubview(line)
-        HoverCard.attach(to: it) { [weak self] in self?.hoverContent() ?? HoverCard.Content(name: "Voice to Text (Mantra)", what: "", state: "") }
+        HoverCard.attach(to: it) { [weak self] in self?.hoverContent() ?? HoverCard.Content(name: "Vox to Txt (Mantra)", what: "", state: "") }
         menuBar.item.isVisible = false              // its menu is on the display now
         layout()
         let t = Timer(timeInterval: 0.1, repeats: true) { [weak self] _ in self?.layout() }
@@ -71,7 +71,7 @@ final class MenuDisplay: NSObject {
         func eng(_ l: String) -> String { let id = d.string(forKey: "engine_" + l) ?? "assemblyai"; return Catalog.byId(id).map { Stats.name($0, l) } ?? id }
         var lines = ["English: " + eng("en"), "Croatian: " + eng("hr"), "Route: " + (Frankfurt.badge == "FRA" ? "Frankfurt relay" : "direct")]
         if r?.recording ?? false { lines.insert(String(format: "Take: %d:%02d", secs / 60, secs % 60), at: 0) }
-        return HoverCard.Content(name: "Voice to Text (Mantra)", what: "Press F1, talk, the text is typed at the cursor", state: st, stateColor: col, lines: lines)
+        return HoverCard.Content(name: "Vox to Txt (Mantra)", what: "Press F1, talk, the text is typed at the cursor", state: st, stateColor: col, lines: lines)
     }
 
     /// the item is as wide as the words (the band is the words plus 16 pt), the band 18 pt high in the 22 pt bar

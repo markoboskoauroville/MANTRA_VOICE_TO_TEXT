@@ -33,8 +33,8 @@ done
 cp "$MAC" "$T/VoiceToText-mac.zip"; cp "$MAC" "$T/"
 
 if ! gh release view "v$V" -R $REPO >/dev/null 2>&1; then
-  gh release create "v$V" -R $REPO --latest --title "Voice to Text (Mantra) $V" \
-    --notes "Voice to Text (Mantra) $V. Mac: Apple Silicon, macOS 14+. Windows: 10/11, x64 or ARM. Install steps: $SITE"
+  gh release create "v$V" -R $REPO --latest --title "Vox to Txt (Mantra) $V" \
+    --notes "Vox to Txt (Mantra) $V. Mac: Apple Silicon, macOS 14+. Windows: 10/11, x64 or ARM. Install steps: $SITE"
 fi
 have=$(gh release view "v$V" -R $REPO --json assets -q '.assets[]|"\(.name) \(.digest)"')
 for f in "$T"/*.zip; do

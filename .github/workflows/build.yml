@@ -11,7 +11,7 @@ on:
 permissions:
   contents: write
 env:
-  APP: "Voice to Text (Mantra)"
+  APP: "Vox to Txt (Mantra)"
   VERSION_FILE: mac/Sources/Engines.swift
 jobs:
   build:

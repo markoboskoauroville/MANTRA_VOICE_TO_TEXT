@@ -79,6 +79,40 @@ enum Catalog {
         return Ears.current == .server || Model.ready
     }
 
+    // v39 (Marko, 17.11.2026: "starting from the best to the worst. To the most accurate and most fastest to the last one"):
+    // the pill's ENGINE list for a language: most accurate first (the figure Settings shows), equal accuracy the faster
+    // first (the median of the last takes here, else the usual speed order); the paid ones (Soniox, ElevenLabs: no free
+    // quota, never run unless picked) after all the free ones, accurate ones first among them
+    static let speedRank = ["parakeet", "groq_turbo", "groq_v3", "cloudflare", "deepgram", "assemblyai", "gemini", "speechmatics",
+                            "google_chirp", "google_v1", "whisper", "soniox", "elevenlabs"]
+    /// the accuracy shown for an engine; Whisper Turbo on this Mac has no figure of its own: it is the same model as
+    /// Groq turbo, so it carries that one (marked approximate)
+    static func accuracy(_ id: String, _ lang: String) -> (pct: Int, approx: Bool)? {
+        let l = lang == "auto" ? "hr" : lang                      // AUTO runs the Croatian column's engine (HearEngine.current)
+        if let p = Scores.get(id, l) { return (p, false) }
+        if id == "whisper", let p = Scores.get("groq_turbo", l) { return (p, true) }
+        return nil
+    }
+    static func menuOrder(_ lang: String) -> [String] {
+        let l = lang == "auto" ? "hr" : lang
+        func speed(_ id: String) -> Double { Stats.median(id, l) ?? (10 + Double(speedRank.firstIndex(of: id) ?? 99)) }
+        return all.map(\.id).sorted { a, b in
+            let pa = byId(a)?.paid ?? false, pb = byId(b)?.paid ?? false
+            if pa != pb { return !pa }
+            let sa = accuracy(a, l)?.pct ?? -1, sb = accuracy(b, l)?.pct ?? -1
+            if sa != sb { return sa > sb }
+            let ta = speed(a), tb = speed(b)
+            if ta != tb { return ta < tb }
+            return a < b
+        }
+    }
+    /// the word on the pill's engine button (short, upper case)
+    static func tag(_ id: String) -> String {
+        ["parakeet": "PARAKEET", "whisper": "WHISPER", "groq_turbo": "GROQ TRB", "groq_v3": "GROQ V3", "cloudflare": "CLOUDFL",
+         "gemini": "GEMINI", "deepgram": "DEEPGRAM", "assemblyai": "ASSEMBLY", "speechmatics": "SPEECHM", "google_v1": "GOOGLE",
+         "google_chirp": "CHIRP 3", "soniox": "SONIOX", "elevenlabs": "ELEVEN"][id] ?? id.uppercased()
+    }
+
     static func shown(_ s: EngineSpec, lang: String) -> String { Stats.name(s, lang, long: true) }
 }
 

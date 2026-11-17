@@ -1,5 +1,5 @@
 #!/bin/bash
-# Builds Voice to Text (Mantra).app: Swift + whisper.cpp (Metal, embedded), signed "Mantra Apps", zipped as dist/VoiceToTextMantra-vN-mac.zip.
+# Builds Vox to Txt (Mantra).app: Swift + whisper.cpp (Metal, embedded), signed "Mantra Apps", zipped as dist/VoiceToTextMantra-vN-mac.zip.
 #   ./build.sh               build, zip and publish (tools/publish.sh: release, page, live check; MANTRA_MANIFEST download-always-latest)
 #   ./build.sh --no-publish  build and zip only
 #   every build is installed in /Applications (v3, Marko 1.11.2026: "in the Star menu ... and also inside the application
@@ -30,7 +30,7 @@ if [ ! -f "$B/src/libwhisper.a" ]; then
   cmake --build "$B" -j 8 --config Release
 fi
 V=$(grep -E '^let appVersion' Sources/Engines.swift | grep -oE '[0-9]+')
-NAME="Voice to Text (Mantra)"
+NAME="Vox to Txt (Mantra)"
 APP="build/$NAME.app"
 rm -rf build && mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources" dist
 swiftc -O -swift-version 5 -target arm64-apple-macos14.0 Sources/*.swift \
@@ -49,7 +49,7 @@ rm -f "dist/VoiceToTextMantra-v$V-mac.zip"
 ditto -c -k --keepParent "$APP" "dist/VoiceToTextMantra-v$V-mac.zip"
 echo "built v$V: $APP and dist/VoiceToTextMantra-v$V-mac.zip ($(du -h "dist/VoiceToTextMantra-v$V-mac.zip" | cut -f1))"
 if [ "$NO_INSTALL" = 1 ]; then echo "not installed (NO_INSTALL=1)"; exit 0; fi
-running() { pgrep -qf "/Contents/MacOS/(Voice to Text \(Mantra\)|Transcribe Voice to Text RT)( |$)"; }
+running() { pgrep -qf "/Contents/MacOS/(Vox to Txt \(Mantra\)|Voice to Text \(Mantra\)|Transcribe Voice to Text RT)( |$)"; }
 WAS=0
 if running; then
   WAS=1

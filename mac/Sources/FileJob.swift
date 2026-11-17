@@ -448,7 +448,7 @@ enum FileAPI {
         if method == "POST", path == "/hear" { return hearNow(body, query: query) }
         if method == "POST", path == "/engines/select" { return select(body) }
         if method == "GET", path == "/status" {
-            return (200, ["app": "Voice to Text (Mantra)", "version": appVersion, "api": 1, "port": Int(port), "busy": FileJobs.busy,
+            return (200, ["app": "Vox to Txt (Mantra)", "version": appVersion, "api": 1, "port": Int(port), "busy": FileJobs.busy,
                           "jobs": FileJobs.order.count, "engine": HearEngine.current.id,
                           // v28: the two selectors and the text box Vox would write into
                           "language": HearEngine.current.lang, "text_mode": TextMode.current.rawValue,

@@ -175,7 +175,8 @@ final class Stripe: NSObject {
                         copy: { [weak self] in self?.copyPressed() },
                         gear: { [weak self] in self?.openSettingsTab() },   // v12: the gear opens ⚙ itself, no menu
                         send: { [weak self] in self?.sendPressed() },
-                        mode: { [weak self] in self?.toggleMode() })
+                        mode: { [weak self] in self?.toggleMode() },
+                        engine: { [weak self] in self?.showEngineMenu() })
         face.line.clicked = { [weak self] in self?.statusClicked() }
         face.placeLine(below: Prefs.lineBelow)
         panel.contentView = face
@@ -277,6 +278,18 @@ final class Stripe: NSObject {
             if let m = n.userInfo?["text"] as? String, let tm = TextMode(rawValue: m) { TextMode.current = tm }
             self?.refresh(); self?.ready(); self?.settings?.paintChoices()
         }
+        // v39 test hook: userInfo lang (en/hr/auto) and engine (a catalogue id) set the choice as the pill's list does;
+        // `.enginemenu` (object = seconds) opens the list so it can be photographed
+        DistributedNotificationCenter.default().addObserver(forName: Notification.Name(prefix + ".engine"), object: nil, queue: .main) { [weak self] n in
+            if let l = n.userInfo?["lang"] as? String, HearEngine.langs.contains(l) { HearEngine.setLang(l) }
+            if let e = n.userInfo?["engine"] as? String, Catalog.byId(e) != nil { HearEngine.setEngine(e) }
+            appendLog("engine test hook: \(HearEngine.current.id) \(HearEngine.current.lang)")
+            self?.refresh(); self?.ready(); self?.settings?.paintChoices()
+        }
+        DistributedNotificationCenter.default().addObserver(forName: Notification.Name(prefix + ".enginemenu"), object: nil, queue: .main) { [weak self] n in
+            let secs = Double(n.object as? String ?? "") ?? 8
+            DispatchQueue.main.async { self?.showEngineMenu(cancelAfter: secs) }
+        }
         DistributedNotificationCenter.default().addObserver(forName: Notification.Name(prefix + ".flipline"), object: nil, queue: .main) { [weak self] _ in self?.statusClicked() }
         DistributedNotificationCenter.default().addObserver(forName: Notification.Name(prefix + ".history"), object: nil, queue: .main) { [weak self] _ in self?.openHistory() }
         DistributedNotificationCenter.default().addObserver(forName: Notification.Name(prefix + ".settings"), object: nil, queue: .main) { [weak self] _ in self?.openSettingsTab() }
@@ -299,6 +312,8 @@ final class Stripe: NSObject {
     func refresh() {
         face.lang.text = HearEngine.current.lang.uppercased()
         face.mode.text = TextMode.current.short
+        face.engine.text = Catalog.tag(HearEngine.current.id)
+        face.engine.axLabel = "Engine for " + HearEngine.current.lang.uppercased() + ": " + HearEngine.current.spec.name
         face.mode.axLabel = "Text mode: " + TextMode.current.title
         face.lang.axLabel = "Language: " + ["en": "English", "hr": "Croatian", "auto": "Auto (Croatian and English)"][HearEngine.current.lang, default: "Auto"]
         face.pause.live = recorder.recording
@@ -447,6 +462,43 @@ final class Stripe: NSObject {
     @objc func toggleLanguage() {
         // EN → HR → AUTO within the same model (v15; v8 Parakeet; v12 AssemblyAI)
         HearEngine.cycleLang()
+        refresh(); recorder.recording ? showListening() : ready()
+        settings?.paintChoices()
+    }
+
+    // v39: the ENGINE dropdown: the engines of the language now chosen, best first. The pick is HearEngine.setEngine, the
+    // same choice Settings' radio buttons make (engine_<lang>; AUTO shares the Croatian column), never a second copy.
+    func showEngineMenu(cancelAfter: Double? = nil) {
+        let lang = HearEngine.current.lang, cur = HearEngine.current.id
+        let menu = NSMenu(title: "Engine")
+        menu.autoenablesItems = false
+        let head = NSMenuItem(title: "Engine for " + (lang == "auto" ? "AUTO (Croatian column)" : lang.uppercased()) + ", most accurate first", action: nil, keyEquivalent: "")
+        head.isEnabled = false; menu.addItem(head); menu.addItem(.separator())
+        let l = lang == "auto" ? "hr" : lang
+        for id in Catalog.menuOrder(lang) {
+            guard let s = Catalog.byId(id) else { continue }
+            var t = s.short
+            if let a = Catalog.accuracy(id, lang) { t += "  \(a.approx ? "≈" : "")\(a.pct)%" } else { t += "  no figure" }
+            if let m = Stats.median(id, l) { t += String(format: "  ·  %.1f s", m) }
+            if s.paid { t += "  ·  PAID, only when picked" }
+            let ok = Catalog.available(s)
+            if !ok { t += s.ring != nil ? "  ·  no key" : "  ·  not here" }
+            let it = NSMenuItem(title: t, action: ok ? #selector(engineChosen(_:)) : nil, keyEquivalent: "")
+            it.target = self; it.representedObject = id; it.isEnabled = ok
+            it.state = id == cur ? .on : .off
+            menu.addItem(it)
+        }
+        if let secs = cancelAfter {
+            let tm = Timer(timeInterval: secs, repeats: false) { _ in menu.cancelTracking() }
+            RunLoop.main.add(tm, forMode: .common)
+        }
+        let b = face.engine!
+        menu.popUp(positioning: nil, at: NSPoint(x: 0, y: b.bounds.height), in: b)
+    }
+    @objc func engineChosen(_ i: NSMenuItem) {
+        guard let id = i.representedObject as? String else { return }
+        HearEngine.setEngine(id)
+        appendLog("engine chosen on the pill: \(id) for \(HearEngine.current.lang)")
         refresh(); recorder.recording ? showListening() : ready()
         settings?.paintChoices()
     }
@@ -1239,7 +1291,7 @@ if let i = CommandLine.arguments.firstIndex(of: "--pill-shot"), i + 1 < CommandL
         let f = PillFace(close: {}, lang: {}, pause: {}, style: {}, copy: {}, gear: {}, send: {})
         f.wave.color = wave; f.placeLine(below: below)
         f.line.stringValue = line; f.line.textColor = colour
-        f.lang.text = "AUTO"; f.mode.text = "S+C"; f.send.symbol = send; f.pause.live = pause; f.light(autoCorrect: autoCorrect, styling: styling, unlanded: unlanded, copying: copying)
+        f.lang.text = "AUTO"; f.engine.text = "GROQ V3"; f.mode.text = "S+C"; f.send.symbol = send; f.pause.live = pause; f.light(autoCorrect: autoCorrect, styling: styling, unlanded: unlanded, copying: copying)
         f.wave.moving = db != nil; f.wave.take(db)
         try? f.png()?.write(to: dir.appendingPathComponent(name))
     }
