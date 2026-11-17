@@ -308,3 +308,13 @@ Two takes in a row were glued ("minutes.Second"): v44 puts a space before a take
 ## 17.11.2026 (v45), Marko word for word (via the coordinator)
 > "So if the text do not land, you say up there in the menu bar, please copy, it didn't land. Great. But I want to then click on menu bar item, and then it copies the text, and second click lands as normal click. Please make this action button when something doesn't land to be able to click on the menu bar item, and then copy the thing."
 Behaviour: while the item says the take did not land, the first click copies that take's text (item shows COPIED ~1.5 s), the next click opens the normal menu.
+
+## 17.11.2026 (v46), Marko word for word (dictated in Croatian, translated by the master, plus his English)
+> "[In] WhatsApp: now while transcribing my message, my message is transcribed and then it goes away. That's a huge problem. All of it has to be written in the box: click and write. Make dictation from some of my audio files, just play it through the ADAM speaker and see that it lands. All future takes must be written in History. In History I need options to do everything with the existing audio file and text: I can change the model, that's nice; change the language, nice; change the auto-correction model, nice; but there is no model for styling. And I need checkmarks to re-transcribe with styling or correction. And I don't know what 'up tab' or 'down tab' means and how it helps me. I don't need it. Remove it completely. Retranscribe — 'Re-transcribe', please. Stress test this app with open browser WhatsApp, emulate my key presses, mouse presses, and make this work bug free. You just messed up the whole app with updating it. Work with Opus, please."
+
+From his English version of the same message (via the coordinator):
+1. Test in the "Vasil" chat, already open in WhatsApp Web in his Firefox. Click into its box with a real pointer and dictate there. NEVER send. Read the box first, leave his draft untouched, remove only the test text, so the box ends exactly as found.
+2. It is "up thumb / down thumb" (the thumbs up / thumbs down rating controls in History), not tabs: remove the thumbs completely.
+3. "Transcribe again, put my wording": the button label is exactly "Re-transcribe".
+
+**Status:** saved first (17.11.2026); v46: no auto-undo after insert, every take in History, History re-run with engine/language/correction/styling models and Correction/Styling checkmarks, thumbs removed, "Re-transcribe".
