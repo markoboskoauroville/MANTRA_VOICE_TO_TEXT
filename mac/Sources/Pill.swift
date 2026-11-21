@@ -165,6 +165,7 @@ final class MicBands: NSObject, AVCaptureAudioDataOutputSampleBufferDelegate {
         if ring.count > MicBands.N { ring.removeFirst(ring.count - MicBands.N) }      // once a buffer, not once a sample
         filled = min(filled + n, MicBands.N)
         latestFrom(rate: asbd.mSampleRate)
+        RecordingIndicator.feed(ring, rate: asbd.mSampleRate)      // v62: the bottom ellipse's spectrum
     }
 
     // the bands of the last 2048 samples (also used by --bands on a file)

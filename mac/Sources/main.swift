@@ -193,6 +193,7 @@ final class Stripe: NSObject {
             Place.save(self.panel)
         }
         if Prefs.blobOpen { panel.orderFrontRegardless() } else { minimizedFrame = panel.frame; panel.orderOut(nil) }   // v61: closed by default
+        RecordingIndicator.shared.start(self)   // v62: the small ellipse with a spectrum at the bottom while recording
         TakeHUD.shared.start(self)        // v61: the oval "Recording / Transcribing" in the middle of every screen
         Magnet.shared.setup(self)         // v27: the display and the body may be detached; the state of the last run comes back
         MenuDisplay.shared.setup(self)    // v33: the display in the menu bar, when ⚙ says so
@@ -289,6 +290,12 @@ final class Stripe: NSObject {
         DistributedNotificationCenter.default().addObserver(forName: Notification.Name(prefix + ".notlanded"), object: nil, queue: .main) { [weak self] n in
             guard let self, let t = n.object as? String, !t.isEmpty else { return }
             self.lastText = t; self.notLanded("test: did not land")
+        }
+        // v62 test hook: userInfo seconds shows the bottom indicator fed by the microphone, no take
+        DistributedNotificationCenter.default().addObserver(forName: Notification.Name(prefix + ".indicator"), object: nil, queue: .main) { n in
+            let v = n.userInfo?["seconds"]
+            let secs = (v as? NSNumber)?.doubleValue ?? Double(v as? String ?? "") ?? 5
+            RecordingIndicator.shared.test(seconds: secs)
         }
         DistributedNotificationCenter.default().addObserver(forName: Notification.Name(prefix + ".enginemenu"), object: nil, queue: .main) { [weak self] n in
             let secs = Double(n.object as? String ?? "") ?? 8
