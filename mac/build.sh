@@ -43,6 +43,7 @@ swiftc -O -swift-version 5 -target arm64-apple-macos14.0 Sources/*.swift \
 sed "s/__VERSION__/$V/g" Resources/Info.plist > "$APP/Contents/Info.plist"
 swift Tools/make_icon.swift build/AppIcon.iconset "$V"
 iconutil -c icns build/AppIcon.iconset -o "$APP/Contents/Resources/AppIcon.icns"
+cp Resources/go.m4a "$APP/Contents/Resources/go.m4a"           # v58: the spoken Go (Beatrice), rendered once
 cp -R Resources/dict "$APP/Contents/Resources/dict"      # v50: TTT's dictionaries (hr, en, their word pairs and triples)
 codesign --force --deep -s "$SIGN" "$APP"
 codesign --verify --deep "$APP"

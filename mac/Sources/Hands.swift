@@ -433,6 +433,23 @@ enum Chime {
     /// how long the sound of a start or a stop lasts (0 when there is none)
     static func duration(start: Bool) -> TimeInterval { sound(start: start)?.duration ?? 0 }
 
+    static func go(then: @escaping () -> Void) {
+        guard Prefs.chimesOn,
+              let url = Bundle.main.url(forResource: "go", withExtension: "m4a"),
+              let s = NSSound(contentsOf: url, byReference: true) else {
+            DispatchQueue.main.async { then() }
+            return
+        }
+        s.volume = gain(Prefs.startVolume)
+        OutputDevice.apply(s)
+        playing = s
+        finished.then = then
+        s.delegate = finished
+        s.stop()
+        if !s.play() { DispatchQueue.main.async { finished.fire() } }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { finished.fire() }
+    }
+
     static func play(start: Bool, position: Float? = nil, force: Bool = false, then: (() -> Void)? = nil) {
         if !force && !Prefs.chimesOn { DispatchQueue.main.async { then?() }; return }       // v33: the speaker in ⚙ is grey
         let s = sound(start: start)

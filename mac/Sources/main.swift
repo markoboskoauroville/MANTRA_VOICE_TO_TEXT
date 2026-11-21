@@ -452,27 +452,31 @@ final class Stripe: NSObject {
         recorder.recording ? finish() : listen()
     }
 
+    var goPending = false                                 // v58: the spoken Go is playing, the microphone is not open yet
+
     func listen() {
+        if goPending { return }
         AVCaptureDevice.requestAccess(for: .audio) { ok in
             DispatchQueue.main.async {
                 guard ok else { self.say("no microphone: System Settings → Privacy → Microphone", Ink.red); return }
-                // v4: the speakers go to 6 % only once the start sound is out of them (its end reported + 0.25 s)
-                Chime.play(start: true) { [weak self] in
-                    if let r = self?.recorder, r.recording, !r.paused { Duck.down() }
+                self.goPending = true
+                Chime.go { [weak self] in
+                    guard let self else { return }
+                    self.goPending = false
+                    guard self.recorder.start() else { self.say("the microphone did not start", Ink.red); return }
+                    Duck.down()
+                    Ears.warm()                                    // v28: the model is ready before the words arrive
+                    self.loudest = -160
+                    self.dot.color = Ink.red
+                    self.escape = HotKey(code: UInt32(kVK_Escape), id: 2) { [weak self] in self?.cancel() }
+                    self.face.send.symbol = "arrow.up"
+                    self.face.pause.live = true
+                    self.face.wave.moving = true
+                    self.voiceTick?.invalidate(); self.voiceTick = nil
+                    self.face.wave.color = VoiceWords.enabled ? Ink.green : WaveView.white      // v22: green while a take records
+                    self.tick = Timer.scheduledTimer(withTimeInterval: 1.0 / 24, repeats: true) { [weak self] _ in self?.showListening() }
+                    self.showListening()
                 }
-                usleep(150_000)                             // the sound (0.1 s) is over before the microphone opens
-                guard self.recorder.start() else { self.say("the microphone did not start", Ink.red); return }
-                Ears.warm()                                    // v28: the model is ready before the words arrive
-                self.loudest = -160
-                self.dot.color = Ink.red
-                self.escape = HotKey(code: UInt32(kVK_Escape), id: 2) { [weak self] in self?.cancel() }
-                self.face.send.symbol = "arrow.up"
-                self.face.pause.live = true
-                self.face.wave.moving = true
-                self.voiceTick?.invalidate(); self.voiceTick = nil
-                self.face.wave.color = VoiceWords.enabled ? Ink.green : WaveView.white      // v22: green while a take records
-                self.tick = Timer.scheduledTimer(withTimeInterval: 1.0 / 24, repeats: true) { [weak self] _ in self?.showListening() }
-                self.showListening()
             }
         }
     }
