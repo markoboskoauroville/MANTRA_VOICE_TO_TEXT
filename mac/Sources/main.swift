@@ -192,7 +192,8 @@ final class Stripe: NSObject {
             self.flipStrip()
             Place.save(self.panel)
         }
-        panel.orderFrontRegardless()
+        if Prefs.blobOpen { panel.orderFrontRegardless() } else { minimizedFrame = panel.frame; panel.orderOut(nil) }   // v61: closed by default
+        TakeHUD.shared.start(self)        // v61: the oval "Recording / Transcribing" in the middle of every screen
         Magnet.shared.setup(self)         // v27: the display and the body may be detached; the state of the last run comes back
         MenuDisplay.shared.setup(self)    // v33: the display in the menu bar, when ⚙ says so
         TypingSuggest.shared.setup(self)  // v51: suggestions while he types in any app (Option+Space takes the first)
@@ -448,8 +449,9 @@ final class Stripe: NSObject {
         hideToken += 1                                  // a hide planned for the last take must not hide this one
         unlanded = false
         refresh()                                       // v29: COPY back to grey
-        if minimizedFrame != nil && !recorder.recording { showQuietly() } else if !recorder.recording { followTyping() }
+        if minimizedFrame == nil && !recorder.recording { followTyping() }      // v61: a press never opens the blob
         recorder.recording ? finish() : listen()
+        TakeHUD.shared.refresh()
     }
 
     var goPending = false                                 // v58: the spoken Go is playing, the microphone is not open yet
@@ -462,7 +464,8 @@ final class Stripe: NSObject {
                 self.goPending = true
                 Duck.down()
                 appendLog("seq: duck t0")
-                DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                TakeHUD.shared.refresh()
+                do {      // v61 (Marko: "start immediately with go without any delay"): no silence before Go
                     Chime.go { [weak self] in
                         guard let self else { return }
                         self.goPending = false
@@ -514,7 +517,9 @@ final class Stripe: NSObject {
     }
 
     @objc func closePressed() {
-        if recorder.recording { cancel() } else if busy { cancelProcessing() } else { pinned = false; minimizeStripe() }
+        // v61 (Marko, 21.11.2026: "x is only closing the blob, never stopping the transcription"): ✕ only closes the blob;
+        // Esc throws a take away
+        pinned = false; Prefs.blobOpen = false; minimizeStripe()
     }
 
     @objc func sendPressed() {
@@ -1078,7 +1083,6 @@ final class Stripe: NSObject {
     func voiceChanged() {
         voice.restart()
         voiceMeter()
-        if VoiceWords.enabled && minimizedFrame != nil { showQuietly() }
         if !recorder.recording && !busy { ready() }
     }
 

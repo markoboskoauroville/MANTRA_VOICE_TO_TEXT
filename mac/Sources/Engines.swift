@@ -8,7 +8,7 @@
 // does each is a choice on the stripe, remembered.
 import Foundation
 
-let appVersion = 60
+let appVersion = 61
 let VERSION = appVersion              // the Updater kit reads these two
 let APP_NAME = "Vox to Txt (Mantra)"
 
@@ -167,6 +167,11 @@ enum TextMode: String, CaseIterable {
 
 enum Prefs {
     // v33: the speaker in ⚙ (the start and stop sounds), green = on
+    // v61: the blob is closed by default; he opens it from the menu bar item ("Show the blob") and ✕ closes it
+    static var blobOpen: Bool {
+        get { UserDefaults.standard.object(forKey: "blobOpen") as? Bool ?? false }
+        set { UserDefaults.standard.set(newValue, forKey: "blobOpen") }
+    }
     static var chimesOn: Bool {
         get { UserDefaults.standard.object(forKey: "chimesOn") as? Bool ?? true }
         set { UserDefaults.standard.set(newValue, forKey: "chimesOn") }

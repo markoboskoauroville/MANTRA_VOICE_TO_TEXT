@@ -146,8 +146,8 @@ final class MenuBar: NSObject, NSMenuDelegate {
     }
 
     @objc func showBlob() {
-        if stripe.minimizedFrame == nil && stripe.panel.isVisible { stripe.pinned = false; stripe.minimizeStripe() }
-        else { stripe.showQuietly(); stripe.panel.orderFrontRegardless() }
+        if stripe.minimizedFrame == nil && stripe.panel.isVisible { stripe.pinned = false; Prefs.blobOpen = false; stripe.minimizeStripe() }
+        else { Prefs.blobOpen = true; stripe.showQuietly(); stripe.panel.orderFrontRegardless() }
     }
     /// everything that shows the choice follows at once: the blob, the status text, ⚙
     private func changed() {

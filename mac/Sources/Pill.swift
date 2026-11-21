@@ -12,7 +12,8 @@ import AVFoundation
 import Accelerate
 
 // v28: 48 pt wider for the TEXT selector (STY / S+C / COR) beside the language
-let PILL_W: CGFloat = 564, PILL_H: CGFloat = 40, LINE_H: CGFloat = 0, PANEL_W: CGFloat = 594
+// v61: the blue send arrow is gone (F1 sends), the blob 40 pt narrower
+let PILL_W: CGFloat = 524, PILL_H: CGFloat = 40, LINE_H: CGFloat = 0, PANEL_W: CGFloat = 554
 let BLUE = NSColor(calibratedRed: 0x3D / 255, green: 0x7B / 255, blue: 0xF7 / 255, alpha: 1)
 
 // THE CRASH OF 30.10.2026 (22:33, caught in stderr): "NSInvalidArgumentException ... attempt to insert nil object" in
@@ -487,7 +488,7 @@ final class PillFace: NSView {
         self.gear = BlobButton("gearshape.fill", NSRect(x: 482, y: 2, width: 36, height: 36), circle: nil, tint: white, tip: "Settings: the recognition model, the correction model, the API keys, the history", gear)
         self.send = BlobButton("arrow.up", NSRect(x: 524, y: 2, width: 36, height: 36), circle: BLUE, tint: white, tip: "Send: write it down and type it (F1)", send)
         pill.addSubview(self.close); pill.addSubview(wave); pill.addSubview(grip); grip.setAccessibilityIdentifier("grip")
-        for b in [self.lang!, self.engine!, self.mode!, self.pause!, self.style!, self.copy!, self.gear!, self.send!] { pill.addSubview(b) }
+        for b in [self.lang!, self.engine!, self.mode!, self.pause!, self.style!, self.copy!, self.gear!] { pill.addSubview(b) }   // v61: send is not shown
         for (b, id) in [(self.close!, "close"), (self.lang!, "language"), (self.engine!, "engine"), (self.mode!, "textMode"), (self.pause!, "pause"), (self.style!, "style"), (self.copy!, "copy"),
                         (self.gear!, "settings"), (self.send!, "send")] { b.setAccessibilityIdentifier(id) }
         addSubview(pill)
