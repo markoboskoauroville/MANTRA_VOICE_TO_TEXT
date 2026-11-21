@@ -121,3 +121,6 @@ Marko, for the MPA Lessons Analyzer: "I want to see this thing open up and it's 
 - Default re-ranker: `gemma-3-4b-it-Q4_K_M.gguf` (2,375 MB; 77 ms a word, 2.9 GB of memory while he types, freed after 10 idle minutes); `gemma-3-270m-it` stays as the light choice. Picker: Settings, Typing tab, LOCAL MODEL; pref `localModelFile`, `localModel` false = none. Order when nothing is picked: `LocalModel.preferred`.
 - Measured (keystrokes saved, first suggestion; all 626 words / English / Croatian set of 267 words): none 36.6 / 39.1 / 16.5 %, 270M 40.5 / 43.6 / 17.4 %, 1B 41.4 / 44.4 / 17.9 %, 4B 42.6 / 45.5 / 19.3 %. Croatian set: `--bench-complete 40 hr`.
 - A model to test goes into a folder beside `models` (not into it) and is served by hand on its own port; delete what is not kept.
+
+## v62 (21.11.2026): the bottom ellipse with a spectrum
+- Marko: "small ellipse indicator while I'm recording to come at the bottom of the screen ... a spectral analyzer while I'm talking." `RecordingIndicator.swift`: 150x40 ellipse, bottom centre of the mouse's screen, 20 bars 80 Hz-8 kHz, shown while a take records. Beside v61's TakeHUD oval. Hook: `com.mantra.voicetotext.indicator` userInfo `seconds` (temporary mic session, no take). Proof: `say` into the mic + `screencapture -R` of the bottom centre.

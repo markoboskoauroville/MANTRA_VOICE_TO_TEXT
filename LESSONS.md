@@ -267,3 +267,7 @@ Poll the mouse (macOS draws a status item once per display, only one copy owns t
 - A test that appends takes must read the box back each time: two takes in a row gave "minutes.Second" until the separator rule (space unless start, newline, opener) went into the one insert function.
 - A status item with a menu opens it on every click; to intercept a click, take the menu away (it.menu = nil) and use the button's target/action for as long as the state lasts, then give it back.
 - My TextEdit tests take the typing target: once his own dictation landed in the test box. Run them only when no take is near.
+
+
+## v62 (21.11.2026): the bottom ellipse
+- The spectrum reuses MicBands' sample ring (feed from captureOutput); the hook needs its own temporary AVCaptureSession because MicBands only runs while a take records. Screenshot test: `say` through the speakers into the microphone, `screencapture -R` on the bottom centre of the screen with the mouse (the primary screen is the BenQ, 1440x2560, bottom = y 2560 in screencapture coordinates). The indicator goes to the screen with the mouse pointer.
