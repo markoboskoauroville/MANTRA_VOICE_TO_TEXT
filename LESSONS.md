@@ -1,5 +1,10 @@
 # Lessons
 
+## v60 (21.11.2026): ducking and the end sound
+- Never restore the ducked speakers before the end sound: v57 and v58 called Duck.up in endListening and again in recorder.stop, so the music was back at full level under the beep and Marko did not hear it. The end sound plays while still ducked, then a pause, then a smooth ramp.
+- One owner for the duck: Duck.hold blocks every other Duck.up during the end sequence; down() cancels a running ramp. Only quit and launch force a restore.
+- Log the order of sounds (`sound:` and `seq:` lines) before guessing which sound moved; the v57 to v58 diff showed the end sound never changed.
+
 ## v58 (21.11.2026): the spoken Go
 - Marko's dictated voice names are garbled ("batteries" = Beatrice): look in the memory files (djmantra-tester-voice-say) before asking.
 - langsay exits silently while VOICE ENGINE is off, so its functions cannot be imported for a one-off render; call Speechify directly with the key ring by shape (the first key answered 402, the next worked).
