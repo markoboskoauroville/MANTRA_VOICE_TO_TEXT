@@ -63,6 +63,8 @@ Marko, for the MPA Lessons Analyzer: "I want to see this thing open up and it's 
 - Traps: `--settings-shot` offscreen renders show false white areas, check the real window with `screencapture -l`. Swift refuses `var a = "", b = "" { didSet }` (cost a build). A version number once pushed is never reused. Open test windows on the MacBook screen, not the BenQ.
 - The site mantravoicetotext.pages.dev is deployed from the Mac with `site/deploy.sh` after copying the release's app.zip to mac/dist/VoiceToTextMantra-v<N>-mac.zip (no compile). Done for v19 on 14.11.2026 (it showed 6).
 - Run log: 14.11.2026, v16-v19 built by GitHub, installed, Marko confirmed; site deployed v19.
+- Run log: 21.11.2026, v62 bottom ellipse with spectrum built by GitHub (run 44907562969), hook-tested, site deployed v62; waiting for Marko's F1 test and the centre-oval decision.
+- Run log: 21.11.2026, v62 bottom ellipse with spectrum built by GitHub (run 44907562969), hook-tested, site deployed v62; waiting for Marko's F1 test and the centre-oval decision.
 
 ## v28-v31 (15.11.2026)
 - One target box for typing and STYLE (Target.swift): last box clicked/focused in any app, never Vox; AX, then paste with the app in front, then COPY. Terminals are never pasted over by STYLE.

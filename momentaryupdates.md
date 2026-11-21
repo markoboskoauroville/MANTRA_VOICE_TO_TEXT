@@ -393,4 +393,4 @@ Meaning: "batteries" is his speech-to-text for Beatrice (Speechify beatrice_32, 
 ## 21.11.2026 (v62), Marko word for word
 > "Please fix my application Vox to text by adding a simple we need to place the blob small ellipse indicator while I'm recording to come at the bottom of the screen. That's all bottom of the screen, and it needs to have a spectral analyzer while I'm talking."
 
-**Status:** saved first (21.11.2026); v62.
+**Status:** v62 released and installed; hook-tested; waiting for Marko's F1 test and his decision on the centre oval.
