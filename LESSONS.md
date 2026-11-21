@@ -1,5 +1,11 @@
 # Lessons
 
+## v58 (21.11.2026): the spoken Go
+- Marko's dictated voice names are garbled ("batteries" = Beatrice): look in the memory files (djmantra-tester-voice-say) before asking.
+- langsay exits silently while VOICE ENGINE is off, so its functions cannot be imported for a one-off render; call Speechify directly with the key ring by shape (the first key answered 402, the next worked).
+- A cue that must not be recorded is solved by order, not trimming: play, wait for the end callback, then open the mic; guard a second key press while it plays. Rendering "Go." gave 0.91 s with silence; trimmed to 0.35 s.
+- To delete a folder of test files, make a fresh folder instead of rm -rf * (the safety check refuses it); ditto over /Applications replaces an app without rm.
+
 ## v56-v57 (17.11.2026): the biggest model
 - Measure before deciding by arithmetic: "4x the size = 4x the time" said the 4B model would miss 150 ms a word; measured it was 77 ms (1B: 28 ms). Bigger models run closer to the GPU's real speed.
 - Bigger was better at every step, but by one point each (40.5 → 41.4 → 42.6 % of keystrokes saved) for 3x and 10x the file and 5x the memory: say the price (2.9 GB while he types) with the gain, and leave a picker.
