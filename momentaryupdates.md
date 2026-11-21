@@ -383,3 +383,9 @@ Meaning (the master's): for Vox to Txt only, no approval stop between the parts 
 Meaning (the master's): download gemma-3-1b-it Q4_K_M (769 MB) and, if a per-word call can stay usable, gemma-3-4b-it Q4_K_M; the same 40-sentence benchmark, English and Croatian separately, on a larger Croatian set; the default is the biggest model that keeps a key under about 150 ms and improves the keystrokes saved; unused model files deleted; a model picker on the Typing tab if more than one is kept.
 
 **Status:** saved first (17.11.2026); relayed, not heard from Marko directly by the worker.
+
+## 21.11.2026, Marko word for word
+> "It needs to say GO, G-O, before it start to record. And when it's done, it just need to make the sound as it doing now. ... Please use batteries my favorite voice."
+Meaning: "batteries" is his speech-to-text for Beatrice (Speechify beatrice_32, see memory djmantra-tester-voice-say). F1 first plays a spoken "Go" in Beatrice, capture starts after the word ends; the end sound stays as it is. The "Go" is pre-rendered once and bundled in the app.
+
+**Status:** saved first (21.11.2026).
