@@ -76,7 +76,6 @@ final class Recorder: NSObject, AVCaptureFileOutputRecordingDelegate {
         session = s; output = out; deviceName = dev.localizedName
         started = Date(); accumulated = 0; paused = false
         TakeMark.set(true)
-        // v4: no duck here: the start sound must be heard whole at the normal level first (listen() ducks after it)
         return true
     }
 
@@ -466,8 +465,7 @@ enum Chime {
         if then != nil { DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { finished.fire() } }
     }
 
-    /// v4: what waits for the start sound to be over (the duck: Marko, 1.11.2026, "send the signal that it's
-    /// recording in normal volume and then reduce the volume")
+    /// Waits for the start sound to be over before the microphone opens.
     final class Finished: NSObject, NSSoundDelegate {
         var then: (() -> Void)?
         func fire() { let t = then; then = nil; t?() }

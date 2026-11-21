@@ -460,22 +460,26 @@ final class Stripe: NSObject {
             DispatchQueue.main.async {
                 guard ok else { self.say("no microphone: System Settings → Privacy → Microphone", Ink.red); return }
                 self.goPending = true
-                Chime.go { [weak self] in
-                    guard let self else { return }
-                    self.goPending = false
-                    guard self.recorder.start() else { self.say("the microphone did not start", Ink.red); return }
-                    Duck.down()
-                    Ears.warm()                                    // v28: the model is ready before the words arrive
-                    self.loudest = -160
-                    self.dot.color = Ink.red
-                    self.escape = HotKey(code: UInt32(kVK_Escape), id: 2) { [weak self] in self?.cancel() }
-                    self.face.send.symbol = "arrow.up"
-                    self.face.pause.live = true
-                    self.face.wave.moving = true
-                    self.voiceTick?.invalidate(); self.voiceTick = nil
-                    self.face.wave.color = VoiceWords.enabled ? Ink.green : WaveView.white      // v22: green while a take records
-                    self.tick = Timer.scheduledTimer(withTimeInterval: 1.0 / 24, repeats: true) { [weak self] _ in self?.showListening() }
-                    self.showListening()
+                Duck.down()
+                appendLog("seq: duck t0")
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                    Chime.go { [weak self] in
+                        guard let self else { return }
+                        self.goPending = false
+                        guard self.recorder.start() else { Duck.up(force: true); self.say("the microphone did not start", Ink.red); return }
+                        appendLog("seq: mic open")
+                        Ears.warm()                                    // v28: the model is ready before the words arrive
+                        self.loudest = -160
+                        self.dot.color = Ink.red
+                        self.escape = HotKey(code: UInt32(kVK_Escape), id: 2) { [weak self] in self?.cancel() }
+                        self.face.send.symbol = "arrow.up"
+                        self.face.pause.live = true
+                        self.face.wave.moving = true
+                        self.voiceTick?.invalidate(); self.voiceTick = nil
+                        self.face.wave.color = VoiceWords.enabled ? Ink.green : WaveView.white      // v22: green while a take records
+                        self.tick = Timer.scheduledTimer(withTimeInterval: 1.0 / 24, repeats: true) { [weak self] _ in self?.showListening() }
+                        self.showListening()
+                    }
                 }
             }
         }
@@ -497,8 +501,8 @@ final class Stripe: NSObject {
         dot.color = recorder.paused ? Ink.grey : Ink.red
     }
 
-    func endListening() {
-        Duck.up()                    // v4: the level back before the stop sound, so it is heard at the normal level
+    func endListening(restore: Bool = true) {
+        if restore { Duck.up() }
         tick?.invalidate(); escape = nil
         face.line.meterDB = nil
         face.pause.live = false
@@ -622,8 +626,14 @@ final class Stripe: NSObject {
     // which was typed). Shorter than 0.7 s, or never louder than -40 dB: the take is dropped.
     func finish() {
         let secs = recorder.elapsed
-        endListening()
-        Chime.play(start: false)
+        endListening(restore: false)
+        Duck.hold = true
+        Chime.play(start: false) {
+            appendLog("seq: beep end")
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                Duck.rampUp(seconds: 1.0)
+            }
+        }
         if secs < 0.7 || loudest < -40 {
             // v46: a quiet take of some length still goes in History with its audio (he may have spoken softly)
             let quiet = loudest, hear = HearEngine.current
@@ -1101,7 +1111,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         FileAPI.start()              // v15: the local API for Transcribe a file, 127.0.0.1:8865 only
         Shared.start()               // v50: the shared correction database (pull now and every five minutes) and the learner
         DispatchQueue.global().async { KeyImporter.loadFamous(); Frankfurt.syncKeys() }     // v20: the keys go to the relay, write only
-        Duck.up()                    // v3: speakers left at 6 % by a crash go back to their level
+        Duck.up(force: true)         // v3: speakers left at 6 % by a crash go back to their level
         Updater.checkAtStart()       // v16: asks "Do you want to update?" when a newer release is Latest
         for delay in [0.3, 2.0, 5.0] {
             DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
@@ -1113,7 +1123,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     // closing a window leaves the app ON; the star's open (a reopen) brings the stripe back (Marko, 19.10.2026)
-    func applicationWillTerminate(_ n: Notification) { stripe.releaseKeys(); Duck.up(); TakeMark.set(false); LocalModel.stop() }
+    func applicationWillTerminate(_ n: Notification) { stripe.releaseKeys(); Duck.up(force: true); TakeMark.set(false); LocalModel.stop() }
     func applicationShouldTerminateAfterLastWindowClosed(_ s: NSApplication) -> Bool { false }
     func applicationShouldHandleReopen(_ s: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
         if stripe.minimizedFrame != nil { stripe.showQuietly() } else { stripe.panel.orderFrontRegardless() }

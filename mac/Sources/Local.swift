@@ -195,6 +195,8 @@ enum Merge {
 
 enum Duck {
     static let level: Float32 = 0.06
+    static var hold = false
+    private static var rampToken = 0
     static var enabled: Bool {
         get { UserDefaults.standard.object(forKey: "duck") as? Bool ?? true }
         set { UserDefaults.standard.set(newValue, forKey: "duck") }
@@ -233,7 +235,13 @@ enum Duck {
     /// the take began listening: down to 6 % (never up: a quieter level stays as it is). A device without a volume
     /// (BlackHole, an aggregate) is left alone.
     static func down() {
-        guard enabled, !ducked, let dev = defaultOutput(), let v = volume(dev) else { return }
+        rampToken += 1
+        hold = false
+        if ducked {
+            set(AudioDeviceID(UserDefaults.standard.integer(forKey: deviceKey)), level)
+            return
+        }
+        guard enabled, let dev = defaultOutput(), let v = volume(dev) else { return }
         UserDefaults.standard.set(v, forKey: savedKey)
         UserDefaults.standard.set(Int(dev), forKey: deviceKey)
         UserDefaults.standard.synchronize()
@@ -242,11 +250,37 @@ enum Duck {
     }
 
     /// listening is over (stop, pause, ✕, Esc, quit, or the launch after a crash): the level it had, on the device it had
-    static func up() {
+    static func up(force: Bool = false) {
+        guard !hold || force else { return }
         let d = UserDefaults.standard
         guard let v = d.object(forKey: savedKey) as? Float32 ?? (d.object(forKey: savedKey) as? Double).map({ Float32($0) }) else { return }
         let dev = AudioDeviceID(d.integer(forKey: deviceKey))
         d.removeObject(forKey: savedKey); d.removeObject(forKey: deviceKey); d.synchronize()
         if set(dev, v) { appendLog(String(format: "duck: speakers back to %.0f %%", v * 100)) }
+    }
+
+    static func rampUp(seconds: Double) {
+        hold = false
+        let d = UserDefaults.standard
+        guard let v = d.object(forKey: savedKey) as? Float32 ?? (d.object(forKey: savedKey) as? Double).map({ Float32($0) }),
+              d.object(forKey: deviceKey) != nil else { return }
+        let dev = AudioDeviceID(d.integer(forKey: deviceKey))
+        let current = volume(dev) ?? level
+        let token = rampToken
+        appendLog("duck: ramp start")
+        for i in 1...20 {
+            DispatchQueue.main.asyncAfter(deadline: .now() + seconds * Double(i) / 20.0) {
+                guard rampToken == token else { return }
+                let next = current + (v - current) * Float32(i) / 20.0
+                set(dev, next)
+                if i == 20 {
+                    d.removeObject(forKey: savedKey)
+                    d.removeObject(forKey: deviceKey)
+                    d.synchronize()
+                    appendLog(String(format: "duck: speakers back to %.0f %%", v * 100))
+                    appendLog("duck: ramp end")
+                }
+            }
+        }
     }
 }
