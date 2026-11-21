@@ -446,6 +446,7 @@ enum Chime {
         finished.then = then
         s.delegate = finished
         s.stop()
+        appendLog("sound: GO (go.m4a)")
         if !s.play() { DispatchQueue.main.async { finished.fire() } }
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { finished.fire() }
     }
@@ -453,6 +454,7 @@ enum Chime {
     static func play(start: Bool, position: Float? = nil, force: Bool = false, then: (() -> Void)? = nil) {
         if !force && !Prefs.chimesOn { DispatchQueue.main.async { then?() }; return }       // v33: the speaker in ⚙ is grey
         let s = sound(start: start)
+        appendLog("sound: " + (start ? "START" : "END") + " (" + (s?.name ?? "file") + ")")
         s?.volume = gain(position ?? (start ? Prefs.startVolume : Prefs.stopVolume))      // v15: the levels in ⚙
         OutputDevice.apply(s)                                                        // v28: OUTPUT in Settings
         playing = s
