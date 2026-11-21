@@ -389,3 +389,8 @@ Meaning (the master's): download gemma-3-1b-it Q4_K_M (769 MB) and, if a per-wor
 Meaning: "batteries" is his speech-to-text for Beatrice (Speechify beatrice_32, see memory djmantra-tester-voice-say). F1 first plays a spoken "Go" in Beatrice, capture starts after the word ends; the end sound stays as it is. The "Go" is pre-rendered once and bundled in the app.
 
 **Status:** saved first (21.11.2026).
+
+## 21.11.2026 (v62), Marko word for word
+> "Please fix my application Vox to text by adding a simple we need to place the blob small ellipse indicator while I'm recording to come at the bottom of the screen. That's all bottom of the screen, and it needs to have a spectral analyzer while I'm talking."
+
+**Status:** saved first (21.11.2026); v62.
