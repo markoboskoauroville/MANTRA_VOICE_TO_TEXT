@@ -924,7 +924,7 @@ final class Stripe: NSObject {
 
     // v66 (Marko, 22.11.2026: "I select my text box. I press style, nothing is happening, and, make a fallback. First styling is
     // coming with Opus, and second styling is coming with Groq."): the CAUSE of "nothing happening" was two early returns here that
-    // only wrote a short red line: the STYLING switch of the language (styleButtonOn_en = 0, removed in v68) and the text mode ——— (textMode_en =
+    // only wrote a short red line: the per-language STYLING switch (removed in v68) and the text mode ——— (textMode_en =
     // none) refused the press. A press is a deliberate act: neither switch stops it any more (mode ——— styles as S+C), the walk is
     // StyleChain (Opus, then Groq), every outcome is logged, and the button becomes UNDO for 30 s after a text was changed.
     private var undoState: (target: Restyle.Target, original: String, styled: String, at: Date)?
