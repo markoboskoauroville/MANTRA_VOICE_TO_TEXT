@@ -406,3 +406,8 @@ Meaning: "batteries" is his speech-to-text for Beatrice (Speechify beatrice_32, 
 > "Now this, what we call SpectralAnalyzer, needs to be on the screen when I'm entering the text. So where is the cursor? Blob comes to that screen."
 
 **Plan:** the ellipse goes to the screen of the text cursor: (a) insertion point bounds, (b) focused element frame, (c) focused window of the front app, (d) the mouse. Bottom centre as before; re-checked each tick; one log line per show/move; hook `screen` stays an override, otherwise the same rule; CI pins the focus resolver with the mouse last.
+
+## 22.11.2026 (v66), Marko word for word
+> "Fix another bug from walks to text. In blob, there is a style button. It's supposed to style anything which is inside the text box, but it doesn't do it. I... I'm now in WhatsApp. I select my my text box. I press style, nothing is happening, and, make a fallback. First styling is coming with Opus, and second styling is coming with Groq. So one of these two must work."
+
+**Plan:** find the cause (read half or model half, silent failure); robust read/write of the focused box (remember the box before the pill click; selection, value, select-all+copy; paste back; never Return); styling Opus first, Groq second, box unchanged if both fail; pill says who styled it; UNDO; tests and a pin in CI.
