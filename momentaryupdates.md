@@ -394,3 +394,8 @@ Meaning: "batteries" is his speech-to-text for Beatrice (Speechify beatrice_32, 
 > "Please fix my application Vox to text by adding a simple we need to place the blob small ellipse indicator while I'm recording to come at the bottom of the screen. That's all bottom of the screen, and it needs to have a spectral analyzer while I'm talking."
 
 **Status:** v62 released and installed; hook-tested; waiting for Marko's F1 test and his decision on the centre oval.
+
+## 22.11.2026 (v63), Marko word for word
+> "Since we have now our frequency analyzer or spectrum analyzer done, this is good. So recording blob can go away. Something which is happening in the middle of the screen needs to go away."
+
+**Status:** started; the centre TakeHUD oval goes (v63).
