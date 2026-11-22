@@ -6,7 +6,7 @@ name: build
 on:
   push:
     branches: [main]
-    paths: ["mac/**", ".github/workflows/build.yml"]
+    paths: ["mac/**", ".github/workflows/build.yml", ".github/ci/**"]
   workflow_dispatch:
 permissions:
   contents: write
@@ -18,6 +18,8 @@ jobs:
     runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
+      - name: No centre status window (v63)
+        run: bash .github/ci/no_centre_status.sh
       - name: Build
         working-directory: mac
         run: WHISPER="$RUNNER_TEMP/whisper.cpp" SIGN=- NO_INSTALL=1 ./build.sh --no-publish

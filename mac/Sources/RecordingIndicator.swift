@@ -69,12 +69,21 @@ final class RecordingIndicator {
 
     private func tick() {
         let taking = stripe.map { $0.recorder.recording && !$0.recorder.paused } ?? false
+        // v63: the centre oval is gone; its Paused and Transcribing states live here, in the same ellipse
+        let paused = stripe.map { $0.recorder.recording && $0.recorder.paused } ?? false
+        let working = stripe.map { !$0.recorder.recording && $0.busy } ?? false
         let testing = testUntil.map { Date() < $0 } ?? false
         if testUntil != nil && !testing { endTest() }
         if taking || testing {
             if !shown { show(taking ? "take" : "hook") }
             RecordingIndicator.lock.lock(); let db = RecordingIndicator.latest; RecordingIndicator.lock.unlock()
+            view?.mode = 0; RecordingIndicator.live = true
             view?.take(db)
+        } else if paused || working {
+            if !shown { show(paused ? "paused" : "transcribing") }
+            view?.mode = paused ? 1 : 2          // 1: bars frozen and dimmed; 2: a quiet wave runs through the bars
+            RecordingIndicator.live = false
+            view?.take([])
         } else if shown { hide() }
     }
 
@@ -140,8 +149,15 @@ final class RecordingIndicator {
 final class BarsView: NSView {
     private var spec = [Double](repeating: -140, count: RecordingIndicator.bars)
     private var last = CFAbsoluteTimeGetCurrent()
+    var mode = 0           // v63: 0 recording, 1 paused (frozen, dim), 2 transcribing (quiet moving wave)
     func reset() { spec = [Double](repeating: -140, count: spec.count); last = CFAbsoluteTimeGetCurrent(); needsDisplay = true }
     func take(_ db: [Double]) {
+        if mode == 1 { needsDisplay = true; return }
+        if mode == 2 {
+            let ph = CFAbsoluteTimeGetCurrent() * 3
+            for c in 0..<spec.count { spec[c] = RecordingIndicator.TOP - RecordingIndicator.RANGE * (0.62 - 0.22 * sin(ph - Double(c) * 0.5)) }
+            needsDisplay = true; return
+        }
         let t = CFAbsoluteTimeGetCurrent(), dt = min(0.2, t - last); last = t
         for c in 0..<spec.count {
             let m = c < db.count ? db[c] : -140
@@ -153,7 +169,7 @@ final class BarsView: NSView {
         let n = spec.count, gap: CGFloat = 2.5, w: CGFloat = 3.2
         let x0 = (bounds.width - CGFloat(n) * w - CGFloat(n - 1) * gap) / 2
         let maxH = bounds.height - 14
-        NSColor(white: 1, alpha: 0.92).setFill()
+        NSColor(white: 1, alpha: mode == 1 ? 0.4 : (mode == 2 ? 0.6 : 0.92)).setFill()
         for i in 0..<n {
             let f = min(1, max(0, (spec[i] - (RecordingIndicator.TOP - RecordingIndicator.RANGE)) / RecordingIndicator.RANGE))
             let h = max(w, CGFloat(f) * maxH)

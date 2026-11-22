@@ -269,5 +269,8 @@ Poll the mouse (macOS draws a status item once per display, only one copy owns t
 - My TextEdit tests take the typing target: once his own dictation landed in the test box. Run them only when no take is near.
 
 
+## v63 (22.11.2026): the centre oval removed
+- Marko: "recording blob can go away. Something which is happening in the middle of the screen needs to go away." TakeHUD.swift and its three calls (start, two refresh) deleted, not hidden. Before deleting a status window, list what it shows and where each state lives after: the pill is closed by default since v61, so Paused and Transcribing would have been visible nowhere; the ellipse carries them now. CI script .github/ci/no_centre_status.sh pins it.
+
 ## v62 (21.11.2026): the bottom ellipse
 - The spectrum reuses MicBands' sample ring (feed from captureOutput); the hook needs its own temporary AVCaptureSession because MicBands only runs while a take records. Screenshot test: `say` through the speakers into the microphone, `screencapture -R` on the bottom centre of the screen with the mouse (the primary screen is the BenQ, 1440x2560, bottom = y 2560 in screencapture coordinates). The indicator goes to the screen with the mouse pointer.

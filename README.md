@@ -4,7 +4,9 @@ Until v38 "Voice to Text (Mantra)" (renamed 17.11.2026, v39, at Marko's word: "V
 
 Until v1 "Mantra Voice to Text" (renamed 1.11.2026 at Marko's word, v2). Website https://mantravoicetotext.pages.dev, files on the public release markoboskoauroville/mantra-voice-to-text-downloads.
 
-**v62 (21.11.2026):** a small ellipse with a 20-bar live spectrum shows at the bottom of the screen while a take records (RecordingIndicator.swift). Closed for this session; waiting for Marko: (1) a real F1 take to judge the bars, (2) decide about v61's centre oval (TakeHUD): remove, keep, or keep only for Transcribing.
+**v63 (22.11.2026):** the oval in the middle of the screen (TakeHUD) is gone; the bottom ellipse with the spectrum is the only recording indicator, and it also stays up (bars frozen and dim) while paused and (quiet moving wave) while the take is written down.
+
+**v62 (21.11.2026):** a small ellipse with a 20-bar live spectrum shows at the bottom of the screen while a take records (RecordingIndicator.swift).
 
 Press F1, talk, press F1 again: your words are typed wherever the cursor is. Whisper Turbo runs on your own computer
 (offline, nothing leaves the machine); an optional Anthropic key adds Auto correct and the STYLE button.

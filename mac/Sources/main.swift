@@ -194,7 +194,6 @@ final class Stripe: NSObject {
         }
         if Prefs.blobOpen { panel.orderFrontRegardless() } else { minimizedFrame = panel.frame; panel.orderOut(nil) }   // v61: closed by default
         RecordingIndicator.shared.start(self)   // v62: the small ellipse with a spectrum at the bottom while recording
-        TakeHUD.shared.start(self)        // v61: the oval "Recording / Transcribing" in the middle of every screen
         Magnet.shared.setup(self)         // v27: the display and the body may be detached; the state of the last run comes back
         MenuDisplay.shared.setup(self)    // v33: the display in the menu bar, when ⚙ says so
         TypingSuggest.shared.setup(self)  // v51: suggestions while he types in any app (Option+Space takes the first)
@@ -458,7 +457,6 @@ final class Stripe: NSObject {
         refresh()                                       // v29: COPY back to grey
         if minimizedFrame == nil && !recorder.recording { followTyping() }      // v61: a press never opens the blob
         recorder.recording ? finish() : listen()
-        TakeHUD.shared.refresh()
     }
 
     var goPending = false                                 // v58: the spoken Go is playing, the microphone is not open yet
@@ -471,7 +469,6 @@ final class Stripe: NSObject {
                 self.goPending = true
                 Duck.down()
                 appendLog("seq: duck t0")
-                TakeHUD.shared.refresh()
                 do {      // v61 (Marko: "start immediately with go without any delay"): no silence before Go
                     Chime.go { [weak self] in
                         guard let self else { return }
