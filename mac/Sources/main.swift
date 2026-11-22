@@ -1342,6 +1342,18 @@ if CommandLine.arguments.contains("--selftest") {
     print(failed == 0 ? "selftest: all passed" : "selftest: \(failed) FAILED")
     exit(failed == 0 ? 0 : 1)
 }
+// v67: `--stylechain <lang> "<text>" [--groq-only | --opus-only]`: the STYLE button's walk with the real providers, no box, no window
+if let i = CommandLine.arguments.firstIndex(of: "--stylechain"), i + 2 < CommandLine.arguments.count {
+    let lang = CommandLine.arguments[i + 1], text = CommandLine.arguments[i + 2]
+    var steps = StyleChain.steps(lang: lang, mode: .styleCorrect, first: StyleButtonEngine.current)
+    if CommandLine.arguments.contains("--groq-only") { steps = [steps[1]] }
+    if CommandLine.arguments.contains("--opus-only") { steps = [steps[0]] }
+    let t0 = Date()
+    let rep = StyleChain.run(corrected(text), steps: steps)
+    for a in rep.attempts { print("attempt:", a) }
+    print(String(format: "%.1f s", Date().timeIntervalSince(t0)), rep.by.map { "styled by " + $0 + ":" } ?? "NOT styled:", rep.styled ?? rep.failure ?? "")
+    exit(rep.styled == nil ? 1 : 0)
+}
 if let i = CommandLine.arguments.firstIndex(of: "--style"), i + 3 < CommandLine.arguments.count,
    let e = StyleEngine(rawValue: CommandLine.arguments[i + 1]) {
     let t0 = Date()
