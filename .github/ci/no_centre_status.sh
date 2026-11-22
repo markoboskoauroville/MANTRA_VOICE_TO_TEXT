@@ -25,5 +25,29 @@ for f in *.swift; do
     echo "FAIL: $f creates $n window(s), allowed ${allowed:-0}: new window: add it to the list only if it is not a status window in the middle of the screen"; bad=1
   fi
 done
+# v65 (Marko, 22.11.2026: "Blob comes to that screen" where the cursor is): the indicator's screen comes from the focus resolver,
+# the mouse is only the last fallback, and the AX (top-left) to AppKit (bottom-left) conversion keeps its formula.
+grep -q 'FocusScreen.resolve()' RecordingIndicator.swift || { echo "FAIL: the indicator's screen does not come from FocusScreen.resolve()"; bad=1; }
+if grep -n 'mouseLocation' RecordingIndicator.swift; then echo "FAIL: RecordingIndicator uses the mouse; only FocusScreen may, as its last fallback"; bad=1; fi
+[ "$(grep -c 'mouseLocation' FocusScreen.swift)" = 1 ] || { echo "FAIL: the mouse must be used exactly once in FocusScreen (rule d, last)"; bad=1; }
+a=$(grep -n 'b: focused element' FocusScreen.swift | head -1 | cut -d: -f1); m=$(grep -n 'mouseLocation' FocusScreen.swift | head -1 | cut -d: -f1)
+[ -n "$a" ] && [ -n "$m" ] && [ "$m" -gt "$a" ] || { echo "FAIL: in FocusScreen the mouse is not after the focus rules"; bad=1; }
+grep -q 'primaryHeight - r.minY - r.height' FocusScreen.swift || { echo "FAIL: the AX to AppKit conversion formula changed"; bad=1; }
+python3 - <<'PY' || bad=1
+# unit-style check of the same conversion on both real layouts (BenQ portrait 1440x2560 primary, MacBook 1512x982 at 1440,351)
+frames=[(0,0,1440,2560),(1440,351,1512,982)]; ph=frames[0][3]
+def conv(x,y,w,h): return (x, ph-y-h, w, h)
+def idx(r):
+    cx,cy=r[0]+r[2]/2,r[1]+r[3]/2
+    for i,f in enumerate(frames):
+        if f[0]<=cx<f[0]+f[2] and f[1]<=cy<f[1]+f[3]: return i
+cases=[((300,400,2,18),0),((300,2500,2,18),0),((1500,1300,2,18),1),((2400,2000,2,18),1),((1500,300,2,18),None),((100,100,800,600),0),((1500,1250,600,50),1)]
+# AX top-left y: BenQ spans 0..2560; MacBook spans y 1227..2209 (2560-1333 .. 2560-351)
+for r,want in cases:
+    got=idx(conv(*r))
+    if got!=want: print("FAIL: conversion",r,"gave screen",got,"wanted",want); raise SystemExit(1)
+print("ok: AX to AppKit conversion places the 6 sample rectangles on the right screen of both layouts")
+PY
+
 [ $bad = 0 ] && echo "ok: no centre status window; bottom ellipse present; every window creation is on the list"
 exit $bad

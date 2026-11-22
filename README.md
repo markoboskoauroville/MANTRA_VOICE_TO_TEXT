@@ -4,6 +4,8 @@ Until v38 "Voice to Text (Mantra)" (renamed 17.11.2026, v39, at Marko's word: "V
 
 Until v1 "Mantra Voice to Text" (renamed 1.11.2026 at Marko's word, v2). Website https://mantravoicetotext.pages.dev, files on the public release markoboskoauroville/mantra-voice-to-text-downloads.
 
+**v65 (22.11.2026):** the ellipse is on the screen of the text cursor (insertion point, else focused element, else focused window, the mouse only last) and follows it to the other screen.
+
 **v64 (22.11.2026):** test hook for the ellipse takes `state` (recording, paused, transcribing) and `screen`; the CI pin lists every file allowed to create a window.
 
 **v63 (22.11.2026):** the oval in the middle of the screen (TakeHUD) is gone; the bottom ellipse with the spectrum is the only recording indicator, and it also stays up (bars frozen and dim) while paused and (quiet moving wave) while the take is written down.

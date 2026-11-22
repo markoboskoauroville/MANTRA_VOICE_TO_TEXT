@@ -22,6 +22,8 @@ final class RecordingIndicator {
     private var shown = false
     private var testUntil: Date?
     private var testState = "recording"      // v64 hook: recording | paused | transcribing
+    private var shownOn: NSRect?            // v65: the frame of the screen the ellipse is on
+    private var checkedAt = Date.distantPast
     private var testScreen: Int?             // v64 hook: index in NSScreen.screens; nil = the screen with the mouse
     private var testSession: AVCaptureSession?
     private var testBands: MicBands?
@@ -93,11 +95,12 @@ final class RecordingIndicator {
             RecordingIndicator.live = false
             view?.take([])
         } else if shown { hide() }
+        follow()
     }
 
     private func show(_ why: String) {
-        var sc = NSScreen.screens.first { NSMouseInRect(NSEvent.mouseLocation, $0.frame, false) } ?? NSScreen.main ?? NSScreen.screens[0]
-        if let i = testScreen, testUntil != nil, NSScreen.screens.indices.contains(i) { sc = NSScreen.screens[i] }
+        let (sc, idx, rule) = pickScreen()
+        shownOn = sc.frame; checkedAt = Date()
         let vf = sc.visibleFrame, w = RecordingIndicator.W, h = RecordingIndicator.H
         let r = NSRect(x: vf.midX - w / 2, y: vf.minY + 14, width: w, height: h)
         if panel == nil {
@@ -122,7 +125,28 @@ final class RecordingIndicator {
         panel?.alphaValue = 1
         panel?.orderFrontRegardless()
         shown = true
-        appendLog("indicator: shown (\(why)) on \(NSStringFromRect(r))")
+        appendLog("indicator: shown (\(why)) on screen \(idx) by rule \(rule), frame \(NSStringFromRect(r))")
+    }
+
+    /// v65: the screen of the text cursor (FocusScreen: insertion point, focused element, focused window, the mouse last);
+    /// the hook's `screen` stays an override
+    private func pickScreen() -> (NSScreen, Int, String) {
+        if let i = testScreen, testUntil != nil, NSScreen.screens.indices.contains(i) { return (NSScreen.screens[i], i, "hook override") }
+        let r = FocusScreen.resolve()
+        return (r.screen, r.index, r.rule)
+    }
+
+    /// re-checked while it is up: if the text cursor went to the other screen, the ellipse is there at once (no animation)
+    private func follow() {
+        guard shown, Date().timeIntervalSince(checkedAt) > 0.3 else { return }
+        checkedAt = Date()
+        let (sc, idx, rule) = pickScreen()
+        guard sc.frame != shownOn else { return }
+        shownOn = sc.frame
+        let vf = sc.visibleFrame, w = RecordingIndicator.W, h = RecordingIndicator.H
+        let r = NSRect(x: vf.midX - w / 2, y: vf.minY + 14, width: w, height: h)
+        panel?.setFrame(r, display: false)
+        appendLog("indicator: moved to screen \(idx) by rule \(rule), frame \(NSStringFromRect(r))")
     }
 
     private func hide() {

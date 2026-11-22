@@ -269,6 +269,9 @@ Poll the mouse (macOS draws a status item once per display, only one copy owns t
 - My TextEdit tests take the typing target: once his own dictation landed in the test box. Run them only when no take is near.
 
 
+## v65 (22.11.2026): the ellipse follows the text cursor
+- Marko: "this, what we call SpectralAnalyzer, needs to be on the screen when I'm entering the text. So where is the cursor? Blob comes to that screen." Screen = focus rules a to d (insertion point, element, window, mouse last). AX is top-left, AppKit bottom-left: y = primaryHeight - y - height; the primary screen is screens[0] even when it is the portrait BenQ. While Marko tests with real takes at the same moment, a real take overrides a hook state: wait for an idle log before photographing a hook state.
+
 ## v63 (22.11.2026): the centre oval removed
 - Round 1: 7 of 10 (looks unseen, pin weak, docs). Round 2 (v64) changed: hook `state`/`screen` so paused and transcribing are seen on both screens; the pin keeps an explicit list of files allowed to create a window; TAKEOVER top states the current version. Lesson: a state you cannot trigger is a state nobody has seen; give every look a hook before calling it done, and a pin must list what is allowed, not only grep what is forbidden.
 - Marko: "recording blob can go away. Something which is happening in the middle of the screen needs to go away." TakeHUD.swift and its three calls (start, two refresh) deleted, not hidden. Before deleting a status window, list what it shows and where each state lives after: the pill is closed by default since v61, so Paused and Transcribing would have been visible nowhere; the ellipse carries them now. CI script .github/ci/no_centre_status.sh pins it.
