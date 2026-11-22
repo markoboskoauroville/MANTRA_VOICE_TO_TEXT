@@ -399,3 +399,5 @@ Meaning: "batteries" is his speech-to-text for Beatrice (Speechify beatrice_32, 
 > "Since we have now our frequency analyzer or spectrum analyzer done, this is good. So recording blob can go away. Something which is happening in the middle of the screen needs to go away."
 
 **Status:** started; the centre TakeHUD oval goes (v63).
+
+**22.11.2026, v63 round 1 scored 7 of 10 by Fable; corrections for v64:** (1) test hook `com.mantra.voicetotext.indicator` gets userInfo `state` (recording|paused|transcribing) and `screen` (index); (2) prove paused and transcribing on the BenQ, recording and paused on the MacBook screen: window list + screenshots looked at, judge the looks, fix if weak; (3) CI pin gets an explicit list of Swift files allowed to create a window or panel, failing on a new one; (4) v64 by GitHub, install, quit via the app's own QUIT through AX else menu Quit through AX; (5) TAKEOVER top states v64, v62 paragraph under history, LESSONS round 1, README, skill, PROJECTS.md; (6) testclean, screenshots under vox64/.
