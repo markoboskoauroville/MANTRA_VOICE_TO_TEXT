@@ -7,6 +7,7 @@
 // route. A relay answer "failed" (every key out, ...) is the engine's answer and is not retried direct. Keys go to the relay
 // write-only (POST /keys, merged, never read back), from the Mac's own key store, never printed.
 import Foundation
+import Network
 
 enum Frankfurt {
     static let defaultURL = "http://100.102.86.30:8897"
@@ -28,93 +29,60 @@ enum Frankfurt {
     private static var checked = Date.distantPast
     private static var alive = false
     private static var version = 0
+    private static var watch = RelayWatch()
     private static let lock = NSLock()
 
-    /// does the relay answer (cached 20 s; a failed check is cached 5 s)
+    /// does the relay answer. Not forced: the last answer while its pause has not run out; forced: asks now.
     static func reachable(force: Bool = false) -> Bool {
         lock.lock()
-        let age = Date().timeIntervalSince(checked), was = alive, busy = fixing
+        let was = alive, due = watch.due(now: Date(), last: checked)
         lock.unlock()
-        // v35: while the Tailscale macro works, or a miss is fresh (the 20 s background check looks again), a take never
-        // waits for a health call: it goes direct at once
-        if !force && (busy || age < (was ? 20 : 60)) { return was }
-        // the lock is not held while the network answers, so a take never waits behind the background check
+        if !force && !due { return was }
+        return check()
+    }
+
+    /// one /health call (the lock is not held while the network answers), the state recorded, a notice only on a change
+    @discardableResult private static func check() -> Bool {
         let r = call(Adapters.request(base + "/health", method: "GET"), timeout: 4)
         let ok = r.status == 200 && (json(r.data)["ok"] as? Bool) == true
-        if !ok { appendLog("frankfurt: /health HTTP \(r.status) \(r.error ?? "")") }
-        lock.lock()
-        alive = ok; version = (json(r.data)["version"] as? Int) ?? version; checked = Date()
-        lock.unlock()
-        if !ok && on { fixTailscale() }
+        record(ok, version: ok ? ((json(r.data)["version"] as? Int) ?? version) : nil)
         return ok
     }
 
-    /// the 20 s background check
-    static func backgroundCheck() { _ = reachable(force: true) }
-
-    // v35 (Marko, 16.11.2026: "if there is no connection to the server, it just triggers the macro to find ... this tailscale on
-    // the menu bar and just activate it and click the switch tailscale connect ... forget this 5 times pause"): a miss sends
-    // the take direct at once and starts the Macro Recorder skill that brings Tailscale up, in the background, at most once a
-    // minute; when it ends /health is asked again and the next take uses Frankfurt if it answers.
-    private static var fixing = false
-    private static var lastFix = Date.distantPast
-    private static let macroskill = NSHomeDirectory() + "/.local/bin/macroskill"
-
-    private static func shell(_ args: [String], timeout: TimeInterval) -> (code: Int32, out: String) {
-        let p = Process()
-        p.executableURL = URL(fileURLWithPath: macroskill)
-        p.arguments = args
-        var env = ProcessInfo.processInfo.environment
-        env["PATH"] = "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin"
-        p.environment = env
-        let pipe = Pipe(); p.standardOutput = pipe; p.standardError = pipe
-        do { try p.run() } catch { return (-1, "\(error)") }
-        let end = Date().addingTimeInterval(timeout)
-        while p.isRunning && Date() < end { Thread.sleep(forTimeInterval: 0.2) }
-        if p.isRunning { p.terminate(); return (-2, "timed out") }
-        let d = pipe.fileHandleForReading.readDataToEndOfFile()
-        return (p.terminationStatus, String(data: d, encoding: .utf8) ?? "")
-    }
-
-    /// the skill that brings Tailscale up: `tailscale-ensure-up`, else a macro skill whose id says tailscale and up/ensure/connect
-    private static func findSkill() -> String? {
-        let r = shell(["has", "tailscale ensure up", "--json"], timeout: 20)
-        guard let o = try? JSONSerialization.jsonObject(with: Data(r.out.utf8)) as? [String: Any],
-              let ms = o["matches"] as? [[String: Any]] else { return nil }
-        let ids = ms.compactMap { $0["id"] as? String }
-        if ids.contains("tailscale-ensure-up") { return "tailscale-ensure-up" }
-        return ids.first { id in id.contains("tailscale") && !id.contains("exit") && ["ensure", "up", "connect", "on"].contains { k in id.contains(k) } }
-    }
-
-    static func fixTailscale() {
+    private static func record(_ ok: Bool, version v: Int? = nil) {
         lock.lock()
-        if fixing || Date().timeIntervalSince(lastFix) < 60 { lock.unlock(); return }
-        fixing = true; lastFix = Date()
+        alive = ok; checked = Date(); if let v { version = v }
+        let (notice, line) = watch.observe(ok: ok, now: Date())
         lock.unlock()
-        DispatchQueue.global(qos: .utility).async {
-            func done(_ t: String, good: Bool) {
-                lock.lock(); fixing = false; lock.unlock()
-                appendLog("frankfurt: tailscale fix: " + t)
-                DispatchQueue.main.async { Toast.show(t, good: good) }
-            }
-            appendLog("frankfurt: the relay does not answer: looking for the Tailscale macro")
-            guard let id = findSkill() else { done("no Tailscale macro", good: false); return }
-            appendLog("frankfurt: running macro skill \(id)")
-            let r = shell(["run", id], timeout: 120)
-            appendLog("frankfurt: macroskill run \(id) exit \(r.code): " + String(r.out.suffix(200)).replacingOccurrences(of: "\n", with: " "))
-            Thread.sleep(forTimeInterval: 2)
-            lock.lock(); fixing = false; lock.unlock()
-            if reachableNoFix() { done("Tailscale was off: switched on", good: true) }
-            else { done("Tailscale fix failed: direct", good: false) }
+        if let line { appendLog(line) }
+        switch notice {
+        case .down: Toast.show("Frankfurt relay not reachable: dictating direct", good: false)
+        case .back: Toast.show("Frankfurt relay is back", good: true)
+        case .none: break
         }
     }
 
-    /// /health once, without starting another fix
-    private static func reachableNoFix() -> Bool {
-        let r = call(Adapters.request(base + "/health", method: "GET"), timeout: 6)
-        let ok = r.status == 200 && (json(r.data)["ok"] as? Bool) == true
-        lock.lock(); alive = ok; checked = Date(); version = (json(r.data)["version"] as? Int) ?? version; lock.unlock()
-        return ok
+    /// the 20 s background timer: looks only when the pause of the state has run out
+    static func backgroundCheck() { _ = reachable(force: false) }
+
+    /// a take starts or the network changed: look now (at most once in 5 s), so a return is noticed at once
+    static func lookNow() {
+        lock.lock(); let age = Date().timeIntervalSince(checked); lock.unlock()
+        if age >= 5 { check() }
+    }
+
+    private static var path: AnyObject?
+    /// the network changed (Wi-Fi, cable, VPN up or down): look at once. Only observes; nothing is started or repaired.
+    static func watchNetwork() {
+        guard path == nil else { return }
+        let m = NWPathMonitor()
+        var first = true
+        m.pathUpdateHandler = { _ in
+            if first { first = false; return }
+            DispatchQueue.global().async { lookNow() }
+        }
+        m.start(queue: DispatchQueue(label: "relay-path"))
+        path = m
     }
 
     static var relayVersion: Int { version }
@@ -204,7 +172,7 @@ enum Frankfurt {
         return .failure(EngineError("Frankfurt: no result in time"))
     }
 
-    private static func forget() { lock.lock(); alive = false; checked = Date(); lock.unlock(); fixTailscale() }
+    private static func forget() { record(false) }       // a job found the relay gone: the state is recorded (one notice on the change)
 }
 
 extension Adapters {

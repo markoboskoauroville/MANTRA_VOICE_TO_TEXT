@@ -33,10 +33,11 @@ final class MenuBar: NSObject, NSMenuDelegate {
         let t = Timer(timeInterval: 0.1, repeats: true) { [weak self] _ in self?.follow() }
         RunLoop.main.add(t, forMode: .common)            // it changes colour while a menu is open too
         timer = t
-        // v22: the Frankfurt badge (FRA / DIR) next to VT; the relay is asked every 20 s, off the main thread
+        // v22: the Frankfurt badge (FRA / DIR) next to VT; the relay is looked at every 20 s while up, with a growing pause while down (RelayWatch), off the main thread
         let c = Timer(timeInterval: 20, repeats: true) { _ in DispatchQueue.global().async { Frankfurt.backgroundCheck() } }
         RunLoop.main.add(c, forMode: .common); checkTimer = c
         DispatchQueue.global().async { _ = Frankfurt.reachable(force: true) }
+        Frankfurt.watchNetwork()                         // v69: a network change is looked at at once
         DistributedNotificationCenter.default().addObserver(forName: .init("com.mantra.voicetotext.toast"), object: nil, queue: .main) { n in
             if let t = n.object as? String { Toast.show(t, good: !t.hasPrefix("Direct")) }      // test hook: --hear ... --toast
         }

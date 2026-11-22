@@ -59,5 +59,10 @@ if grep -nE 'styleButtonOn|toggleStyling|qStyle\\b' main.swift Settings.swift Me
 grep -q 'keepOrder: true' StyleChain.swift || { echo "FAIL: STYLE no longer tells the models to keep the order"; bad=1; }
 grep -q -- '--selftest' main.swift || { echo "FAIL: the STYLE self test is gone"; bad=1; }
 
+# v69 (Marko, 22.11.2026: "Some blob is coming up fixing ... This blob is so annoying"): the dictation app never repairs Tailscale
+# and never runs macroskill or a network tool; the relay watcher notices once per change (RelayWatch, tested in --selftest).
+grep -n 'macroskill\|tailscale-ensure-up' *.swift | grep -v '^[A-Za-z]*\.swift:[0-9]*: *//' && { echo "FAIL: macroskill / tailscale-ensure-up in the sources"; bad=1; }
+[ "$(grep -c 'Toast.show' Frankfurt.swift)" = 2 ] || { echo "FAIL: Frankfurt may toast only on a change (down, back): exactly two Toast.show"; bad=1; }
+
 [ $bad = 0 ] && echo "ok: no centre status window; bottom ellipse present; every window creation is on the list"
 exit $bad

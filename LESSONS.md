@@ -269,6 +269,9 @@ Poll the mouse (macOS draws a status item once per display, only one copy owns t
 - My TextEdit tests take the typing target: once his own dictation landed in the test box. Run them only when no take is near.
 
 
+## v69 (22.11.2026): the Tailscale fix blob
+- Cause: Frankfurt.reachable(force:true) ran every 20 s (MenuBar timer); a miss called fixTailscale() (once a minute at most) which ran `macroskill run tailscale-ensure-up` and ended in a toast "Tailscale fix failed: direct"; Tailscale being Stopped on his Mac since 21.11.2026 13:41 made every cycle miss. The macro clicks Tailscale's menu-bar icon with the real mouse: a dictation app must not do that by itself. Rule: a watcher shows a notice once per change of state, retries quietly with a growing pause, and never repairs what it does not own. A repair that cannot run (PATH) and still toasts its failure is the worst of both. Notices that repeat without a change of state are bugs: audit every Toast.show and timer.
+
 ## v66-v68 (22.11.2026): STYLE did nothing; round 1 scored 8 of 10 (write and UNDO never run in a real box; a dead STYLING switch still in the interface)
 - v68 changed: the STYLING switch and its menu item are gone; STYLE keeps sentence order (prompt rule + order check); price from the pricing page; the real-box proofs below.
 - One styling (Opus 5.5 at $4 per million input tokens and $20 per million output, from platform.claude.com/docs/en/about-claude/pricing read on 22.11.2026; real counts of a test call with the full STYLE prompt and a 21-word message: 787 input and 36 output tokens = $0.0039, or $0.0018 when the fixed rules come from the prompt cache). A longer message adds its tokens at those prices; Groq is free of this.

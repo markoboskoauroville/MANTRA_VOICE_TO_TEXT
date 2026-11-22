@@ -466,6 +466,7 @@ final class Stripe: NSObject {
 
     func listen() {
         if goPending { return }
+        DispatchQueue.global().async { Frankfurt.lookNow() }      // v69: a take starts: the relay is looked at now (quietly)
         AVCaptureDevice.requestAccess(for: .audio) { ok in
             DispatchQueue.main.async {
                 guard ok else { self.say("no microphone: System Settings → Privacy → Microphone", Ink.red); return }
@@ -1348,6 +1349,21 @@ if CommandLine.arguments.contains("--selftest") {
     let inside = Writer.withClipboard("STYLED") { pb.string(forType: .string) }
     t("clipboard: holds the text inside", inside == "STYLED")
     t("clipboard: put back exactly", pb.string(forType: .string) == "ORIGINAL-CLIPBOARD")
+    // the relay watcher: one notice per change, a growing pause, quiet retries
+    var w = RelayWatch(); let t0 = Date(); var toasts: [RelayWatch.Notice] = []
+    for (n, ok) in [true, false, false, false, false].enumerated() { let r = w.observe(ok: ok, now: t0.addingTimeInterval(Double(n) * 20)); if r.notice != .none { toasts.append(r.notice) } }
+    t("relay: up, down, down, down, down -> exactly one notice (down)", toasts == [.down])
+    let back = w.observe(ok: true, now: t0.addingTimeInterval(300)); t("relay: down, up -> one notice (back)", back.notice == .back)
+    var w2 = RelayWatch(); var n2 = 0
+    for i in 0..<10 { if w2.observe(ok: false, now: t0.addingTimeInterval(Double(i) * 60)).notice != .none { n2 += 1 } }
+    t("relay: down at launch and every check after -> no notice at all", n2 == 0)
+    var w3 = RelayWatch(); _ = w3.observe(ok: true, now: t0); let l1 = w3.observe(ok: false, now: t0.addingTimeInterval(20)); let l2 = w3.observe(ok: false, now: t0.addingTimeInterval(40))
+    t("relay: the log has a line for the change, none for a repeat", l1.log != nil && l2.log == nil)
+    var w4 = RelayWatch(); _ = w4.observe(ok: true, now: t0); _ = w4.observe(ok: false, now: t0.addingTimeInterval(20))
+    let sum = w4.observe(ok: false, now: t0.addingTimeInterval(3700))
+    t("relay: one summary line per hour while down", (sum.log ?? "").contains("still not reachable") && w4.observe(ok: false, now: t0.addingTimeInterval(3720)).log == nil)
+    t("relay: the pause grows 20 s, 1 min, 2 min, 5 min, then 15 min", [1, 2, 3, 4, 5, 9].map { RelayWatch.pause(up: false, misses: $0) } == [20, 60, 120, 300, 900, 900])
+    t("relay: the pause is 20 s while up", RelayWatch.pause(up: true, misses: 0) == 20)
     print(failed == 0 ? "selftest: all passed" : "selftest: \(failed) FAILED")
     exit(failed == 0 ? 0 : 1)
 }
