@@ -401,3 +401,8 @@ Meaning: "batteries" is his speech-to-text for Beatrice (Speechify beatrice_32, 
 **Status:** started; the centre TakeHUD oval goes (v63).
 
 **22.11.2026, v63 round 1 scored 7 of 10 by Fable; corrections for v64:** (1) test hook `com.mantra.voicetotext.indicator` gets userInfo `state` (recording|paused|transcribing) and `screen` (index); (2) prove paused and transcribing on the BenQ, recording and paused on the MacBook screen: window list + screenshots looked at, judge the looks, fix if weak; (3) CI pin gets an explicit list of Swift files allowed to create a window or panel, failing on a new one; (4) v64 by GitHub, install, quit via the app's own QUIT through AX else menu Quit through AX; (5) TAKEOVER top states v64, v62 paragraph under history, LESSONS round 1, README, skill, PROJECTS.md; (6) testclean, screenshots under vox64/.
+
+## 22.11.2026 (v65), Marko word for word
+> "Now this, what we call SpectralAnalyzer, needs to be on the screen when I'm entering the text. So where is the cursor? Blob comes to that screen."
+
+**Plan:** the ellipse goes to the screen of the text cursor: (a) insertion point bounds, (b) focused element frame, (c) focused window of the front app, (d) the mouse. Bottom centre as before; re-checked each tick; one log line per show/move; hook `screen` stays an override, otherwise the same rule; CI pins the focus resolver with the mouse last.
