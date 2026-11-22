@@ -464,7 +464,7 @@ final class PillFace: NSView {
         // buttons"): PAUSE and STYLE each in a place of its own, both always there; one that cannot act now is grey
         // v28 (Marko, 15.11.2026: "So there will be 2 selectors"): the TEXT selector beside the language, [———] [COR] [STY] [S+C]
         self.mode = BlobButton("textformat", NSRect(x: 166, y: 2, width: 46, height: 36), circle: nil, tint: white,
-                               tip: "What auto correct and STYLE do: ——— nothing, COR correction only, STY style only, S+C style and correction (click to change)", mode)
+                               tip: "What auto correct does to each new take: ——— nothing, COR correction only, STY style only, S+C style and correction (click to change). The STYLE button always styles", mode)
         self.mode.bracketed = true
         // v39 (Marko, 17.11.2026: "one drop down menu ... after Auto or before correction there will be engine menu ... starting
         // from the best to the worst"): the ENGINE selector between the language and the text mode; a press opens the list

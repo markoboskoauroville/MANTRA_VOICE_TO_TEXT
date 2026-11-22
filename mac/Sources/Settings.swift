@@ -71,7 +71,7 @@ final class SettingsWindow: NSObject, NSTextViewDelegate, NSTextFieldDelegate {
     var targetTimer: Timer?
     // v28 (Marko, 15.11.2026: "quick switches at the top, MAC switches ... telling me for correction and styling which model
     // are used"): above the tabs, always in sight
-    let qCorrect = NSSwitch(), qStyle = NSSwitch(), qFrankfurt = NSSwitch(), qTest = NSSwitch()
+    let qCorrect = NSSwitch(), qFrankfurt = NSSwitch(), qTest = NSSwitch()
     let qCorrectModel = NSPopUpButton(), qStyleModel = NSPopUpButton()
     let qDetail = NSTextField(labelWithString: "")
     let output = NSPopUpButton()                 // v28: OUTPUT, the speaker of Vox's own sounds
@@ -600,13 +600,13 @@ final class SettingsWindow: NSObject, NSTextViewDelegate, NSTextFieldDelegate {
             p.controlSize = .small; p.font = .systemFont(ofSize: 11)
         }
         qCorrectModel.setAccessibilityLabel("Correction model"); qStyleModel.setAccessibilityLabel("Styling model")
-        for (sw, id, label) in [(qCorrect, "quickCorrection", "Correction after each take"), (qStyle, "quickStyling", "Styling (the STYLE button)"),
+        for (sw, id, label) in [(qCorrect, "quickCorrection", "Correction after each take"),
                                 (qFrankfurt, "quickFrankfurt", "Frankfurt route")] {
             sw.target = self; sw.action = #selector(quickChanged(_:)); sw.controlSize = .small
             sw.setAccessibilityIdentifier(id); sw.setAccessibilityLabel(label)
         }
         qCorrect.toolTip = "Auto correct after each take, by this Claude (Anthropic), as the TEXT mode on the blob says"
-        qStyle.toolTip = "The STYLE button on the blob, by this Claude (Anthropic)"
+        qStyleModel.toolTip = "The STYLE button on the blob: this Claude first (Opus by default), then Groq if it does not answer"
         qFrankfurt.toolTip = "The cloud engines are called from the relay in Frankfurt (direct is the fallback)"
         qDetail.font = .systemFont(ofSize: 11); qDetail.textColor = Host.muted; qDetail.lineBreakMode = .byTruncatingTail
         qDetail.setAccessibilityIdentifier("quickModels")
@@ -635,7 +635,7 @@ final class SettingsWindow: NSObject, NSTextViewDelegate, NSTextFieldDelegate {
             let r = NSStackView(views: [sw, word(t)]); r.orientation = .horizontal; r.spacing = 6; r.alignment = .centerY; return r
         }
         let grid = NSGridView(views: [
-            [named(qCorrect, "CORRECTION"), qCorrectModel, named(qStyle, "STYLING"), qStyleModel, named(qFrankfurt, "FRANKFURT")],
+            [named(qCorrect, "CORRECTION"), qCorrectModel, word("STYLE BUTTON"), qStyleModel, named(qFrankfurt, "FRANKFURT")],
             [word("INPUT"), device, word("OUTPUT"), output, NSGridCell.emptyContentView],
         ])
         grid.rowSpacing = 4; grid.columnSpacing = 8
@@ -678,13 +678,11 @@ final class SettingsWindow: NSObject, NSTextViewDelegate, NSTextFieldDelegate {
         let shown = corr == .off ? (StyleEngine(rawValue: UserDefaults.standard.string(forKey: "styleLastOn") ?? "") ?? .haiku) : corr
         qCorrectModel.selectItem(at: StyleButtonEngine.choices.firstIndex(of: shown) ?? 0)
         qCorrectModel.isEnabled = corr != .off
-        qStyle.state = Prefs.styleButtonOn ? .on : .off
         qStyleModel.selectItem(at: StyleButtonEngine.choices.firstIndex(of: StyleButtonEngine.current) ?? 0)
-        qStyleModel.isEnabled = Prefs.styleButtonOn
         qFrankfurt.state = Frankfurt.on ? .on : .off
         let anth = keyText(.anthropic)
         qDetail.stringValue = "Correction: " + (corr == .off ? "off" : SettingsWindow.modelLine(corr)) +
-            "   ·   Styling: " + (Prefs.styleButtonOn ? SettingsWindow.modelLine(StyleButtonEngine.current) : "off") +
+            "   ·   STYLE button: " + SettingsWindow.modelLine(StyleButtonEngine.current) + ", then Groq" +
             "   ·   " + anth + "   ·   text mode " + TextMode.current.title
         qDetail.setAccessibilityValue(qDetail.stringValue)
     }
@@ -695,9 +693,6 @@ final class SettingsWindow: NSObject, NSTextViewDelegate, NSTextFieldDelegate {
             if sw === qCorrect {
                 StyleEngine.current = sw.state == .on ? engine(qCorrectModel) : .off
                 appendLog("quick: correction \(StyleEngine.current.title)")
-            } else if sw === qStyle {
-                Prefs.styleButtonOn = sw.state == .on
-                appendLog("quick: styling \(Prefs.styleButtonOn ? "on" : "off")")
             } else if sw === qFrankfurt {
                 frankfurtTick.state = sw.state; frankfurtChanged()
             }

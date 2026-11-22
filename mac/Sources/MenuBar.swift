@@ -54,7 +54,7 @@ final class MenuBar: NSObject, NSMenuDelegate {
         // (the same hearLang as the blob's [EN], with AUTO because the app has it) and the two quick switches of ⚙
         for (title, tag, sel) in [("English", 11, #selector(pickLang(_:))), ("Croatian", 12, #selector(pickLang(_:))),
                                   ("Auto (English and Croatian)", 13, #selector(pickLang(_:))),
-                                  ("Correction", 14, #selector(toggleCorrection)), ("Styling", 15, #selector(toggleStyling))] {
+                                  ("Correction", 14, #selector(toggleCorrection))] {
             if tag == 14 {
                 // v40 (Marko, 17.11.2026: the engine menu in the menu bar item's menu): an Engine submenu right after AUTO
                 let e = NSMenuItem(title: "Engine", action: nil, keyEquivalent: ""); e.tag = 16
@@ -88,7 +88,6 @@ final class MenuBar: NSObject, NSMenuDelegate {
             case 12: m.state = lang == "hr" ? .on : .off
             case 13: m.state = lang == "auto" ? .on : .off
             case 14: m.state = StyleEngine.current != .off ? .on : .off
-            case 15: m.state = Prefs.styleButtonOn ? .on : .off
             case 18: m.state = TypingSuggest.on ? .on : .off
             case 17: m.isHidden = !(stripe.unlanded && !stripe.lastText.isEmpty)      // v45
             case 16:       // v40: the Engine submenu, rebuilt for the language chosen now (HearEngine.setEngine on a pick)
@@ -164,11 +163,6 @@ final class MenuBar: NSObject, NSMenuDelegate {
         if StyleEngine.current != .off { StyleEngine.current = .off }
         else { StyleEngine.current = StyleEngine(rawValue: UserDefaults.standard.string(forKey: "styleLastOn") ?? "") ?? .haiku }
         appendLog("menu: correction \(StyleEngine.current.title)")
-        changed()
-    }
-    @objc func toggleStyling() {
-        Prefs.styleButtonOn.toggle()
-        appendLog("menu: styling \(Prefs.styleButtonOn ? "on" : "off")")
         changed()
     }
     @objc func toggleSuggestions() { TypingSuggest.on.toggle(); appendLog("menu: typing suggestions \(TypingSuggest.on ? "on" : "off")") }

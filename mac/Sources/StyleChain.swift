@@ -73,8 +73,22 @@ enum StyleChain {
             let wo = Set(words(o))
             let kept = Double(wi.filter { wo.contains($0) }.count) / Double(wi.count)
             if kept < 0.4 { return "not the same message (\(Int(kept * 100)) % of its words)" }
+            if discordance(wi, words(o)) > 0.15 { return "the sentences were reordered" }
         }
         return nil
+    }
+
+    /// v68: the share of pairs of the message's words (each first occurrence) that stand in the opposite order in the answer.
+    /// Merging, dropping fillers and splitting leave it near 0; a swapped sentence or block of sentences makes it large.
+    static func discordance(_ input: [String], _ output: [String]) -> Double {
+        var inFirst: [String: Int] = [:], outFirst: [String: Int] = [:]
+        for (n, w) in input.enumerated() where inFirst[w] == nil { inFirst[w] = n }
+        for (n, w) in output.enumerated() where outFirst[w] == nil { outFirst[w] = n }
+        let seq = inFirst.sorted { $0.value < $1.value }.compactMap { outFirst[$0.key] }      // output positions, in input order
+        guard seq.count >= 6 else { return 0 }
+        var bad = 0, all = 0
+        for a in 0..<seq.count { for b in (a + 1)..<seq.count { all += 1; if seq[b] < seq[a] { bad += 1 } } }
+        return Double(bad) / Double(all)
     }
 
     static func wrap(_ s: String) -> String { "<message>\n" + s + "\n</message>" }
@@ -87,7 +101,7 @@ enum StyleChain {
     /// Claude's family from Settings (Opus by default), then Groq
     static func steps(lang: String, mode: TextMode, first: StyleEngine) -> [Step] {
         [Step(name: first.title.replacingOccurrences(of: "Claude ", with: ""), seconds: 9) { text in
-                Claude.style(wrap(text), lang: lang, family: first.rawValue, mode: mode).map(unwrap).map(corrected).map(Style.noEmptyLines) },
+                Claude.style(wrap(text), lang: lang, family: first.rawValue, mode: mode, keepOrder: true).map(unwrap).map(corrected).map(Style.noEmptyLines) },
          Step(name: "Groq", seconds: 9) { text in
                 GroqStyle.style(wrap(text), lang: lang, mode: mode).map(unwrap).map(corrected).map(Style.noEmptyLines) }]
     }
@@ -125,7 +139,7 @@ enum GroqStyle {
     }
 
     static func style(_ text: String, lang: String, mode: TextMode) -> Result<String, EngineError> {
-        let s = Rules.system(lang: lang, mode: mode)
+        let s = Rules.system(lang: lang, mode: mode, keepOrder: true)
         return Ring.run(.groq) { key -> Ring.Outcome<String> in
             guard let model = model(key) else { return .fail(Failure(status: 401, body: "no Groq text model listed for this key", headers: [:])) }
             var body: [String: Any] = ["model": model, "temperature": 0.2, "max_completion_tokens": 3000,
