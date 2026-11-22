@@ -23,6 +23,8 @@ jobs:
       - name: Build
         working-directory: mac
         run: WHISPER="$RUNNER_TEMP/whisper.cpp" SIGN=- NO_INSTALL=1 ./build.sh --no-publish
+      - name: STYLE self test (fallback order, reading, clipboard)
+        run: '"mac/build/$APP.app/Contents/MacOS/"*' --selftest
       - name: Pack
         run: cd mac/build && ditto -c -k --keepParent "$APP.app" app.zip
       - name: Release (Latest)

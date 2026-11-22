@@ -4,6 +4,8 @@ Until v38 "Voice to Text (Mantra)" (renamed 17.11.2026, v39, at Marko's word: "V
 
 Until v1 "Mantra Voice to Text" (renamed 1.11.2026 at Marko's word, v2). Website https://mantravoicetotext.pages.dev, files on the public release markoboskoauroville/mantra-voice-to-text-downloads.
 
+**v66 (22.11.2026):** the STYLE button always styles the text box you are in: Claude Opus first, Groq second; the pill says who styled it, and the button becomes UNDO for 30 seconds.
+
 **v65 (22.11.2026):** the ellipse is on the screen of the text cursor (insertion point, else focused element, else focused window, the mouse only last) and follows it to the other screen.
 
 **v64 (22.11.2026):** test hook for the ellipse takes `state` (recording, paused, transcribing) and `screen`; the CI pin lists every file allowed to create a window.

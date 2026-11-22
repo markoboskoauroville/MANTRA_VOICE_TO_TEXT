@@ -307,27 +307,43 @@ enum Restyle {
         return f
     }
 
+    /// v66: what STYLE reads, as a pure decision (tested by --selftest): the selection if there is one, else the words typed last
+    /// when they are in this box, else its whole value; blank = empty; no value at all = unreadable (then ⌘A ⌘C is the last way)
+    enum ReadPlan: Equatable {
+        case selection(String), typedLast(String, NSRange), whole(String), empty, unreadable
+        static func decide(selected: String?, value: String?, lastTyped: String, lastIsThisBox: Bool) -> ReadPlan {
+            let blank = { (s: String) in s.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+            if let sel = selected, !blank(sel) { return .selection(sel) }
+            guard let v = value else { return .unreadable }
+            if blank(v) { return .empty }
+            if !blank(lastTyped), lastIsThisBox {
+                let n = (v as NSString).range(of: lastTyped, options: .backwards)
+                if n.location != NSNotFound { return .typedLast(lastTyped, n) }
+            }
+            return .whole(v)
+        }
+    }
+
     static func find(in field: AXUIElement, lastTyped: String) -> Found {
         AXUIElementSetMessagingTimeout(field, 0.6)
         let value = Typer.value(field)
-        let blank = { (s: String) in s.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
-        if let sel = attr(field, kAXSelectedTextAttribute) as? String, !blank(sel) {
+        let selected = attr(field, kAXSelectedTextAttribute) as? String
+        let isLast = Typer.lastField.map { CFEqual($0, field) } ?? false
+        switch ReadPlan.decide(selected: selected, value: value, lastTyped: lastTyped, lastIsThisBox: isLast) {
+        case .selection(let sel):
             var r = selectedRange(field)
             if r == nil || r!.length == 0, let v = value {     // a field that names the text but not its range
                 let n = (v as NSString).range(of: sel, options: .backwards)
                 r = n.location == NSNotFound ? nil : CFRange(location: n.location, length: n.length)
             }
             return .target(Target(field: field, range: r, text: sel, what: "the selection"))
+        case .unreadable: return .unreadable(role(field))
+        case .empty: return .empty(role(field))
+        case .typedLast(let t, let n):
+            return .target(Target(field: field, range: CFRange(location: n.location, length: n.length), text: t, what: "the words typed last"))
+        case .whole(let v):
+            return .target(Target(field: field, range: CFRange(location: 0, length: (v as NSString).length), text: v, what: "the whole box"))
         }
-        guard let v = value else { return .unreadable(role(field)) }
-        if blank(v) { return .empty(role(field)) }
-        if !blank(lastTyped), let last = Typer.lastField, CFEqual(last, field) {
-            let n = (v as NSString).range(of: lastTyped, options: .backwards)
-            if n.location != NSNotFound {
-                return .target(Target(field: field, range: CFRange(location: n.location, length: n.length), text: lastTyped, what: "the words typed last"))
-            }
-        }
-        return .target(Target(field: field, range: CFRange(location: 0, length: (v as NSString).length), text: v, what: "the whole box"))
     }
 
     /// replaced: read back in the field; believed: the field took it but cannot be read back; failed: nothing written

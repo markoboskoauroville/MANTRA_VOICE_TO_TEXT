@@ -269,6 +269,9 @@ Poll the mouse (macOS draws a status item once per display, only one copy owns t
 - My TextEdit tests take the typing target: once his own dictation landed in the test box. Run them only when no take is near.
 
 
+## v66 (22.11.2026): STYLE did nothing
+- Cause (22.11.2026): the STYLE press in main.swift stylePressed() returned early, with only a short line in the pill and nothing in the log, on two switches: the STYLING switch of the language (defaults styleButtonOn_en = 0 and styleButtonOn_hr = 0) and the text mode ——— (textMode_en = none, textMode_hr = none). He works in EN and HR, so every press was refused. The read half was fine: WhatsApp (the Mac app, net.whatsapp.WhatsApp, a Catalyst app) gives its box as an AXTextArea with a readable, settable AXValue, found by the click memory of TextTarget (the system focused element there is only an AXGroup iOSContentGroup); the model half works: both Anthropic keys answer claude-opus-5-5 with HTTP 200 and Groq lists openai/gpt-oss-120b. Lesson: a button press that is refused must say why in the log as well as in the pill; a deliberate press is never stopped by an automatic-correction switch; every refusal path ends in one function that logs. A model button needs a walk of two providers and a check that the answer is the same message, or a model answers the question inside the text.
+
 ## v65 (22.11.2026): the ellipse follows the text cursor
 - Marko: "this, what we call SpectralAnalyzer, needs to be on the screen when I'm entering the text. So where is the cursor? Blob comes to that screen." Screen = focus rules a to d (insertion point, element, window, mouse last). AX is top-left, AppKit bottom-left: y = primaryHeight - y - height; the primary screen is screens[0] even when it is the portrait BenQ. While Marko tests with real takes at the same moment, a real take overrides a hook state: wait for an idle log before photographing a hook state.
 

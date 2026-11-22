@@ -49,5 +49,13 @@ for r,want in cases:
 print("ok: AX to AppKit conversion places the 6 sample rectangles on the right screen of both layouts")
 PY
 
+# v66 (Marko, 22.11.2026: STYLE "nothing is happening"): STYLE cannot fail silently or stop on a switch, and never sends a message.
+grep -q 'appendLog("STYLE \\(ok ? "done" : "NOT done")' main.swift || { echo "FAIL: styleDone no longer logs every outcome (STYLE must never be silent)"; bad=1; }
+if grep -nE 'STYLING is switched off|nothing is changed; pick COR' main.swift; then echo "FAIL: STYLE refuses a press on a switch again (the v66 cause)"; bad=1; fi
+grep -q 'StyleChain.run(input, steps: StyleChain.steps' main.swift || { echo "FAIL: STYLE does not walk StyleChain (Opus, then Groq)"; bad=1; }
+grep -q 'Claude.style' StyleChain.swift && grep -q 'GroqStyle.style' StyleChain.swift || { echo "FAIL: StyleChain lost Claude or Groq"; bad=1; }
+if grep -nE 'kVK_Return|kVK_ANSI_KeypadEnter|keyCode: *36|CGKeyCode\(36\)|0x24' Hands.swift Target.swift main.swift StyleChain.swift; then echo "FAIL: a Return key in the STYLE code (it would send a message)"; bad=1; fi
+grep -q -- '--selftest' main.swift || { echo "FAIL: the STYLE self test is gone"; bad=1; }
+
 [ $bad = 0 ] && echo "ok: no centre status window; bottom ellipse present; every window creation is on the list"
 exit $bad
