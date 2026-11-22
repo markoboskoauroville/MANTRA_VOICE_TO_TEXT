@@ -21,6 +21,8 @@ final class RecordingIndicator {
     private var timer: Timer?
     private var shown = false
     private var testUntil: Date?
+    private var testState = "recording"      // v64 hook: recording | paused | transcribing
+    private var testScreen: Int?             // v64 hook: index in NSScreen.screens; nil = the screen with the mouse
     private var testSession: AVCaptureSession?
     private var testBands: MicBands?
 
@@ -68,19 +70,25 @@ final class RecordingIndicator {
     }
 
     private func tick() {
-        let taking = stripe.map { $0.recorder.recording && !$0.recorder.paused } ?? false
+        let taking0 = stripe.map { $0.recorder.recording && !$0.recorder.paused } ?? false
         // v63: the centre oval is gone; its Paused and Transcribing states live here, in the same ellipse
-        let paused = stripe.map { $0.recorder.recording && $0.recorder.paused } ?? false
-        let working = stripe.map { !$0.recorder.recording && $0.busy } ?? false
+        let paused0 = stripe.map { $0.recorder.recording && $0.recorder.paused } ?? false
+        let working0 = stripe.map { !$0.recorder.recording && $0.busy } ?? false
         let testing = testUntil.map { Date() < $0 } ?? false
         if testUntil != nil && !testing { endTest() }
-        if taking || testing {
-            if !shown { show(taking ? "take" : "hook") }
+        let taking = taking0 || (testing && testState == "recording")
+        let paused = paused0 || (testing && testState == "paused")
+        let working = working0 || (testing && testState == "transcribing")
+        if taking {
+            if !shown { show(taking0 ? "take" : "hook") }
             RecordingIndicator.lock.lock(); let db = RecordingIndicator.latest; RecordingIndicator.lock.unlock()
             view?.mode = 0; RecordingIndicator.live = true
             view?.take(db)
         } else if paused || working {
-            if !shown { show(paused ? "paused" : "transcribing") }
+            if !shown {
+                show(paused ? "paused" : "transcribing")
+                if paused && !paused0 { view?.demoShape() }      // hook only: a take that was talking before the pause
+            }
             view?.mode = paused ? 1 : 2          // 1: bars frozen and dimmed; 2: a quiet wave runs through the bars
             RecordingIndicator.live = false
             view?.take([])
@@ -88,7 +96,8 @@ final class RecordingIndicator {
     }
 
     private func show(_ why: String) {
-        let sc = NSScreen.screens.first { NSMouseInRect(NSEvent.mouseLocation, $0.frame, false) } ?? NSScreen.main ?? NSScreen.screens[0]
+        var sc = NSScreen.screens.first { NSMouseInRect(NSEvent.mouseLocation, $0.frame, false) } ?? NSScreen.main ?? NSScreen.screens[0]
+        if let i = testScreen, testUntil != nil, NSScreen.screens.indices.contains(i) { sc = NSScreen.screens[i] }
         let vf = sc.visibleFrame, w = RecordingIndicator.W, h = RecordingIndicator.H
         let r = NSRect(x: vf.midX - w / 2, y: vf.minY + 14, width: w, height: h)
         if panel == nil {
@@ -124,9 +133,16 @@ final class RecordingIndicator {
     }
 
     // MARK: test hook (no take): a temporary microphone session feeds the bars
-    func test(seconds: Double) {
+    func test(seconds: Double, state: String = "recording", screen: Int? = nil) {
         if stripe?.recorder.recording == true { appendLog("indicator test: a take is recording, the indicator is already up"); return }
         endTest()
+        if shown { hide() }
+        testState = state; testScreen = screen
+        if state != "recording" {          // paused / transcribing: no microphone needed
+            testUntil = Date().addingTimeInterval(seconds)
+            appendLog("indicator test: \(state) \(seconds) s screen \(screen.map(String.init) ?? "mouse")")
+            return
+        }
         guard let dev = InputDevice.current(), let input = try? AVCaptureDeviceInput(device: dev) else { appendLog("indicator test: no microphone"); return }
         let s = AVCaptureSession(), data = AVCaptureAudioDataOutput(), mb = MicBands()
         data.audioSettings = [AVFormatIDKey: kAudioFormatLinearPCM, AVNumberOfChannelsKey: 1, AVLinearPCMBitDepthKey: 32,
@@ -138,11 +154,11 @@ final class RecordingIndicator {
         s.startRunning()
         testSession = s; testBands = mb
         testUntil = Date().addingTimeInterval(seconds)
-        appendLog("indicator test: \(seconds) s")
+        appendLog("indicator test: recording \(seconds) s screen \(screen.map(String.init) ?? "mouse")")
     }
 
     private func endTest() {
-        testSession?.stopRunning(); testSession = nil; testBands = nil; testUntil = nil
+        testSession?.stopRunning(); testSession = nil; testBands = nil; testUntil = nil; testScreen = nil; testState = "recording"
     }
 }
 
@@ -150,6 +166,7 @@ final class BarsView: NSView {
     private var spec = [Double](repeating: -140, count: RecordingIndicator.bars)
     private var last = CFAbsoluteTimeGetCurrent()
     var mode = 0           // v63: 0 recording, 1 paused (frozen, dim), 2 transcribing (quiet moving wave)
+    func demoShape() { for c in 0..<spec.count { spec[c] = RecordingIndicator.TOP - RecordingIndicator.RANGE * (0.75 - 0.6 * abs(sin(Double(c) * 0.55))) } }
     func reset() { spec = [Double](repeating: -140, count: spec.count); last = CFAbsoluteTimeGetCurrent(); needsDisplay = true }
     func take(_ db: [Double]) {
         if mode == 1 { needsDisplay = true; return }

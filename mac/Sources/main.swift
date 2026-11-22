@@ -290,11 +290,14 @@ final class Stripe: NSObject {
             guard let self, let t = n.object as? String, !t.isEmpty else { return }
             self.lastText = t; self.notLanded("test: did not land")
         }
-        // v62 test hook: userInfo seconds shows the bottom indicator fed by the microphone, no take
+        // v62 test hook: userInfo seconds (+ state recording|paused|transcribing, screen index; v64) shows the bottom indicator, no take
         DistributedNotificationCenter.default().addObserver(forName: Notification.Name(prefix + ".indicator"), object: nil, queue: .main) { n in
             let v = n.userInfo?["seconds"]
             let secs = (v as? NSNumber)?.doubleValue ?? Double(v as? String ?? "") ?? 5
-            RecordingIndicator.shared.test(seconds: secs)
+            let st = n.userInfo?["state"] as? String ?? "recording"
+            let sv = n.userInfo?["screen"]
+            let sc = (sv as? NSNumber)?.intValue ?? Int(sv as? String ?? "")
+            RecordingIndicator.shared.test(seconds: secs, state: st, screen: sc)
         }
         DistributedNotificationCenter.default().addObserver(forName: Notification.Name(prefix + ".enginemenu"), object: nil, queue: .main) { [weak self] n in
             let secs = Double(n.object as? String ?? "") ?? 8

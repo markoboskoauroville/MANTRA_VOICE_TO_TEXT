@@ -129,3 +129,4 @@ Marko, for the MPA Lessons Analyzer: "I want to see this thing open up and it's 
 
 ## v63 (22.11.2026): no centre oval
 - Marko: "recording blob can go away. Something which is happening in the middle of the screen needs to go away." TakeHUD is deleted; the only indicator is RecordingIndicator (bottom ellipse; paused = frozen dim bars, transcribing = quiet wave). CI pin `.github/ci/no_centre_status.sh`. Never add a window in the middle of a screen.
+- v64 (22.11.2026): hook `com.mantra.voicetotext.indicator` userInfo `seconds`, `state` = recording|paused|transcribing (default recording; paused/transcribing need no mic), `screen` = NSScreen.screens index (default: the mouse's screen). Pin: `.github/ci/no_centre_status.sh` has an ALLOWED list of file=count window creations; a new window fails the build.
