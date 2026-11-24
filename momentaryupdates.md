@@ -425,3 +425,9 @@ Meaning: "batteries" is his speech-to-text for Beatrice (Speechify beatrice_32, 
 **Plan:** (1) find why the blob is gone (cause first), make it come back by itself when its saved place is off every screen, and make "Show the blob" always bring it visible and in front; (2) menu-bar commands Correct grammar, Correct style, Undo last correction on the selected text of the front app, in the language of the text, never translated; engine = the app's own Groq ring / Claude ring (no new keys); never Send.
 
 **24.11.2026, v70 tested, corrections for v71:** a remembered box of another app (TextEdit) was taken when Firefox was in front and its page box is not in the Accessibility tree: the commands now use only the box of the app in FRONT, and work "blind" (⌘C to read, ⌘V over the still-selected text, ⌘Z to undo) where Accessibility shows no text box; Groq's answers were refused for changed line breaks: blank lines it adds are collapsed, the refused answer is logged; style prompt asks for capitals and sentence punctuation.
+
+## 24.11.2026 (v72): input and output for the whole Mac (dictated; "walks to text" = Vox to Txt, "speak" = speaker)
+
+> "Please fix my system now. Nothing is working in my walks to text. When I'm in this talk mode, there is no audio coming to the talk mode. What's wrong? And in voice to text, want to have under sound ability to choose input and output, basically affecting the whole system right from that setting."
+
+> "In the talk mode, the same thing. Multiply the settings everywhere. Input, output. I want to see which devices are active. In talk mode as well. In the main user interface in front, I want to see microphone and speak"

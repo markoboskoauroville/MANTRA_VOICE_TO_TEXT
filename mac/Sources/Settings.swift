@@ -360,7 +360,10 @@ final class SettingsWindow: NSObject, NSTextViewDelegate, NSTextFieldDelegate {
         let keysTab: [NSView] = [label("API keys: read by themselves from ~/Downloads/API; no key is ever shown, only its number", bold: true),
                                  row([importButton, retestButton]), importResult, anthropicLabel,
                                  label("Route", bold: true), frankfurtTick, frankfurtNote]
-        var soundTab: [NSView] = [label("While listening", bold: true), duckTick]
+        // v72: the same lines in the Sound tab, with what they do
+        let systemNote = para("The microphone and the speaker of the whole Mac, as in System Settings, Sound: every app that follows the system (Vox, Talk Mode, the Voice Engine, Speechify, browsers) changes with them. Click a name to choose; virtual loops (BlackHole, NDI, Zoom, Iriun) are listed apart and asked again. UNDO goes back to the device before. Ableton Live keeps its own devices.")
+        var soundTab: [NSView] = [label("Microphone and speaker of the whole Mac", bold: true), SystemAudioView(fontSize: 14), systemNote,
+                                  label("While listening", bold: true), duckTick]
         soundTab.append(contentsOf: soundRows)
         let testTab: [NSView] = [label("Benchmark", bold: true), row([benchButton, benchNote]),
                                  label("TEST mode", bold: true), testTick, testField]
@@ -417,6 +420,15 @@ final class SettingsWindow: NSObject, NSTextViewDelegate, NSTextFieldDelegate {
         ])
         window.contentView = box
         showKeys()
+        // v72: the MICROPHONE level is measured only while this window is on screen (the microphone is not held otherwise)
+        for n in [NSWindow.didChangeOcclusionStateNotification, NSWindow.willCloseNotification, NSWindow.didMiniaturizeNotification] {
+            NotificationCenter.default.addObserver(forName: n, object: window, queue: .main) { [weak self] note in
+                guard let self else { return }
+                let seen = note.name != NSWindow.willCloseNotification && self.window.isVisible && !self.window.isMiniaturized
+                    && self.window.occlusionState.contains(.visible)
+                if seen { SystemAudioMeter.shared.start() } else { SystemAudioMeter.shared.stop() }
+            }
+        }
     }
 
     // The microphones macOS has now; "System default" follows whatever macOS uses.
@@ -636,7 +648,6 @@ final class SettingsWindow: NSObject, NSTextViewDelegate, NSTextFieldDelegate {
         }
         let grid = NSGridView(views: [
             [named(qCorrect, "CORRECTION"), qCorrectModel, word("STYLE BUTTON"), qStyleModel, named(qFrankfurt, "FRANKFURT")],
-            [word("INPUT"), device, word("OUTPUT"), output, NSGridCell.emptyContentView],
         ])
         grid.rowSpacing = 4; grid.columnSpacing = 8
         grid.rowAlignment = .none; grid.yPlacement = .center
@@ -645,7 +656,10 @@ final class SettingsWindow: NSObject, NSTextViewDelegate, NSTextFieldDelegate {
         grid.column(at: 2).leadingPadding = 10; grid.column(at: 4).leadingPadding = 10
         grid.column(at: 4).xPlacement = .leading
         for i in 0..<grid.numberOfRows { grid.row(at: i).height = 22 }
-        let col = NSStackView(views: [grid, qDetail]); col.orientation = .vertical; col.alignment = .leading; col.spacing = 4
+        // v72 (Marko, 24.11.2026: "I want to see which devices are active ... microphone and speak[er]"): the Mac's default input
+        // with its live level and the default output, always in sight; a click opens the picker, which sets them for every app
+        let audio = SystemAudioView(fontSize: 13)
+        let col = NSStackView(views: [grid, audio, qDetail]); col.orientation = .vertical; col.alignment = .leading; col.spacing = 4
         paintQuick()
         return col
     }

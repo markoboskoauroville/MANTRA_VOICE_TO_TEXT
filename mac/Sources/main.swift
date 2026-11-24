@@ -1163,6 +1163,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     // finished launching, and again a moment later.
     func applicationDidFinishLaunching(_ n: Notification) {
         TakeMark.set(false)          // v26: a mark left by a crash never holds the voice
+        // v72: the microphone and the speaker are the Mac's own (kit system-audio). The old per-app choices (INPUT pinned to the
+        // MacBook Pro Microphone, OUTPUT for Vox's sounds) go once, so Vox follows what the MICROPHONE and SPEAKER lines set.
+        if !UserDefaults.standard.bool(forKey: "followsSystemAudio72") {
+            let was = [UserDefaults.standard.string(forKey: "inputDevice"), UserDefaults.standard.string(forKey: "outputDevice")]
+            UserDefaults.standard.removeObject(forKey: "inputDevice"); UserDefaults.standard.removeObject(forKey: "outputDevice")
+            UserDefaults.standard.set(true, forKey: "followsSystemAudio72")
+            appendLog("v72: input and output follow the Mac's defaults now (were \(was.map { $0 ?? "system default" }.joined(separator: " / ")))")
+        }
+        SystemAudioLive.shared.onChange { inputChanged in
+            let l = SystemAudioLive.shared
+            appendLog(inputChanged ? "system input: \(l.input?.name ?? "none")" : "system output: \(l.output?.name ?? "none")")
+        }
         Exclusive.start()            // v16: Speechify closed at start; closes this app when Speechify opens
         Stats.seedOnce()             // v24: speed and quality in the engine names; the live test of 15.11.2026 goes in once
         Stats.seed28()               // v28: the engine test of 15.11.2026 (11 engines, 3 takes each)

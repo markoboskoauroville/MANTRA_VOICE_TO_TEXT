@@ -15,8 +15,12 @@ enum InputDevice {
     static func all() -> [AVCaptureDevice] {
         AVCaptureDevice.DiscoverySession(deviceTypes: [.microphone, .external], mediaType: .audio, position: .unspecified).devices
     }
+    /// v72 (Marko, 24.11.2026: "choose input and output, basically affecting the whole system"): Vox records from the Mac's
+    /// default input, set by the MICROPHONE line (kit system-audio) for every app. When the default is a loop (BlackHole, NDI...)
+    /// a take would be silence, so then the last real microphone is used (SystemAudio.realInputFallback), and the line says why.
     static func current() -> AVCaptureDevice? {
         if let id = chosenID, let d = all().first(where: { $0.uniqueID == id }) { return d }
+        if let real = SystemAudio.realInputFallback(), let d = AVCaptureDevice(uniqueID: real.uid) { return d }
         return AVCaptureDevice.default(for: .audio)
     }
 }
