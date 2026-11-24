@@ -404,8 +404,8 @@ final class SystemAudioMeter: NSObject, AVCaptureAudioDataOutputSampleBufferDele
 final class SystemAudioView: NSView {
     private let micTitle = NSTextField(labelWithString: "MICROPHONE")
     private let spkTitle = NSTextField(labelWithString: "SPEAKER")
-    private let micName = NSTextField(wrappingLabelWithString: "")
-    private let spkName = NSTextField(wrappingLabelWithString: "")
+    private let micName = SystemAudioNameField(wrappingLabelWithString: "")
+    private let spkName = SystemAudioNameField(wrappingLabelWithString: "")
     private let micWarn = NSTextField(wrappingLabelWithString: "")
     private let spkWarn = NSTextField(wrappingLabelWithString: "")
     private let status = NSTextField(wrappingLabelWithString: "")
@@ -419,7 +419,11 @@ final class SystemAudioView: NSView {
     init(fontSize: CGFloat = 13) {
         super.init(frame: .zero)
         let mono = NSFont.monospacedSystemFont(ofSize: fontSize - 2, weight: .bold)
-        for t in [micTitle, spkTitle] { t.font = mono; t.textColor = .secondaryLabelColor; t.setContentHuggingPriority(.required, for: .horizontal)
+        // the titles end on one line: both as wide as MICROPHONE (v72's first build cut it to "MICROPH")
+        let titleWidth = ceil(("MICROPHONE" as NSString).size(withAttributes: [.font: mono]).width) + 4
+        for t in [micTitle, spkTitle] { t.font = mono; t.textColor = .secondaryLabelColor; t.alignment = .right
+            t.translatesAutoresizingMaskIntoConstraints = false
+            t.widthAnchor.constraint(equalToConstant: titleWidth).isActive = true
             t.setContentCompressionResistancePriority(.required, for: .horizontal) }
         for (n, id) in [(micName, "system-input"), (spkName, "system-output")] {
             n.font = .systemFont(ofSize: fontSize, weight: .bold); n.textColor = .labelColor
@@ -455,10 +459,8 @@ final class SystemAudioView: NSView {
         addSubview(col)
         NSLayoutConstraint.activate([col.leadingAnchor.constraint(equalTo: leadingAnchor), col.trailingAnchor.constraint(lessThanOrEqualTo: trailingAnchor),
                                      col.topAnchor.constraint(equalTo: topAnchor), col.bottomAnchor.constraint(equalTo: bottomAnchor)])
-        // the titles end on one line
-        spkTitle.widthAnchor.constraint(equalTo: micTitle.widthAnchor).isActive = true
-        micName.addGestureRecognizer(NSClickGestureRecognizer(target: self, action: #selector(pickInput)))
-        spkName.addGestureRecognizer(NSClickGestureRecognizer(target: self, action: #selector(pickOutput)))
+        micName.onPress = { SystemAudio.popMenu(input: true) }
+        spkName.onPress = { SystemAudio.popMenu(input: false) }
         micTitle.addGestureRecognizer(NSClickGestureRecognizer(target: self, action: #selector(pickInput)))
         spkTitle.addGestureRecognizer(NSClickGestureRecognizer(target: self, action: #selector(pickOutput)))
         let live = SystemAudioLive.shared
@@ -493,6 +495,13 @@ final class SystemAudioView: NSView {
     @objc func pickOutput() { SystemAudio.popMenu(input: false) }
     @objc func undoInput() { SystemAudio.undo(input: true) }
     @objc func undoOutput() { SystemAudio.undo(input: false) }
+}
+
+/// a device name that is a button: a click (or Accessibility's press) opens its picker; the text wraps, never cut
+final class SystemAudioNameField: NSTextField {
+    var onPress: (() -> Void)?
+    override func mouseDown(with event: NSEvent) { onPress?() }
+    override func accessibilityPerformPress() -> Bool { onPress?(); return true }
 }
 
 /// a hairline level: green, orange above -12 dB, red above -3 dB, floor -60 dB; empty when not measured
