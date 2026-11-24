@@ -192,6 +192,8 @@ final class Stripe: NSObject {
             self.flipStrip()
             Place.save(self.panel)
         }
+        ensureOnScreen("launch")          // v70: a saved place on no screen (a turned display) is never kept
+        watchScreens()
         if Prefs.blobOpen { panel.orderFrontRegardless() } else { minimizedFrame = panel.frame; panel.orderOut(nil) }   // v61: closed by default
         RecordingIndicator.shared.start(self)   // v62: the small ellipse with a spectrum at the bottom while recording
         Magnet.shared.setup(self)         // v27: the display and the body may be detached; the state of the last run comes back
@@ -826,6 +828,7 @@ final class Stripe: NSObject {
         guard let f = minimizedFrame else { return }
         minimizedFrame = nil
         panel.setFrame(f, display: true)
+        ensureOnScreen("show")
         followTyping()
         NSApp.setActivationPolicy(.accessory)
         NSApp.unhideWithoutActivation()
@@ -898,7 +901,7 @@ final class Stripe: NSObject {
     var styleFlash: NSColor?
     private var styleToken = 0
 
-    private func styleDone(_ ok: Bool, _ text: String, tip: String? = nil) {
+    func styleDone(_ ok: Bool, _ text: String, tip: String? = nil) {
         styling = false
         appendLog("STYLE \(ok ? "done" : "NOT done"): \(text)")     // v66: never silent
         let c = ok ? Ink.green : Ink.red
@@ -916,7 +919,7 @@ final class Stripe: NSObject {
     }
 
     /// run work off the main thread and wait at most `secs` for it; nil when it did not finish (it is left to end alone)
-    private static func bounded<T>(_ secs: Double, _ work: @escaping () -> T) -> T? {
+    static func bounded<T>(_ secs: Double, _ work: @escaping () -> T) -> T? {
         var out: T? = nil
         let sem = DispatchSemaphore(value: 0)
         DispatchQueue.global().async { out = work(); sem.signal() }
@@ -1140,6 +1143,7 @@ final class Stripe: NSObject {
         guard let f = minimizedFrame else { return }
         minimizedFrame = nil
         panel.setFrame(f, display: true)
+        ensureOnScreen("restore")
         panel.orderFrontRegardless()
         NSApp.setActivationPolicy(.accessory)
     }
@@ -1321,6 +1325,20 @@ if CommandLine.arguments.contains("--selftest") {
     t("order: English, three sentences in order, accepted", StyleChain.check(en3, "This week we are working in the studio on the new song. Before the concert we need to fix the mixing desk. Please tell me when you can come on Friday.") == nil)
     t("order: English, three sentences reordered, refused", (StyleChain.check(en3, en3bad) ?? "").contains("reordered"))
     t("check: Croatian styled in Croatian is accepted", StyleChain.check(hr, "Mislim da bi se trebali naći u petak u studiju, jer treba popraviti miks pult prije koncerta.") == nil)
+    // v70: the menu commands' pure parts
+    t("detect: English", Correct.detect("I think we should meet on Friday at the studio please") == "en")
+    t("detect: Croatian", Correct.detect("Mislim da bi se trebali naći u petak u studiju jer je miks pult pokvaren") == "hr")
+    t("detect: mixed", Correct.detect("Mislim da bi se trebali naći u petak, but the mixer is broken and you know that it is not good") == "mixed")
+    t("tidy: tags, quotes and a preface come off", Correct.tidy("Here is the corrected text:\n\"Hello there, my friend.\"") == "Hello there, my friend.")
+    t("tidy: a code fence comes off", Correct.tidy("```\nHello there.\n```") == "Hello there.")
+    t("tidy: message tags come off", Correct.tidy("<message>\nHello there.\n</message>") == "Hello there.")
+    t("correct: grammar refuses changed line breaks", Correct.check("one line here is fine\nand a second line is here", "one line here is fine and a second line is here", .grammar) != nil)
+    t("correct: Croatian answered in English is refused", Correct.check(hr, "I think we should meet on Friday at the studio because the mixing desk needs repair before the concert.", .style) != nil)
+    t("correct: a grammar fix is accepted", Correct.check("i dont no what to do about the the mixer on friday", "I don't know what to do about the mixer on Friday.", .grammar) == nil)
+    let (crep, _) = Correct.process("  i dont no what to do about the the mixer on friday \n", .grammar, steps: [StyleChain.Step(name: "T", seconds: 1) { _ in .success("I don't know what to do about the mixer on Friday.") }], bound: { _, w in w() })
+    t("correct: white space around the selection is kept", crep.styled == "  I don't know what to do about the mixer on Friday. \n")
+    t("blob: a frame below the screen is not on screen", !Place.onScreen(NSRect(x: 692, y: -177, width: 554, height: 40), screens: [NSRect(x: 0, y: 0, width: 2560, height: 1440)]))
+    t("blob: a frame inside the screen is", Place.onScreen(NSRect(x: 692, y: 100, width: 554, height: 40), screens: [NSRect(x: 0, y: 0, width: 2560, height: 1440)]))
     // the walk, with mocked providers (no network)
     let now: StyleChain.Bound = { _, work in work() }
     func step(_ n: String, _ r: Result<String, EngineError>) -> StyleChain.Step { StyleChain.Step(name: n, seconds: 1) { _ in r } }
@@ -1366,6 +1384,16 @@ if CommandLine.arguments.contains("--selftest") {
     t("relay: the pause is 20 s while up", RelayWatch.pause(up: true, misses: 0) == 20)
     print(failed == 0 ? "selftest: all passed" : "selftest: \(failed) FAILED")
     exit(failed == 0 ? 0 : 1)
+}
+// v70: `--correct grammar|style "<text>"`: the menu commands' walk with the real providers, no box, no window
+if let i = CommandLine.arguments.firstIndex(of: "--correct"), i + 2 < CommandLine.arguments.count,
+   let kind = Correct.Kind(rawValue: CommandLine.arguments[i + 1]) {
+    let t0 = Date()
+    let (rep, lang) = Correct.process(CommandLine.arguments[i + 2], kind)
+    print("language:", lang)
+    for a in rep.attempts { print("attempt:", a) }
+    print(String(format: "%.1f s", Date().timeIntervalSince(t0)), rep.by.map { "by " + $0 + ":" } ?? "NOT corrected:", rep.styled ?? rep.failure ?? "")
+    exit(rep.styled == nil ? 1 : 0)
 }
 // v67: `--stylechain <lang> "<text>" [--groq-only | --opus-only]`: the STYLE button's walk with the real providers, no box, no window
 if let i = CommandLine.arguments.firstIndex(of: "--stylechain"), i + 2 < CommandLine.arguments.count {

@@ -418,3 +418,8 @@ Meaning: "batteries" is his speech-to-text for Beatrice (Speechify beatrice_32, 
 > "Also fix the problem with tail scale. This disturbs me. No. Stop. Some blob is coming up fixing. Something is fixing. Every few minutes fixing connection or something. This blob is so annoying. Why these connections cannot be constant and is nonstop dropping? What's going on with my tail scale, the bug tail scale?"
 
 **Plan:** remove the automatic Tailscale repair (it never worked: PATH); observe only; one notice per change of state; growing pause when down; log per change; CI pins; audit other repeating notices.
+
+## 24.11.2026 (v70), Marko word for word
+> "My application walks to text. It's not showing the blob anymore. When I go at the menu bar and I click show the blob, it's not showing. And I need new features, which is actually in menu bar to correct style and correct grammar for current selected text, for example, in the WhatsApp. So I can do it also from menu bar. I can click correct styling, correct grammar. And in the current language, it's going to do that for me."
+
+**Plan:** (1) find why the blob is gone (cause first), make it come back by itself when its saved place is off every screen, and make "Show the blob" always bring it visible and in front; (2) menu-bar commands Correct grammar, Correct style, Undo last correction on the selected text of the front app, in the language of the text, never translated; engine = the app's own Groq ring / Claude ring (no new keys); never Send.

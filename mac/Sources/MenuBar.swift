@@ -38,6 +38,10 @@ final class MenuBar: NSObject, NSMenuDelegate {
         RunLoop.main.add(c, forMode: .common); checkTimer = c
         DispatchQueue.global().async { _ = Frankfurt.reachable(force: true) }
         Frankfurt.watchNetwork()                         // v69: a network change is looked at at once
+        // test hook (v70): the menu commands without a mouse: object = grammar | style | undo
+        DistributedNotificationCenter.default().addObserver(forName: .init("com.mantra.voicetotext.correct"), object: nil, queue: .main) { n in
+            switch n.object as? String { case "grammar": stripe.runCorrection(.grammar); case "style": stripe.runCorrection(.style); case "undo": stripe.undoCorrection(); default: break }
+        }
         DistributedNotificationCenter.default().addObserver(forName: .init("com.mantra.voicetotext.toast"), object: nil, queue: .main) { n in
             if let t = n.object as? String { Toast.show(t, good: !t.hasPrefix("Direct")) }      // test hook: --hear ... --toast
         }
@@ -68,6 +72,12 @@ final class MenuBar: NSObject, NSMenuDelegate {
         // v51: typing suggestions on or off (the same switch as in Settings, Typing)
         let ts = NSMenuItem(title: "Typing suggestions", action: #selector(toggleSuggestions), keyEquivalent: ""); ts.target = self; ts.tag = 18; menu.addItem(ts)
         menu.addItem(.separator())
+        // v70 (Marko, 24.11.2026): correct the selected text of the front app, in its own language; the original comes back with Undo
+        for (title, tag, sel) in [("Correct grammar", 21, #selector(correctGrammar)), ("Correct style", 22, #selector(correctStyle)),
+                                  ("Undo last correction", 23, #selector(undoCorrection))] {
+            let m = NSMenuItem(title: title, action: sel, keyEquivalent: ""); m.target = self; m.tag = tag; menu.addItem(m)
+        }
+        menu.addItem(.separator())
         for (title, sel) in [("Show the blob", #selector(showBlob)), ("Settings…", #selector(settings))] {
             let m = NSMenuItem(title: title, action: sel, keyEquivalent: ""); m.target = self; menu.addItem(m)
         }
@@ -81,6 +91,15 @@ final class MenuBar: NSObject, NSMenuDelegate {
     }
 
     /// v24: the engines in use for English and Croatian, each with its median time and its stars
+    func menuWillOpen(_ menu: NSMenu) { Correct.capture() }       // v70: the selection of the front app, read before anything changes
+    func validateMenuItem(_ m: NSMenuItem) -> Bool {
+        if m.tag == 23 { return Correct.last != nil && !Correct.working }
+        if m.tag == 21 || m.tag == 22 { return !Correct.working }
+        return m.isEnabled
+    }
+    @objc func correctGrammar() { stripe.runCorrection(.grammar) }
+    @objc func correctStyle() { stripe.runCorrection(.style) }
+    @objc func undoCorrection() { stripe.undoCorrection() }
     func menuNeedsUpdate(_ menu: NSMenu) {
         let lang = HearEngine.current.lang
         for m in menu.items {
@@ -99,7 +118,7 @@ final class MenuBar: NSObject, NSMenuDelegate {
             default: break
             }
         }
-        if let m = menu.items.first(where: { $0.action == #selector(showBlob) }) { m.title = stripe.minimizedFrame == nil && stripe.panel.isVisible ? "Hide the blob" : "Show the blob" }
+        if let m = menu.items.first(where: { $0.action == #selector(showBlob) }) { m.title = stripe.blobShown ? "Hide the blob" : "Show the blob" }
         for m in menu.items where m.tag == 1 || m.tag == 2 {
             let l = m.tag == 1 ? "en" : "hr"
             let id = UserDefaults.standard.string(forKey: "engine_" + l) ?? "assemblyai"
@@ -110,7 +129,7 @@ final class MenuBar: NSObject, NSMenuDelegate {
     func follow() {
         let r = stripe.recorder
         let secs = Int(r.elapsed)
-        show(r.recording ? (r.paused ? .paused(secs) : .recording(secs)) : stripe.busy ? .processing : .idle)
+        show(r.recording ? (r.paused ? .paused(secs) : .recording(secs)) : (stripe.busy || Correct.working) ? .processing : .idle)
     }
 
     func show(_ s: State) {
@@ -146,8 +165,8 @@ final class MenuBar: NSObject, NSMenuDelegate {
     }
 
     @objc func showBlob() {
-        if stripe.minimizedFrame == nil && stripe.panel.isVisible { stripe.pinned = false; Prefs.blobOpen = false; stripe.minimizeStripe() }
-        else { Prefs.blobOpen = true; stripe.showQuietly(); stripe.panel.orderFrontRegardless() }
+        if stripe.blobShown { stripe.pinned = false; Prefs.blobOpen = false; stripe.minimizeStripe() }
+        else { stripe.bringBlob() }                // v70: visible, opaque, on a screen, in front, whatever state it was in
     }
     /// everything that shows the choice follows at once: the blob, the status text, ⚙
     private func changed() {
