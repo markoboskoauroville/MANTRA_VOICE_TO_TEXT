@@ -64,7 +64,7 @@ enum Correct {
             """
         case .style: return """
             You are a copy editor. Make the text read well: clear, natural sentences, no repetition, no filler. Keep the SAME language, the same voice and register (formal stays formal, casual stays casual), \
-            the same meaning and every fact. Add no content, add or remove no emojis, never make it longer than needed, keep the order of the sentences. Fix obvious errors on the way. \(common)
+            the same meaning and every fact. Add no content, add or remove no emojis, never make it longer than needed, keep the order of the sentences. Fix obvious errors on the way: every sentence starts with a capital letter and ends with its punctuation. \(common)
             """
         }
     }
@@ -142,7 +142,7 @@ enum Correct {
         let li = detect(input), lo = detect(output)
         if (li == "hr" || li == "en") && (lo == "hr" || lo == "en") && li != lo { return "another language" }
         if kind == .grammar {
-            let nl = { (s: String) in s.filter { $0 == "\n" }.count }
+            let nl = { (s: String) in s.split(separator: "\n", omittingEmptySubsequences: true).count }
             if nl(input.trimmingCharacters(in: .whitespacesAndNewlines)) != nl(output.trimmingCharacters(in: .whitespacesAndNewlines)) { return "line breaks changed" }
             let r = Double(output.count) / Double(max(input.count, 1))
             if input.count > 30 && (r > 1.25 || r < 0.75) { return "length changed too much for a grammar fix" }
@@ -158,7 +158,11 @@ enum Correct {
         let st = steps ?? Correct.steps(kind, lang: lang, length: core.count)
         // StyleChain.check is applied inside run(); the extra checks wrap each step
         let wrapped = st.map { s in StyleChain.Step(name: s.name, seconds: s.seconds) { input in
-            s.run(input).flatMap { out in check(input, out, kind).map { .failure(EngineError("answer refused (\($0))")) } ?? .success(out) }
+            s.run(input).flatMap { raw in
+                var out = raw
+                if !input.contains("\n\n") { out = out.replacingOccurrences(of: "\n{2,}", with: "\n", options: .regularExpression) }
+                return check(input, out, kind).map { .failure(EngineError("answer refused (\($0)): " + String(raw.prefix(160)).replacingOccurrences(of: "\n", with: "⏎"))) } ?? .success(out)
+            }
         } }
         var rep = StyleChain.run(core, steps: wrapped, bound: bound)
         if let s = rep.styled { rep.styled = lead + s + trail }
@@ -167,7 +171,22 @@ enum Correct {
 
     // MARK: the selection of the app that was in front
 
-    struct Snap { let box: TextTarget.Box; let text: String?; let range: CFRange?; let app: String; let at: Date }
+    struct Snap { let element: AXUIElement; let pid: pid_t; let text: String?; let range: CFRange?; let app: String; let blind: Bool; let at: Date }
+
+    /// the box of the app in FRONT (never a remembered box of another app); an app whose text boxes Accessibility does not show
+    /// (Firefox pages) gives its focused element or window and works "blind": ⌘C to read, ⌘V over the still-selected text to write
+    static func front() -> (element: AXUIElement, pid: pid_t, app: String, blind: Bool)? {
+        var fr = NSWorkspace.shared.frontmostApplication
+        if fr?.processIdentifier == getpid() { fr = TextTarget.shared.last.flatMap { NSRunningApplication(processIdentifier: $0.pid) } }
+        guard let f = fr, f.processIdentifier != getpid() else { return nil }
+        let name = f.localizedName ?? "the front app"
+        if let b = TextTarget.shared.resolve(), b.pid == f.processIdentifier { return (b.element, b.pid, b.app, false) }
+        TextTarget.wakeAccessibility(f.processIdentifier)
+        let ax = AXUIElementCreateApplication(f.processIdentifier)
+        AXUIElementSetMessagingTimeout(ax, 0.6)
+        if let e = TextTarget.element(TextTarget.attr(ax, kAXFocusedUIElementAttribute)) { return (e, f.processIdentifier, name, !TextTarget.isEditable(e, role: TextTarget.role(e))) }
+        return (ax, f.processIdentifier, name, true)
+    }
     private static var snap: Snap?
     private static var snapDone = DispatchSemaphore(value: 1)
 
@@ -177,12 +196,12 @@ enum Correct {
         _ = snapDone.wait(timeout: .now() + 0.01)
         DispatchQueue.global(qos: .userInitiated).async {
             defer { snapDone.signal() }
-            guard let b = TextTarget.shared.resolve() else { return }
+            guard let b = front() else { return }
             AXUIElementSetMessagingTimeout(b.element, 0.6)
             var sel = TextTarget.attr(b.element, kAXSelectedTextAttribute) as? String
             if sel?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ?? true { sel = nil }
             let r = sel == nil ? nil : Restyle.selectedRange(b.element)
-            lock.lock(); snap = Snap(box: b, text: sel, range: (r?.length ?? 0) > 0 ? r : nil, app: b.app, at: Date()); lock.unlock()
+            lock.lock(); snap = Snap(element: b.element, pid: b.pid, text: sel, range: (r?.length ?? 0) > 0 ? r : nil, app: b.app, blind: b.blind, at: Date()); lock.unlock()
         }
     }
 
@@ -200,7 +219,7 @@ enum Correct {
 
     // MARK: undo
 
-    struct Done { let field: AXUIElement; let original: String; let corrected: String; let app: String; let kind: Kind }
+    struct Done { let field: AXUIElement; let original: String; let corrected: String; let app: String; let kind: Kind; let blind: Bool; let pid: pid_t }
     static var last: Done?
 
     static func plain(_ s: String) -> String { s.trimmingCharacters(in: .whitespacesAndNewlines) }
@@ -226,21 +245,23 @@ extension Stripe {
             guard let self else { return }
             // 1. the selection: taken when the menu opened; else read now; else ⌘C
             var snap = Correct.takeSnap()
-            if snap == nil || snap!.text == nil, let b = snap?.box ?? TextTarget.shared.resolve() {
+            if let f = NSWorkspace.shared.frontmostApplication, f.processIdentifier != getpid(), let s0 = snap, s0.pid != f.processIdentifier { snap = nil }   // the menu opened over another app
+            let known: (element: AXUIElement, pid: pid_t, app: String, blind: Bool)? = snap.map { (element: $0.element, pid: $0.pid, app: $0.app, blind: $0.blind) }
+            if snap == nil || snap!.text == nil, let b = known ?? Correct.front() {
                 AXUIElementSetMessagingTimeout(b.element, 0.6)
                 if let s = TextTarget.attr(b.element, kAXSelectedTextAttribute) as? String, !Correct.plain(s).isEmpty {
                     let r = Restyle.selectedRange(b.element)
-                    snap = Correct.Snap(box: b, text: s, range: (r?.length ?? 0) > 0 ? r : nil, app: b.app, at: Date())
+                    snap = Correct.Snap(element: b.element, pid: b.pid, text: s, range: (r?.length ?? 0) > 0 ? r : nil, app: b.app, blind: b.blind, at: Date())
                 } else if let s = Correct.copySelection(b.element), !Correct.plain(s).isEmpty {
                     appendLog("correct: selection read by ⌘C in \(b.app)")
-                    snap = Correct.Snap(box: b, text: s, range: nil, app: b.app, at: Date())
-                } else { snap = Correct.Snap(box: b, text: nil, range: nil, app: b.app, at: Date()) }
+                    snap = Correct.Snap(element: b.element, pid: b.pid, text: s, range: nil, app: b.app, blind: true, at: Date())
+                } else { snap = Correct.Snap(element: b.element, pid: b.pid, text: nil, range: nil, app: b.app, blind: b.blind, at: Date()) }
             }
             guard let sn = snap, let text = sn.text else {
-                DispatchQueue.main.async { self.correctDone(false, snap == nil ? "\(kind.title): no text box found (click into the box and select the text)" : "\(kind.title): nothing is selected (select the text first)") }
+                DispatchQueue.main.async { self.correctDone(false, snap == nil ? "\(kind.title): no app with a text box in front (click into the box and select the text)" : "\(kind.title): nothing is selected (select the text first)") }
                 return
             }
-            if Writer.isTerminal(sn.box.element) { DispatchQueue.main.async { self.correctDone(false, "\(kind.title) does not write into a terminal") }; return }
+            if Writer.isTerminal(sn.element) { DispatchQueue.main.async { self.correctDone(false, "\(kind.title) does not write into a terminal") }; return }
             if text.count > Correct.limit {
                 DispatchQueue.main.async { self.correctDone(false, "\(kind.title): the selection is \(text.count) characters, the limit is \(Correct.limit): select a part") }; return
             }
@@ -254,13 +275,13 @@ extension Stripe {
             }
             if Correct.plain(out) == Correct.plain(text) { DispatchQueue.main.async { self.correctDone(true, "\(kind.title): nothing to change · \(by)") }; return }
             // 3. written in place, the selection replaced
-            let target = Restyle.Target(field: sn.box.element, range: sn.range, text: text, what: "the selection")
+            let target = Restyle.Target(field: sn.element, range: sn.range, text: text, what: "the selection")
             let w = Stripe.bounded(5) { Restyle.write(out, to: target) } ?? .failed
             DispatchQueue.main.async {
-                appendLog("CORRECT (\(kind.rawValue), \(lang), \(by)) in \(sn.app) \(Restyle.role(sn.box.element)): \(w)\n  before: \(text)\n  after:  \(out)")
+                appendLog("CORRECT (\(kind.rawValue), \(lang), \(by)) in \(sn.app) \(Restyle.role(sn.element)): \(w)\n  before: \(text)\n  after:  \(out)")
                 switch w {
                 case .replaced, .believed:
-                    Correct.last = Correct.Done(field: sn.box.element, original: text, corrected: out, app: sn.app, kind: kind)
+                    Correct.last = Correct.Done(field: sn.element, original: text, corrected: out, app: sn.app, kind: kind, blind: sn.blind || sn.range == nil, pid: sn.pid)
                     self.lastText = out
                     self.correctDone(true, "\(kind.done) by \(by) in \(sn.app), \(words) words · menu: Undo last correction")
                 case .failed:
@@ -281,6 +302,17 @@ extension Stripe {
         Correct.working = true
         say("Undo last correction…", Ink.amber)
         DispatchQueue.global(qos: .userInitiated).async {
+            // a box that cannot be read back (a Firefox page): the paste just made is undone by the app's own ⌘Z, only if that app is in front
+            if u.blind, Typer.value(u.field) == nil {
+                let ok = NSWorkspace.shared.frontmostApplication?.processIdentifier == u.pid && Writer.keys(u.field, kVK_ANSI_Z)
+                usleep(300_000)
+                DispatchQueue.main.async {
+                    appendLog("CORRECT undo: ⌘Z \(ok)")
+                    if ok { Correct.last = nil; self.correctDone(true, "undone with ⌘Z in \(u.app): the original is back") }
+                    else { self.toClipboard(u.original); self.correctDone(false, "Undo: \(u.app) is not in front: the original is on the clipboard, ⌘V") }
+                }
+                return
+            }
             var t = Restyle.Target(field: u.field, range: nil, text: u.corrected, what: "the words typed last")
             if let v = Typer.value(u.field) {
                 let n = (v as NSString).range(of: Correct.plain(u.corrected), options: .backwards)
