@@ -1,5 +1,11 @@
 # Lessons
 
+## v70-v71 (24.11.2026): the blob below the glass, corrections from the menu bar
+- A saved window place must be checked against the screens that exist NOW, at every restore and every screen change. A turned display left a place 177 pt below the BenQ; "visible" for AppKit is not "on a screen". The menu label must come from the real state.
+- A remembered text box of another app is a trap for a command that acts on "the selection": use the box of the front app only. Firefox shows no text box in Accessibility until the page is clicked: have a blind way (⌘C / ⌘V) and say so.
+- Models obey a "keep the line breaks" prompt only mostly: collapse the blank lines they add, refuse real changes, and log the refused answer (the first Groq refusal was invisible until the reason carried the text).
+- v70 compiled and passed the selftest on the first run; the live test found the front-app bug, so a second version (v71) was needed: a pushed number is never reused.
+
 ## v60 (21.11.2026): ducking and the end sound
 - Never restore the ducked speakers before the end sound: v57 and v58 called Duck.up in endListening and again in recorder.stop, so the music was back at full level under the beep and Marko did not hear it. The end sound plays while still ducked, then a pause, then a smooth ramp.
 - One owner for the duck: Duck.hold blocks every other Duck.up during the end sequence; down() cancels a running ramp. Only quit and launch force a restore.
