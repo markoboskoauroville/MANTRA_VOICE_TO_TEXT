@@ -295,3 +295,9 @@ Poll the mouse (macOS draws a status item once per display, only one copy owns t
 
 ## v62 (21.11.2026): the bottom ellipse
 - The spectrum reuses MicBands' sample ring (feed from captureOutput); the hook needs its own temporary AVCaptureSession because MicBands only runs while a take records. Screenshot test: `say` through the speakers into the microphone, `screencapture -R` on the bottom centre of the screen with the mouse (the primary screen is the BenQ, 1440x2560, bottom = y 2560 in screencapture coordinates). The indicator goes to the screen with the mouse pointer.
+
+## v72-v73 (24.11.2026): one chooser for the whole Mac
+- A per-app microphone pin hides the system's state: Vox was pinned to the MacBook Pro Microphone while the Mac's default input was BlackHole and then the RØDE; nobody could see which device each app used. One kit (system-audio) sets the macOS default and every app shows it live.
+- Two labels made equal width by a constraint shrank MICROPHONE to "MICROPH": give both titles the measured width of the longer word.
+- A label with a click gesture recogniser cannot be pressed by Accessibility: a small NSTextField subclass with mouseDown and accessibilityPerformPress serves the mouse and the tests.
+- The --settings-shot off-screen render draws the window without its dark appearance and without labels; the real window captured by its window id (screencapture -l) is the proof.
