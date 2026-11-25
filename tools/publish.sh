@@ -12,7 +12,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 REPO=markoboskoauroville/mantra-voice-to-text-downloads
-SITE=https://mantravoicetotext.pages.dev
+SITE=https://voicetotext.markobosko.org
 V=$(grep -E '^let appVersion' mac/Sources/Engines.swift | grep -oE '[0-9]+')
 WV=$(grep -oE '<InformationalVersion>[0-9]+' windows/src/*.csproj | grep -oE '[0-9]+$')
 [ "$V" = "$WV" ] || { echo "version differs: Mac $V, Windows $WV (windows/src/*.csproj): make them the same first"; exit 1; }

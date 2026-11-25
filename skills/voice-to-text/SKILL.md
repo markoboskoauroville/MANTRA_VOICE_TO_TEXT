@@ -61,7 +61,7 @@ Marko, for the MPA Lessons Analyzer: "I want to see this thing open up and it's 
 - v17/v18: accuracy benchmark (12 English sentences via :8837/render; `--bench`, "Benchmark engines" button); two-column Settings, Croatian H and English E, radio per language, % in parentheses. English: Deepgram 88, Groq large-v3 87, AssemblyAI 87. Croatian still TTT's 9.11.2026 figures (no Croatian clips yet). Scoring has no number normalisation ("23" vs "twenty three"), so all % are a little low.
 - v19: no-key cards readable. The status strip flips below the pill when the blob is in the upper half.
 - Traps: `--settings-shot` offscreen renders show false white areas, check the real window with `screencapture -l`. Swift refuses `var a = "", b = "" { didSet }` (cost a build). A version number once pushed is never reused. Open test windows on the MacBook screen, not the BenQ.
-- The site mantravoicetotext.pages.dev is deployed from the Mac with `site/deploy.sh` after copying the release's app.zip to mac/dist/VoiceToTextMantra-v<N>-mac.zip (no compile). Done for v19 on 14.11.2026 (it showed 6).
+- The site voicetotext.markobosko.org is deployed from the Mac with `site/deploy.sh` after copying the release's app.zip to mac/dist/VoiceToTextMantra-v<N>-mac.zip (no compile). Done for v19 on 14.11.2026 (it showed 6).
 - Run log: 14.11.2026, v16-v19 built by GitHub, installed, Marko confirmed; site deployed v19.
 - Run log: 21.11.2026, v62 bottom ellipse with spectrum built by GitHub (run 44907562969), hook-tested, site deployed v62; waiting for Marko's F1 test and the centre-oval decision.
 - Run log: 21.11.2026, v62 bottom ellipse with spectrum built by GitHub (run 44907562969), hook-tested, site deployed v62; waiting for Marko's F1 test and the centre-oval decision.

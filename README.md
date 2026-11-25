@@ -2,7 +2,7 @@
 
 Until v38 "Voice to Text (Mantra)" (renamed 17.11.2026, v39, at Marko's word: "Vox to Txt"). Bundle id, data folder (Application Support/Voice to Text (Mantra)), log, :8865 API and the GitHub repo are unchanged.
 
-Until v1 "Mantra Voice to Text" (renamed 1.11.2026 at Marko's word, v2). Website https://mantravoicetotext.pages.dev, files on the public release markoboskoauroville/mantra-voice-to-text-downloads.
+Until v1 "Mantra Voice to Text" (renamed 1.11.2026 at Marko's word, v2). Website https://voicetotext.markobosko.org, files on the public release markoboskoauroville/mantra-voice-to-text-downloads.
 
 **v69 (22.11.2026):** the Frankfurt relay is only observed: one notice when it goes down and one when it is back, a growing pause while it is down, no Tailscale repair.
 

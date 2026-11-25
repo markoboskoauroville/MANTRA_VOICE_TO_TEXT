@@ -232,7 +232,7 @@ Proven: Mac Croatian take after the folder move (model not downloaded again); Wi
 ## Downloads always the newest (1.11.2026)
 
 MANTRA_MANIFEST modules/download-always-latest.md. The buttons' addresses carry no version and are never edited again:
-- Mac: `https://mantravoicetotext.pages.dev/download/VoiceToText-mac.zip` (hosted on the page, about 2 MB)
+- Mac: `https://voicetotext.markobosko.org/download/VoiceToText-mac.zip` (hosted on the page, about 2 MB)
 - Windows: `https://github.com/markoboskoauroville/mantra-voice-to-text-downloads/releases/latest/download/VoiceToText-win-x64.zip`
   and `.../VoiceToText-win-arm64.zip` (public downloads repo; over Pages' 25 MB limit)
 
@@ -286,4 +286,4 @@ Marko: "with all my apps on the menu bar, make a comprehensive pop-up menu. When
 
 ## History: older state paragraphs
 
-**v62 state, 21.11.2026 (superseded by v63/v64: the centre oval is deleted).** Waiting for Marko: (1) press F1, talk, watch the bottom ellipse, say if the bars move too little or too much (not proven with a real take, nor on the MacBook screen); (2) decide about v61's TakeHUD centre oval, which now shows together with the new ellipse: remove, keep, or keep only for Transcribing. Site mantravoicetotext.pages.dev deployed showing v62 with the indicator picture.
+**v62 state, 21.11.2026 (superseded by v63/v64: the centre oval is deleted).** Waiting for Marko: (1) press F1, talk, watch the bottom ellipse, say if the bars move too little or too much (not proven with a real take, nor on the MacBook screen); (2) decide about v61's TakeHUD centre oval, which now shows together with the new ellipse: remove, keep, or keep only for Transcribing. Site voicetotext.markobosko.org deployed showing v62 with the indicator picture.
